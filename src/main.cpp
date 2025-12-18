@@ -195,6 +195,20 @@ void setup() {
 
 void loop() {
     static uint32_t last_network_push_ms = 0;
+    static uint32_t ap_start_ms = 0;
+    static bool ap_shutdown_complete = false;
+    
+    // Record AP start time on first loop
+    if (ap_start_ms == 0) {
+        ap_start_ms = millis();
+    }
+    
+    // Shutdown AP after 90 seconds
+    if (!ap_shutdown_complete && (millis() - ap_start_ms >= 90000)) {
+        WebServerManager::instance().disableAP();
+        ap_shutdown_complete = true;
+        Serial.println("[WiFi] AP disabled after 90 seconds");
+    }
 
     if (UIBuilder::instance().consumeDirtyFlag()) {
         lvgl_port_lock(-1);

@@ -235,3 +235,9 @@ WifiStatusSnapshot WebServerManager::getStatusSnapshot() const {
     snapshot.sta_connected = sta_connected_;
     return snapshot;
 }
+
+void WebServerManager::disableAP() {
+    Serial.println("[WebServer] Disabling Access Point");
+    WiFi.softAPdisconnect(true);
+    ap_ip_ = IPAddress(0, 0, 0, 0);
+}

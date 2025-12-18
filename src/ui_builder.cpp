@@ -172,25 +172,28 @@ void UIBuilder::createBaseScreen() {
     lv_obj_set_pos(header_clock_label_, 720, 25);
     lv_obj_set_style_text_font(header_clock_label_, &lv_font_montserrat_16, 0);
     updateClock();  // Set initial time
-    
-    // Info button (top-right corner, subtle)
-    header_info_btn_ = lv_btn_create(header_bar_);
-    lv_obj_set_size(header_info_btn_, 32, 32);
-    lv_obj_set_pos(header_info_btn_, 680, 19);
-    lv_obj_set_style_bg_color(header_info_btn_, lv_color_hex(0x3A3A3A), 0);
-    lv_obj_set_style_bg_opa(header_info_btn_, LV_OPA_60, 0);
-    lv_obj_set_style_radius(header_info_btn_, 16, 0);
-    lv_obj_set_style_border_width(header_info_btn_, 0, 0);
-    lv_obj_add_event_cb(header_info_btn_, infoButtonEvent, LV_EVENT_CLICKED, nullptr);
-    
-    lv_obj_t* info_label = lv_label_create(header_info_btn_);
-    lv_label_set_text(info_label, LV_SYMBOL_SETTINGS);
-    lv_obj_set_style_text_font(info_label, &lv_font_montserrat_14, 0);
-    lv_obj_set_style_text_color(info_label, lv_color_hex(0xAAAAAA), 0);
-    lv_obj_center(info_label);
 
     // Create info modal (hidden by default)
     createInfoModal();
+    
+    // Floating settings button (bottom-right corner, always on top)
+    settings_fab_ = lv_btn_create(base_screen_);
+    lv_obj_set_size(settings_fab_, 50, 50);
+    lv_obj_align(settings_fab_, LV_ALIGN_BOTTOM_RIGHT, -10, -10);
+    lv_obj_set_style_radius(settings_fab_, 25, 0);  // Circular button
+    lv_obj_set_style_bg_color(settings_fab_, lv_color_hex(0x505050), 0);
+    lv_obj_set_style_bg_opa(settings_fab_, LV_OPA_80, 0);
+    lv_obj_set_style_border_width(settings_fab_, 0, 0);
+    lv_obj_set_style_shadow_width(settings_fab_, 10, 0);
+    lv_obj_set_style_shadow_color(settings_fab_, lv_color_hex(0x000000), 0);
+    lv_obj_add_event_cb(settings_fab_, settingsButtonEvent, LV_EVENT_CLICKED, nullptr);
+    lv_obj_move_foreground(settings_fab_);  // Ensure it's always on top
+    
+    lv_obj_t* settings_icon = lv_label_create(settings_fab_);
+    lv_label_set_text(settings_icon, LV_SYMBOL_SETTINGS);
+    lv_obj_set_style_text_font(settings_icon, &lv_font_montserrat_20, 0);
+    lv_obj_set_style_text_color(settings_icon, lv_color_hex(0xFFFFFF), 0);
+    lv_obj_center(settings_icon);
 
     content_root_ = lv_obj_create(base_screen_);
     lv_obj_set_size(content_root_, 800, 410);
@@ -572,28 +575,40 @@ void UIBuilder::updateHeaderBranding() {
         return;
     }
 
+    Serial.printf("[UI] Logo config - show_logo: %d, logo_variant: '%s'\n", 
+                  config_->header.show_logo, 
+                  config_->header.logo_variant.c_str());
+    
     if (config_->header.show_logo) {
         // Use built-in logo from logo_variant
         if (const lv_img_dsc_t* logo = iconForId(config_->header.logo_variant)) {
+            Serial.printf("[UI] Setting logo image source for variant: %s\n", config_->header.logo_variant.c_str());
             lv_img_set_src(header_logo_img_, logo);
             lv_obj_clear_flag(header_logo_img_, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_invalidate(header_logo_img_);  // Force redraw
         } else {
+            Serial.printf("[UI] No logo found for variant: %s\n", config_->header.logo_variant.c_str());
             lv_obj_add_flag(header_logo_img_, LV_OBJ_FLAG_HIDDEN);
         }
     } else {
+        Serial.println("[UI] Logo disabled in config");
         lv_obj_add_flag(header_logo_img_, LV_OBJ_FLAG_HIDDEN);
     }
 }
 
 const lv_img_dsc_t* UIBuilder::iconForId(const std::string& id) const {
+    Serial.printf("[UI] iconForId called with id: '%s'\n", id.c_str());
     if (id.empty() || id == "none") {
+        Serial.println("[UI] ID is empty or 'none', returning nullptr");
         return nullptr;
     }
     for (const auto& entry : kIconEntries) {
         if (id == entry.id) {
+            Serial.printf("[UI] Found matching icon entry for: %s\n", id.c_str());
             return entry.img;
         }
     }
+    Serial.printf("[UI] No matching icon found for: %s\n", id.c_str());
     return nullptr;
 }
 
@@ -621,7 +636,7 @@ void UIBuilder::createInfoModal() {
 
     // Modal content box - larger to fit time controls
     info_modal_ = lv_obj_create(info_modal_bg_);
-    lv_obj_set_size(info_modal_, 500, 320);
+    lv_obj_set_size(info_modal_, 550, 400);
     lv_obj_center(info_modal_);
     lv_obj_set_style_bg_color(info_modal_, lv_color_hex(0x2A2A2A), 0);
     lv_obj_set_style_bg_opa(info_modal_, LV_OPA_COVER, 0);
@@ -649,41 +664,80 @@ void UIBuilder::createInfoModal() {
     lv_obj_set_style_text_color(ip_label, lv_color_hex(0xFFFFFF), 0);
     lv_obj_set_style_text_opa(ip_label, LV_OPA_COVER, 0);
     lv_label_set_long_mode(ip_label, LV_LABEL_LONG_WRAP);
-    lv_obj_set_width(ip_label, 450);
+    lv_obj_set_width(ip_label, 500);
     lv_obj_set_user_data(info_modal_, ip_label);
 
     // Time adjustment section
-    lv_obj_t* time_label = lv_label_create(info_modal_);
-    lv_label_set_text(time_label, "Manual Time Adjustment:");
-    lv_obj_set_style_text_font(time_label, &lv_font_montserrat_16, 0);
-    lv_obj_set_style_text_color(time_label, lv_color_hex(0xCCCCCC), 0);
-    lv_obj_set_style_pad_top(time_label, UITheme::SPACE_SM, 0);
+    lv_obj_t* time_section_label = lv_label_create(info_modal_);
+    lv_label_set_text(time_section_label, "Manual Time Adjustment:");
+    lv_obj_set_style_text_font(time_section_label, &lv_font_montserrat_16, 0);
+    lv_obj_set_style_text_color(time_section_label, lv_color_hex(0xCCCCCC), 0);
+    lv_obj_set_style_pad_top(time_section_label, UITheme::SPACE_SM, 0);
 
-    // Time adjustment buttons container
-    lv_obj_t* time_btns = lv_obj_create(info_modal_);
-    lv_obj_remove_style_all(time_btns);
-    lv_obj_set_size(time_btns, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
-    lv_obj_set_flex_flow(time_btns, LV_FLEX_FLOW_ROW);
-    lv_obj_set_flex_align(time_btns, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
-    lv_obj_set_style_pad_gap(time_btns, UITheme::SPACE_SM, 0);
+    // Current time display
+    info_modal_time_label_ = lv_label_create(info_modal_);
+    lv_label_set_text(info_modal_time_label_, "12:00 AM");
+    lv_obj_set_style_text_font(info_modal_time_label_, &lv_font_montserrat_32, 0);
+    lv_obj_set_style_text_color(info_modal_time_label_, lv_color_hex(0xFFFFFF), 0);
+    lv_obj_set_style_text_opa(info_modal_time_label_, LV_OPA_COVER, 0);
 
-    // Time down button (-1 hour)
-    lv_obj_t* time_down = lv_btn_create(time_btns);
-    lv_obj_set_size(time_down, 100, 50);
-    lv_obj_set_style_bg_color(time_down, lv_color_hex(0x555555), 0);
-    lv_obj_add_event_cb(time_down, timeDownEvent, LV_EVENT_CLICKED, nullptr);
-    lv_obj_t* down_lbl = lv_label_create(time_down);
-    lv_label_set_text(down_lbl, "- 1h");
-    lv_obj_center(down_lbl);
+    // Hour adjustment row
+    lv_obj_t* hour_label = lv_label_create(info_modal_);
+    lv_label_set_text(hour_label, "Hours:");
+    lv_obj_set_style_text_font(hour_label, &lv_font_montserrat_14, 0);
+    lv_obj_set_style_text_color(hour_label, lv_color_hex(0xAAAAAA), 0);
 
-    // Time up button (+1 hour)
-    lv_obj_t* time_up = lv_btn_create(time_btns);
-    lv_obj_set_size(time_up, 100, 50);
-    lv_obj_set_style_bg_color(time_up, lv_color_hex(0x555555), 0);
-    lv_obj_add_event_cb(time_up, timeUpEvent, LV_EVENT_CLICKED, nullptr);
-    lv_obj_t* up_lbl = lv_label_create(time_up);
-    lv_label_set_text(up_lbl, "+ 1h");
-    lv_obj_center(up_lbl);
+    lv_obj_t* hour_btns = lv_obj_create(info_modal_);
+    lv_obj_remove_style_all(hour_btns);
+    lv_obj_set_size(hour_btns, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+    lv_obj_set_flex_flow(hour_btns, LV_FLEX_FLOW_ROW);
+    lv_obj_set_flex_align(hour_btns, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_set_style_pad_gap(hour_btns, UITheme::SPACE_SM, 0);
+
+    lv_obj_t* hour_down = lv_btn_create(hour_btns);
+    lv_obj_set_size(hour_down, 100, 50);
+    lv_obj_set_style_bg_color(hour_down, lv_color_hex(0x555555), 0);
+    lv_obj_add_event_cb(hour_down, timeDownEvent, LV_EVENT_CLICKED, nullptr);
+    lv_obj_t* hour_down_lbl = lv_label_create(hour_down);
+    lv_label_set_text(hour_down_lbl, "- 1h");
+    lv_obj_center(hour_down_lbl);
+
+    lv_obj_t* hour_up = lv_btn_create(hour_btns);
+    lv_obj_set_size(hour_up, 100, 50);
+    lv_obj_set_style_bg_color(hour_up, lv_color_hex(0x555555), 0);
+    lv_obj_add_event_cb(hour_up, timeUpEvent, LV_EVENT_CLICKED, nullptr);
+    lv_obj_t* hour_up_lbl = lv_label_create(hour_up);
+    lv_label_set_text(hour_up_lbl, "+ 1h");
+    lv_obj_center(hour_up_lbl);
+
+    // Minute adjustment row
+    lv_obj_t* minute_label = lv_label_create(info_modal_);
+    lv_label_set_text(minute_label, "Minutes:");
+    lv_obj_set_style_text_font(minute_label, &lv_font_montserrat_14, 0);
+    lv_obj_set_style_text_color(minute_label, lv_color_hex(0xAAAAAA), 0);
+
+    lv_obj_t* minute_btns = lv_obj_create(info_modal_);
+    lv_obj_remove_style_all(minute_btns);
+    lv_obj_set_size(minute_btns, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+    lv_obj_set_flex_flow(minute_btns, LV_FLEX_FLOW_ROW);
+    lv_obj_set_flex_align(minute_btns, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_set_style_pad_gap(minute_btns, UITheme::SPACE_SM, 0);
+
+    lv_obj_t* minute_down = lv_btn_create(minute_btns);
+    lv_obj_set_size(minute_down, 100, 50);
+    lv_obj_set_style_bg_color(minute_down, lv_color_hex(0x555555), 0);
+    lv_obj_add_event_cb(minute_down, timeDownMinuteEvent, LV_EVENT_CLICKED, nullptr);
+    lv_obj_t* minute_down_lbl = lv_label_create(minute_down);
+    lv_label_set_text(minute_down_lbl, "- 1m");
+    lv_obj_center(minute_down_lbl);
+
+    lv_obj_t* minute_up = lv_btn_create(minute_btns);
+    lv_obj_set_size(minute_up, 100, 50);
+    lv_obj_set_style_bg_color(minute_up, lv_color_hex(0x555555), 0);
+    lv_obj_add_event_cb(minute_up, timeUpMinuteEvent, LV_EVENT_CLICKED, nullptr);
+    lv_obj_t* minute_up_lbl = lv_label_create(minute_up);
+    lv_label_set_text(minute_up_lbl, "+ 1m");
+    lv_obj_center(minute_up_lbl);
 
     // Close button
     lv_obj_t* close_btn = lv_btn_create(info_modal_);
@@ -719,6 +773,9 @@ void UIBuilder::showInfoModal() {
 
     lv_obj_move_foreground(info_modal_bg_);  // Ensure modal is on top layer
     lv_obj_clear_flag(info_modal_bg_, LV_OBJ_FLAG_HIDDEN);
+    
+    // Update time display in modal
+    updateInfoModalTime();
 }
 
 void UIBuilder::hideInfoModal() {
@@ -742,6 +799,8 @@ void UIBuilder::updateClock() {
     char time_str[16];
     if (timeinfo.tm_year > (2020 - 1900)) {
         // Valid time - convert to 12-hour format
+        Serial.printf("[UI] Using NTP time: year=%d, hour=%d, min=%d, offset=%d\n", 
+                      timeinfo.tm_year + 1900, timeinfo.tm_hour, timeinfo.tm_min, time_offset_seconds_);
         int hour = timeinfo.tm_hour;
         const char* ampm = "AM";
         if (hour == 0) {
@@ -754,23 +813,68 @@ void UIBuilder::updateClock() {
         }
         snprintf(time_str, sizeof(time_str), "%d:%02d %s", hour, timeinfo.tm_min, ampm);
     } else {
-        // Fallback: show uptime in 12-hour format
-        unsigned long seconds = millis() / 1000;
-        unsigned long minutes = (seconds / 60) % 60;
-        unsigned long hours = (seconds / 3600) % 24;
+        // Fallback: show uptime + offset in 12-hour format
+        unsigned long total_seconds = (millis() / 1000) + time_offset_seconds_;
+        unsigned long minutes = (total_seconds / 60) % 60;
+        unsigned long hours = (total_seconds / 3600) % 24;
+        Serial.printf("[UI] Using uptime fallback: millis=%lu, offset=%d, total_sec=%lu, hour=%lu\n", 
+                      millis()/1000, time_offset_seconds_, total_seconds, hours);
         const char* ampm = (hours < 12) ? "AM" : "PM";
         int hour12 = (hours % 12);
         if (hour12 == 0) hour12 = 12;
         snprintf(time_str, sizeof(time_str), "%d:%02lu %s", hour12, minutes, ampm);
     }
+    Serial.printf("[UI] Clock display: %s\n", time_str);
     lv_label_set_text(header_clock_label_, time_str);
+    lv_obj_invalidate(header_clock_label_);  // Force redraw
 }
 
-void UIBuilder::infoButtonEvent(lv_event_t* e) {
+void UIBuilder::settingsButtonEvent(lv_event_t* e) {
     if (lv_event_get_code(e) != LV_EVENT_CLICKED) {
         return;
     }
+    Serial.println("[UI] Settings button clicked - showing settings modal");
     UIBuilder::instance().showInfoModal();
+}
+
+void UIBuilder::updateInfoModalTime() {
+    if (!info_modal_time_label_) {
+        return;
+    }
+    
+    // Get current time with offset
+    time_t now;
+    time(&now);
+    now += time_offset_seconds_;
+    struct tm timeinfo;
+    localtime_r(&now, &timeinfo);
+    
+    char time_str[16];
+    if (timeinfo.tm_year > (2020 - 1900)) {
+        // Valid time - convert to 12-hour format
+        int hour = timeinfo.tm_hour;
+        const char* ampm = "AM";
+        if (hour == 0) {
+            hour = 12;
+        } else if (hour == 12) {
+            ampm = "PM";
+        } else if (hour > 12) {
+            hour -= 12;
+            ampm = "PM";
+        }
+        snprintf(time_str, sizeof(time_str), "%d:%02d %s", hour, timeinfo.tm_min, ampm);
+    } else {
+        // Fallback: show uptime + offset
+        unsigned long total_seconds = (millis() / 1000) + time_offset_seconds_;
+        unsigned long minutes = (total_seconds / 60) % 60;
+        unsigned long hours = (total_seconds / 3600) % 24;
+        const char* ampm = (hours < 12) ? "AM" : "PM";
+        int hour12 = (hours % 12);
+        if (hour12 == 0) hour12 = 12;
+        snprintf(time_str, sizeof(time_str), "%d:%02lu %s", hour12, minutes, ampm);
+    }
+    
+    lv_label_set_text(info_modal_time_label_, time_str);
 }
 
 void UIBuilder::timeUpEvent(lv_event_t* e) {
@@ -782,6 +886,7 @@ void UIBuilder::timeUpEvent(lv_event_t* e) {
                   UIBuilder::instance().time_offset_seconds_, 
                   UIBuilder::instance().time_offset_seconds_ / 3600);
     UIBuilder::instance().updateClock();
+    UIBuilder::instance().updateInfoModalTime();
 }
 
 void UIBuilder::timeDownEvent(lv_event_t* e) {
@@ -793,6 +898,29 @@ void UIBuilder::timeDownEvent(lv_event_t* e) {
                   UIBuilder::instance().time_offset_seconds_, 
                   UIBuilder::instance().time_offset_seconds_ / 3600);
     UIBuilder::instance().updateClock();
+    UIBuilder::instance().updateInfoModalTime();
+}
+
+void UIBuilder::timeUpMinuteEvent(lv_event_t* e) {
+    if (lv_event_get_code(e) != LV_EVENT_CLICKED) {
+        return;
+    }
+    UIBuilder::instance().time_offset_seconds_ += 60;  // +1 minute
+    Serial.printf("[UI] Time offset increased by 1 minute to %d seconds\n", 
+                  UIBuilder::instance().time_offset_seconds_);
+    UIBuilder::instance().updateClock();
+    UIBuilder::instance().updateInfoModalTime();
+}
+
+void UIBuilder::timeDownMinuteEvent(lv_event_t* e) {
+    if (lv_event_get_code(e) != LV_EVENT_CLICKED) {
+        return;
+    }
+    UIBuilder::instance().time_offset_seconds_ -= 60;  // -1 minute
+    Serial.printf("[UI] Time offset decreased by 1 minute to %d seconds\n", 
+                  UIBuilder::instance().time_offset_seconds_);
+    UIBuilder::instance().updateClock();
+    UIBuilder::instance().updateInfoModalTime();
 }
 
 void UIBuilder::infoModalCloseEvent(lv_event_t* e) {

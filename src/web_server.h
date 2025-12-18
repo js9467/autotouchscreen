@@ -16,6 +16,7 @@ public:
     void begin();
     void loop();
     void notifyConfigChanged();
+    void disableAP();
     WifiStatusSnapshot getStatusSnapshot() const;
 
 private:
