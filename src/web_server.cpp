@@ -1,0 +1,237 @@
+#include "web_server.h"
+
+#include <Arduino.h>
+#include <ArduinoJson.h>
+#include <AsyncJson.h>
+#include <cstddef>
+
+#include "config_manager.h"
+#include "ui_builder.h"
+#include "web_interface.h"
+
+namespace {
+const IPAddress kApIp(192, 168, 4, 250);
+const IPAddress kApGateway(192, 168, 4, 250);
+const IPAddress kApMask(255, 255, 255, 0);
+constexpr std::size_t kConfigJsonLimit = 16384;
+constexpr std::size_t kWifiConnectJsonLimit = 1024;
+
+const char* AuthModeToString(wifi_auth_mode_t mode) {
+    switch (mode) {
+        case WIFI_AUTH_OPEN: return "open";
+        case WIFI_AUTH_WEP: return "wep";
+        case WIFI_AUTH_WPA_PSK: return "wpa";
+        case WIFI_AUTH_WPA2_PSK: return "wpa2";
+        case WIFI_AUTH_WPA_WPA2_PSK: return "wpa_wpa2";
+        case WIFI_AUTH_WPA2_ENTERPRISE: return "wpa2_enterprise";
+        case WIFI_AUTH_WPA3_PSK: return "wpa3";
+        case WIFI_AUTH_WPA2_WPA3_PSK: return "wpa2_wpa3";
+        case WIFI_AUTH_WAPI_PSK: return "wapi";
+        default: return "unknown";
+    }
+}
+}
+
+WebServerManager& WebServerManager::instance() {
+    static WebServerManager server;
+    return server;
+}
+
+WebServerManager::WebServerManager()
+    : server_(80) {}
+
+void WebServerManager::begin() {
+    if (!events_registered_) {
+        WiFi.onEvent([this](WiFiEvent_t event, WiFiEventInfo_t info) {
+            if (event == ARDUINO_EVENT_WIFI_STA_GOT_IP) {
+                sta_connected_ = true;
+                sta_ip_ = WiFi.localIP();
+                Serial.printf("[WebServer] Station connected: %s\n", sta_ip_.toString().c_str());
+            } else if (event == ARDUINO_EVENT_WIFI_STA_DISCONNECTED) {
+                sta_connected_ = false;
+                sta_ip_ = IPAddress(0, 0, 0, 0);
+                Serial.println("[WebServer] Station disconnected");
+            }
+        });
+        events_registered_ = true;
+    }
+
+    configureWifi();
+    setupRoutes();
+    server_.begin();
+    Serial.println("[WebServer] HTTP server started on port 80");
+}
+
+void WebServerManager::loop() {
+    // AsyncWebServer handles everything internally
+}
+
+void WebServerManager::notifyConfigChanged() {
+    configureWifi();
+}
+
+void WebServerManager::configureWifi() {
+    const auto& wifi = ConfigManager::instance().getConfig().wifi;
+    WiFi.mode(WIFI_MODE_APSTA);
+
+    if (wifi.ap.enabled) {
+        const char* password = nullptr;
+        if (wifi.ap.password.length() >= 8) {
+            password = wifi.ap.password.c_str();
+        }
+        WiFi.softAPdisconnect(true);
+        if (!WiFi.softAPConfig(kApIp, kApGateway, kApMask)) {
+            Serial.println("[WebServer] Failed to set AP IP config");
+        }
+        if (!WiFi.softAP(wifi.ap.ssid.c_str(), password)) {
+            Serial.println("[WebServer] Failed to start access point");
+        }
+        ap_ip_ = WiFi.softAPIP();
+        Serial.printf("[WebServer] AP ready at %s\n", ap_ip_.toString().c_str());
+    } else {
+        WiFi.softAPdisconnect(true);
+        ap_ip_ = IPAddress(0, 0, 0, 0);
+    }
+
+    if (wifi.sta.enabled && !wifi.sta.ssid.empty()) {
+        Serial.printf("[WebServer] Connecting to %s...\n", wifi.sta.ssid.c_str());
+        sta_connected_ = false;
+        WiFi.begin(wifi.sta.ssid.c_str(), wifi.sta.password.c_str());
+    } else {
+        WiFi.disconnect(true);
+        sta_connected_ = false;
+        sta_ip_ = IPAddress(0, 0, 0, 0);
+    }
+}
+
+void WebServerManager::setupRoutes() {
+    server_.on("/", HTTP_GET, [](AsyncWebServerRequest* request) {
+        request->send_P(200, "text/html", WEB_INTERFACE_HTML);
+    });
+
+    server_.on("/api/status", HTTP_GET, [this](AsyncWebServerRequest* request) {
+        DynamicJsonDocument doc(256);
+        doc["ap_ip"] = ap_ip_.toString();
+        doc["sta_ip"] = sta_ip_.toString();
+        doc["sta_connected"] = sta_connected_;
+        doc["uptime_ms"] = millis();
+        doc["heap"] = ESP.getFreeHeap();
+        String payload;
+        serializeJson(doc, payload);
+        request->send(200, "application/json", payload);
+    });
+
+    server_.on("/api/config", HTTP_GET, [](AsyncWebServerRequest* request) {
+        std::string json = ConfigManager::instance().toJson();
+        String payload(json.c_str());
+        request->send(200, "application/json", payload);
+    });
+
+    auto* handler = new AsyncCallbackJsonWebHandler("/api/config",
+        [this](AsyncWebServerRequest* request, JsonVariant& json) {
+            std::string error;
+            if (!ConfigManager::instance().updateFromJson(json.as<JsonVariantConst>(), error)) {
+                DynamicJsonDocument doc(256);
+                doc["status"] = "error";
+                doc["message"] = error.c_str();
+                String payload;
+                serializeJson(doc, payload);
+                request->send(400, "application/json", payload);
+                return;
+            }
+
+            if (!ConfigManager::instance().save()) {
+                request->send(500, "application/json", "{\"status\":\"error\",\"message\":\"Failed to persist\"}");
+                return;
+            }
+
+            UIBuilder::instance().markDirty();
+            notifyConfigChanged();
+
+            DynamicJsonDocument doc(64);
+            doc["status"] = "ok";
+            String payload;
+            serializeJson(doc, payload);
+            request->send(200, "application/json", payload);
+        }, kConfigJsonLimit);
+    server_.addHandler(handler);
+
+    auto* wifi_handler = new AsyncCallbackJsonWebHandler("/api/wifi/connect",
+        [this](AsyncWebServerRequest* request, JsonVariant& json) {
+            String ssid = json["ssid"] | "";
+            String password = json["password"] | "";
+            bool persist = json["persist"] | true;
+
+            if (ssid.isEmpty()) {
+                DynamicJsonDocument doc(128);
+                doc["status"] = "error";
+                doc["message"] = "SSID is required";
+                String payload;
+                serializeJson(doc, payload);
+                request->send(400, "application/json", payload);
+                return;
+            }
+
+            auto& cfg = ConfigManager::instance().getConfig();
+            cfg.wifi.sta.enabled = true;
+            cfg.wifi.sta.ssid = ssid.c_str();
+            cfg.wifi.sta.password = password.c_str();
+
+            if (persist && !ConfigManager::instance().save()) {
+                request->send(500, "application/json", "{\"status\":\"error\",\"message\":\"Failed to persist\"}");
+                return;
+            }
+
+            notifyConfigChanged();
+
+            DynamicJsonDocument doc(160);
+            doc["status"] = "connecting";
+            doc["ssid"] = cfg.wifi.sta.ssid.c_str();
+            String payload;
+            serializeJson(doc, payload);
+            request->send(200, "application/json", payload);
+        }, kWifiConnectJsonLimit);
+    server_.addHandler(wifi_handler);
+
+    server_.on("/api/wifi/scan", HTTP_GET, [](AsyncWebServerRequest* request) {
+        const int16_t count = WiFi.scanNetworks(/*async=*/false, /*show_hidden=*/true);
+        if (count < 0) {
+            request->send(500, "application/json", "{\"status\":\"error\",\"message\":\"Scan failed\"}");
+            return;
+        }
+
+        DynamicJsonDocument doc(4096);
+        doc["status"] = "ok";
+        doc["count"] = count;
+        JsonArray networks = doc.createNestedArray("networks");
+        for (int16_t i = 0; i < count; ++i) {
+            const String ssid = WiFi.SSID(i);
+            JsonObject entry = networks.createNestedObject();
+            entry["ssid"] = ssid;
+            entry["rssi"] = WiFi.RSSI(i);
+            entry["channel"] = WiFi.channel(i);
+            entry["bssid"] = WiFi.BSSIDstr(i);
+            const wifi_auth_mode_t auth = WiFi.encryptionType(i);
+            entry["secure"] = auth != WIFI_AUTH_OPEN;
+            entry["auth"] = AuthModeToString(auth);
+            entry["hidden"] = ssid.isEmpty();
+        }
+        WiFi.scanDelete();
+
+        String payload;
+        serializeJson(doc, payload);
+        request->send(200, "application/json", payload);
+    });
+
+    server_.onNotFound([](AsyncWebServerRequest* request) {
+        request->send(404, "application/json", "{\"error\":\"Not found\"}");
+    });
+}
+
+WifiStatusSnapshot WebServerManager::getStatusSnapshot() const {
+    WifiStatusSnapshot snapshot;
+    snapshot.ap_ip = ap_ip_;
+    snapshot.sta_ip = sta_ip_;
+    snapshot.sta_connected = sta_connected_;
+    return snapshot;
+}
