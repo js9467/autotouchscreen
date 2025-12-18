@@ -13,7 +13,7 @@ namespace {
 const IPAddress kApIp(192, 168, 4, 250);
 const IPAddress kApGateway(192, 168, 4, 250);
 const IPAddress kApMask(255, 255, 255, 0);
-constexpr std::size_t kConfigJsonLimit = 16384;
+constexpr std::size_t kConfigJsonLimit = 32768;  // 32KB for config with small logos
 constexpr std::size_t kWifiConnectJsonLimit = 1024;
 
 const char* AuthModeToString(wifi_auth_mode_t mode) {

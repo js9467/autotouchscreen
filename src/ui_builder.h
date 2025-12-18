@@ -19,6 +19,7 @@ public:
     void markDirty();
     bool consumeDirtyFlag();
     void updateNetworkStatus(const std::string& ap_ip, const std::string& sta_ip, bool sta_connected);
+    void updateClock();
 
 private:
     UIBuilder() = default;
@@ -29,10 +30,19 @@ private:
     void buildPage(std::size_t index);
     void updateNavSelection();
     void updateHeaderBranding();
+    void createInfoModal();
+    void showInfoModal();
+    void hideInfoModal();
     const lv_img_dsc_t* iconForId(const std::string& id) const;
+    const lv_font_t* fontFromName(const std::string& name) const;
+    std::vector<uint8_t> decodeBase64Logo(const std::string& data_uri);
 
     static void navButtonEvent(lv_event_t* e);
     static void actionButtonEvent(lv_event_t* e);
+    static void infoButtonEvent(lv_event_t* e);
+    static void infoModalCloseEvent(lv_event_t* e);
+    static void timeUpEvent(lv_event_t* e);
+    static void timeDownEvent(lv_event_t* e);
     static lv_color_t colorFromHex(const std::string& hex, lv_color_t fallback);
 
     const DeviceConfig* config_ = nullptr;
@@ -40,8 +50,13 @@ private:
     lv_obj_t* header_bar_ = nullptr;
     lv_obj_t* header_overlay_ = nullptr;
     lv_obj_t* header_logo_img_ = nullptr;
+    std::vector<uint8_t> logo_buffer_;
     lv_obj_t* header_title_label_ = nullptr;
     lv_obj_t* header_subtitle_label_ = nullptr;
+    lv_obj_t* header_clock_label_ = nullptr;
+    lv_obj_t* header_info_btn_ = nullptr;
+    lv_obj_t* info_modal_ = nullptr;
+    lv_obj_t* info_modal_bg_ = nullptr;
     lv_obj_t* content_root_ = nullptr;
     lv_obj_t* nav_bar_ = nullptr;
     lv_obj_t* status_panel_ = nullptr;
@@ -58,4 +73,5 @@ private:
     std::string last_ap_ip_ = "";
     std::string last_sta_ip_ = "";
     bool last_sta_connected_ = false;
+    int32_t time_offset_seconds_ = 0;  // Manual time adjustment
 };

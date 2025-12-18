@@ -10,7 +10,9 @@
 #include <ESP_IOExpander_Library.h>
 #include <ESP_Panel_Library.h>
 #include <lvgl.h>
+#include <WiFi.h>
 #include <string>
+#include <time.h>
 
 #include "can_manager.h"
 #include "config_manager.h"
@@ -207,6 +209,7 @@ void loop() {
         std::string sta_ip = snapshot.sta_ip.toString().c_str();
         lvgl_port_lock(-1);
         UIBuilder::instance().updateNetworkStatus(ap_ip, sta_ip, snapshot.sta_connected);
+        UIBuilder::instance().updateClock();  // Update clock every second
         lvgl_port_unlock();
         last_network_push_ms = now;
     }

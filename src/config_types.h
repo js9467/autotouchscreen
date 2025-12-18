@@ -32,6 +32,7 @@ struct ButtonConfig {
     bool momentary = false;
     std::uint8_t font_size = 24;
     std::string font_family = "montserrat";  // montserrat or unscii
+    std::string font_name = "montserrat_16";  // Specific font identifier
     std::string text_align = "center";  // top-left, top-center, top-right, center, bottom-left, bottom-center, bottom-right
     CanFrameConfig can;
 };
@@ -43,6 +44,12 @@ struct PageConfig {
     std::uint8_t rows = 2;
     std::uint8_t cols = 2;
     std::vector<ButtonConfig> buttons;
+};
+
+struct FontConfig {
+    std::string name = "montserrat_16";
+    std::string display_name = "Montserrat 16";
+    std::uint8_t size = 16;
 };
 
 struct WifiCredentials {
@@ -67,6 +74,10 @@ struct HeaderConfig {
     std::string subtitle = "Web Configurator";
     bool show_logo = true;
     std::string logo_variant = "bronco";  // Matches icon registry ids
+    std::string logo_base64 = "";  // Custom uploaded logo (base64 encoded image)
+    bool show_clock = true;
+    std::string title_font = "montserrat_24";
+    std::string subtitle_font = "montserrat_12";
 };
 
 struct ThemeConfig {
@@ -103,4 +114,5 @@ struct DeviceConfig {
     ThemeConfig theme{};
     std::vector<PageConfig> pages;
     std::vector<CanMessage> can_library;
+    std::vector<FontConfig> available_fonts;  // List of available fonts for UI
 };

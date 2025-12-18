@@ -143,6 +143,30 @@ DeviceConfig ConfigManager::buildDefaultConfig() const {
     cfg.header.subtitle = "Web Configurator";
     cfg.header.show_logo = true;
     cfg.header.logo_variant = "bronco";
+    cfg.header.show_clock = true;
+    cfg.header.title_font = "montserrat_24";
+    cfg.header.subtitle_font = "montserrat_12";
+
+    // Initialize available fonts
+    cfg.available_fonts.clear();
+    FontConfig font_12; font_12.name = "montserrat_12"; font_12.display_name = "Montserrat 12"; font_12.size = 12;
+    cfg.available_fonts.push_back(font_12);
+    FontConfig font_14; font_14.name = "montserrat_14"; font_14.display_name = "Montserrat 14"; font_14.size = 14;
+    cfg.available_fonts.push_back(font_14);
+    FontConfig font_16; font_16.name = "montserrat_16"; font_16.display_name = "Montserrat 16"; font_16.size = 16;
+    cfg.available_fonts.push_back(font_16);
+    FontConfig font_18; font_18.name = "montserrat_18"; font_18.display_name = "Montserrat 18"; font_18.size = 18;
+    cfg.available_fonts.push_back(font_18);
+    FontConfig font_20; font_20.name = "montserrat_20"; font_20.display_name = "Montserrat 20"; font_20.size = 20;
+    cfg.available_fonts.push_back(font_20);
+    FontConfig font_22; font_22.name = "montserrat_22"; font_22.display_name = "Montserrat 22"; font_22.size = 22;
+    cfg.available_fonts.push_back(font_22);
+    FontConfig font_24; font_24.name = "montserrat_24"; font_24.display_name = "Montserrat 24"; font_24.size = 24;
+    cfg.available_fonts.push_back(font_24);
+    FontConfig font_28; font_28.name = "montserrat_28"; font_28.display_name = "Montserrat 28"; font_28.size = 28;
+    cfg.available_fonts.push_back(font_28);
+    FontConfig font_32; font_32.name = "montserrat_32"; font_32.display_name = "Montserrat 32"; font_32.size = 32;
+    cfg.available_fonts.push_back(font_32);
 
     PageConfig home;
     home.id = "home";
@@ -193,6 +217,10 @@ void ConfigManager::encodeConfig(const DeviceConfig& source, DynamicJsonDocument
     header["subtitle"] = source.header.subtitle.c_str();
     header["show_logo"] = source.header.show_logo;
     header["logo_variant"] = source.header.logo_variant.c_str();
+    header["logo_base64"] = source.header.logo_base64.c_str();
+    header["show_clock"] = source.header.show_clock;
+    header["title_font"] = source.header.title_font.c_str();
+    header["subtitle_font"] = source.header.subtitle_font.c_str();
 
     JsonObject theme = doc["theme"].to<JsonObject>();
     theme["bg_color"] = source.theme.bg_color.c_str();
@@ -244,8 +272,8 @@ void ConfigManager::encodeConfig(const DeviceConfig& source, DynamicJsonDocument
             btn_obj["momentary"] = button.momentary;
             btn_obj["font_size"] = button.font_size;
             btn_obj["font_family"] = button.font_family.c_str();
+            btn_obj["font_name"] = button.font_name.c_str();
             btn_obj["text_align"] = button.text_align.c_str();
-            btn_obj["font_size"] = button.font_size;
 
             JsonObject can_obj = btn_obj["can"].to<JsonObject>();
             can_obj["enabled"] = button.can.enabled;
@@ -277,6 +305,15 @@ void ConfigManager::encodeConfig(const DeviceConfig& source, DynamicJsonDocument
             data_arr.add(byte);
         }
     }
+
+    // Encode available fonts
+    JsonArray fonts = doc["available_fonts"].to<JsonArray>();
+    for (const auto& font : source.available_fonts) {
+        JsonObject font_obj = fonts.createNestedObject();
+        font_obj["name"] = font.name.c_str();
+        font_obj["display_name"] = font.display_name.c_str();
+        font_obj["size"] = font.size;
+    }
 }
 
 bool ConfigManager::decodeConfig(JsonVariantConst json, DeviceConfig& target, std::string& error) const {
@@ -293,6 +330,10 @@ bool ConfigManager::decodeConfig(JsonVariantConst json, DeviceConfig& target, st
         target.header.subtitle = safeString(header["subtitle"], target.header.subtitle);
         target.header.show_logo = header["show_logo"] | target.header.show_logo;
         target.header.logo_variant = safeString(header["logo_variant"], target.header.logo_variant);
+        target.header.logo_base64 = safeString(header["logo_base64"], target.header.logo_base64);
+        target.header.show_clock = header["show_clock"] | target.header.show_clock;
+        target.header.title_font = safeString(header["title_font"], target.header.title_font);
+        target.header.subtitle_font = safeString(header["subtitle_font"], target.header.subtitle_font);
     }
 
     JsonObjectConst theme = json["theme"];
@@ -366,6 +407,7 @@ bool ConfigManager::decodeConfig(JsonVariantConst json, DeviceConfig& target, st
                     button.momentary = btn_obj["momentary"] | false;
                     button.font_size = clampValue<std::uint8_t>(btn_obj["font_size"] | 24, 8, 72);
                     button.font_family = safeString(btn_obj["font_family"], "montserrat");
+                    button.font_name = safeString(btn_obj["font_name"], "montserrat_16");
                     button.text_align = safeString(btn_obj["text_align"], "center");
 
                     JsonObjectConst can_obj = btn_obj["can"];
@@ -436,6 +478,24 @@ bool ConfigManager::decodeConfig(JsonVariantConst json, DeviceConfig& target, st
 
     if (target.pages.empty()) {
         target.pages = buildDefaultConfig().pages;
+    }
+
+    // Decode available fonts
+    target.available_fonts.clear();
+    JsonArrayConst fonts = json["available_fonts"].as<JsonArrayConst>();
+    if (!fonts.isNull()) {
+        for (JsonObjectConst font_obj : fonts) {
+            FontConfig font;
+            font.name = safeString(font_obj["name"], "montserrat_16");
+            font.display_name = safeString(font_obj["display_name"], "Montserrat 16");
+            font.size = clampValue<std::uint8_t>(font_obj["size"] | 16, 8, 72);
+            target.available_fonts.push_back(std::move(font));
+        }
+    }
+    
+    // If no fonts defined, use default list
+    if (target.available_fonts.empty()) {
+        target.available_fonts = buildDefaultConfig().available_fonts;
     }
 
     return true;

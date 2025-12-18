@@ -260,7 +260,19 @@ input[type=checkbox]{width:20px;height:20px;accent-color:var(--accent);cursor:po
 </div>
 <div class="checkbox-wrapper">
 <input type="checkbox" id="header-show-logo" checked/>
-<label for="header-show-logo">Show Bronco Logo</label>
+<label for="header-show-logo">Show Logo in Header</label>
+</div>
+<div class="checkbox-wrapper">
+<input type="checkbox" id="header-show-clock" checked/>
+<label for="header-show-clock">Show Clock</label>
+</div>
+<div class="form-group">
+<label class="form-label">Custom Logo Upload <small>(PNG/JPG, max 100KB)</small></label>
+<input type="file" id="logo-upload" accept="image/png,image/jpeg,image/jpg" style="margin-bottom:8px;"/>
+<button class="btn btn-secondary btn-small" onclick="clearCustomLogo()">Reset to Default Logo</button>
+<div id="logo-preview" style="margin-top:12px;display:none;">
+<img id="logo-preview-img" style="max-height:50px;border:1px solid var(--border);border-radius:4px;padding:4px;background:var(--surface);"/>
+</div>
 </div>
 </div>
 </div>
@@ -738,6 +750,13 @@ document.getElementById('theme-header-border-width').value=theme.header_border_w
 document.getElementById('header-title').value=config.header?.title||'Bronco Controls';
 document.getElementById('header-subtitle').value=config.header?.subtitle||'Web Configurator';
 document.getElementById('header-show-logo').checked=config.header?.show_logo!==false;
+document.getElementById('header-show-clock').checked=config.header?.show_clock!==false;
+if(config.header?.logo_base64){
+document.getElementById('logo-preview').style.display='block';
+document.getElementById('logo-preview-img').src=config.header.logo_base64;
+}else{
+document.getElementById('logo-preview').style.display='none';
+}
 populatePageSelector();
 if(config.pages&&config.pages[activePageIndex]){
 document.getElementById('grid-rows').value=config.pages[activePageIndex].rows||2;
@@ -783,7 +802,11 @@ config.header={
 title:document.getElementById('header-title').value,
 subtitle:document.getElementById('header-subtitle').value,
 show_logo:document.getElementById('header-show-logo').checked,
-logo_variant:'bronco'
+show_clock:document.getElementById('header-show-clock').checked,
+logo_variant:'bronco',
+logo_base64:config.header?.logo_base64||'',
+title_font:config.header?.title_font||'montserrat_24',
+subtitle_font:config.header?.subtitle_font||'montserrat_12'
 };
 if(!config.pages||config.pages.length===0){
 config.pages=[{
@@ -824,7 +847,89 @@ const isEnabled=this.checked;
 document.getElementById('can-config-fields').style.display=isEnabled?'block':'none';
 document.getElementById('can-library-selector').style.display=isEnabled?'block':'none';
 });
+document.getElementById('logo-upload').addEventListener('change',handleLogoUpload);
 });
+function handleLogoUpload(event){
+const file=event.target.files[0];
+if(!file)return;
+if(file.size>512000){
+showAlert('Logo file too large! Max 500KB','danger');
+event.target.value='';
+return;
+}
+if(!file.type.match('image/(png|jpeg|jpg)')){
+showAlert('Only PNG and JPG files are supported','danger');
+event.target.value='';
+return;
+}
+const reader=new FileReader();
+reader.onload=function(e){
+const img=new Image();
+img.onload=function(){
+const tempCanvas=document.createElement('canvas');
+let width=img.width;
+let height=img.height;
+const maxWidth=48;
+const maxHeight=36;
+if(width>maxWidth||height>maxHeight){
+const ratio=Math.min(maxWidth/width,maxHeight/height);
+width=Math.floor(width*ratio);
+height=Math.floor(height*ratio);
+}
+tempCanvas.width=width;
+tempCanvas.height=height;
+const tempCtx=tempCanvas.getContext('2d');
+tempCtx.imageSmoothingEnabled=true;
+tempCtx.imageSmoothingQuality='high';
+tempCtx.drawImage(img,0,0,width,height);
+const imgData=tempCtx.getImageData(0,0,width,height);
+const data=imgData.data;
+const tolerance=30;
+for(let i=0;i<data.length;i+=4){
+const r=data[i];
+const g=data[i+1];
+const b=data[i+2];
+if(r>255-tolerance&&g>255-tolerance&&b>255-tolerance){
+data[i+3]=0;
+}
+}
+tempCtx.putImageData(imgData,0,0);
+const canvas=document.createElement('canvas');
+canvas.width=width;
+canvas.height=height;
+const ctx=canvas.getContext('2d');
+const headerBg=config.theme?.bg_header||'#2A2A2A';
+ctx.fillStyle=headerBg;
+ctx.fillRect(0,0,width,height);
+ctx.drawImage(tempCanvas,0,0);
+let quality=0.8;
+let base64=canvas.toDataURL('image/png',quality);
+while(base64.length>10000&&quality>0.3){
+quality-=0.1;
+base64=canvas.toDataURL('image/png',quality);
+}
+if(base64.length>10000){
+showAlert('Logo too large ('+Math.round(base64.length/1024)+'KB). Try a simpler image.','danger');
+event.target.value='';
+return;
+}
+if(!config.header)config.header={};
+config.header.logo_base64=base64;
+document.getElementById('logo-preview').style.display='block';
+document.getElementById('logo-preview-img').src=base64;
+showAlert('Logo uploaded ('+Math.round(base64.length/1024)+'KB)! Save to apply.','success');
+};
+img.src=e.target.result;
+};
+reader.readAsDataURL(file);
+}
+function clearCustomLogo(){
+if(!config.header)config.header={};
+config.header.logo_base64='';
+document.getElementById('logo-upload').value='';
+document.getElementById('logo-preview').style.display='none';
+showAlert('Reset to default logo. Save configuration to apply.','success');
+}
 function populateCanLibraryDropdown(){
 const select=document.getElementById('btn-can-library-select');
 select.innerHTML='<option value="">-- Select a message --</option>';
