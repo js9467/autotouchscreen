@@ -2,6 +2,8 @@
 
 A polished, rugged automotive HMI (Human-Machine Interface) with a Bronco-themed design for the Waveshare ESP32-S3-Touch-LCD-4.3 display board.
 
+> Repository mirror: https://github.com/js9467/autotouchscreen
+
 ## Hardware Specifications
 
 - **Display**: 4.3" 800×480 RGB LCD with ST7262 controller
