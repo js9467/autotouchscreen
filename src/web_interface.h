@@ -113,11 +113,31 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); bo
 .page-chip.active { border-color: var(--accent); box-shadow: 0 0 0 1px rgba(255,157,46,0.4); }
 .page-chip .name { font-weight: 600; }
 .preview-shell { border: 1px solid var(--border); border-radius: 18px; background: linear-gradient(135deg, rgba(255,157,46,0.05), rgba(122,215,240,0.05)); padding: 14px; }
-.device-preview { border-radius: 16px; overflow: hidden; border: 1px solid var(--border); background: var(--bg); box-shadow: inset 0 0 0 1px rgba(255,255,255,0.02); }
-.preview-header { padding: 14px 16px; display: flex; gap: 12px; align-items: center; border-bottom: 1px solid var(--border); }
-.preview-header #preview-title { font-size: 1.05rem; line-height: 1.2; margin: 0; word-break: break-word; max-width: 100%; white-space: normal; }
-.preview-header #preview-subtitle { font-size: 0.9rem; line-height: 1.2; margin: 2px 0 0; }
-.preview-nav { display: flex; gap: 8px; padding: 10px 12px; flex-wrap: wrap; }
+.device-preview { border-radius: 16px; overflow: hidden; border: 1px solid var(--border); background: var(--bg); box-shadow: inset 0 0 0 1px rgba(255,255,255,0.02); padding-top: 8px; box-sizing: border-box; }
+
+/* Revert to original hero header styling */
+.hero {
+	padding: 56px 4vw 16px; /* Increased top padding to prevent title from running off */
+	border-bottom: 1px solid var(--border);
+	display: flex;
+	justify-content: space-between;
+	align-items: flex-end; /* Ensure content is aligned to the bottom of the header area */
+	gap: 12px;
+	flex-wrap: wrap;
+}
+.hero h1 {
+	margin: 0;
+	letter-spacing: 0.08em;
+	font-size: 2rem;
+	line-height: 1.1;
+	max-width: min(460px, 70vw);
+	overflow-wrap: anywhere;
+}
+.hero p {
+	margin: 6px 0 0;
+	color: var(--muted);
+}
+.preview-nav { display: flex; gap: 8px; padding: 10px 12px; flex-wrap: wrap; background: var(--panel); border-bottom: 1px solid var(--border); }
 .preview-nav .pill { cursor: grab; }
 .preview-body { padding: 14px; min-height: 220px; }
 .preview-grid { display: grid; gap: 10px; }
@@ -206,19 +226,21 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); bo
 			<div class="card">
 				<h3>Branding & Header</h3>
 				<div class="grid">
-					<div>
+					<div class="row">
 						<label>Title</label>
 						<input id="header-title-input" type="text" placeholder="CAN Control" oninput="updateHeaderFromInputs()" />
+						<label>Title Text</label>
+						<input id="theme-text-primary" type="color" />
 					</div>
-					<div>
+					<div class="row">
 						<label>Subtitle</label>
 						<input id="header-subtitle-input" type="text" placeholder="Configuration Interface" oninput="updateHeaderFromInputs()" />
+						<label>Subtitle Text</label>
+						<input id="theme-text-secondary" type="color" />
 					</div>
 					<div class="row">
 						<label>Title Font</label>
 						<select id="header-title-font" onchange="updateHeaderFromInputs()"></select>
-					</div>
-					<div class="row">
 						<label>Subtitle Font</label>
 						<select id="header-subtitle-font" onchange="updateHeaderFromInputs()"></select>
 					</div>
@@ -233,15 +255,11 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); bo
 				</div>
 				<h4>Theme Baseline</h4>
 				<div class="grid two-col">
-					<div><label>Canvas BG</label><input id="theme-bg" type="color" /></div>
 					<div><label>Header BG</label><input id="theme-surface" type="color" /></div>
-					<div><label>Page BG (default)</label><input id="theme-page-bg" type="color" /></div>
-					<div><label>Accent</label><input id="theme-accent" type="color" /></div>
-					<div><label>Text Primary</label><input id="theme-text-primary" type="color" /></div>
-					<div><label>Text Secondary</label><input id="theme-text-secondary" type="color" /></div>
+					<div><label>Page BG</label><input id="theme-page-bg" type="color" /></div>
 					<div><label>Border</label><input id="theme-border" type="color" /></div>
-					<div><label>Nav Inactive</label><input id="theme-nav-button" type="color" /></div>
-					<div><label>Nav Active</label><input id="theme-nav-active" type="color" /></div>
+					<div><label>Active NAV</label><input id="theme-nav-active" type="color" /></div>
+					<div><label>Inactive NAV</label><input id="theme-nav-button" type="color" /></div>
 					<div><label>Button Radius (default)</label><input id="theme-radius" type="number" min="0" max="50" /></div>
 					<div><label>Border Width (default)</label><input id="theme-border-width" type="number" min="0" max="10" /></div>
 					<div><label>Header Border Width</label><input id="theme-header-border-width" type="number" min="0" max="10" /></div>
@@ -275,7 +293,7 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); bo
 				<div class="device-preview" id="live-preview">
 					<div class="preview-header" id="preview-header">
 						<div style="width:34px;height:34px; border-radius:10px; background: var(--accent);" id="preview-logo"></div>
-						<div style="flex:1;">
+						<div class="title-wrap" style="flex:1;">
 							<div id="preview-title">CAN Control</div>
 							<div id="preview-subtitle" class="muted" style="margin-top:4px;">Configuration Interface</div>
 						</div>
@@ -388,11 +406,11 @@ function firstDefined() {
 	return undefined;
 }
 
-function switchTab(tabId){
-	document.querySelectorAll('.tab-btn').forEach(btn=>btn.classList.remove('active'));
-	document.querySelectorAll('.tab').forEach(tab=>tab.classList.remove('active'));
-	document.querySelector(`[data-tab="${tabId}"]`).classList.add('active');
-	document.getElementById(`tab-${tabId}`).classList.add('active');
+function switchTab(tabName){
+	document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+	document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+	document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
+	document.getElementById(`tab-${tabName}`).classList.add('active');
 }
 
 function showBanner(msg,type='success'){
@@ -555,14 +573,20 @@ function capturePageAsBaseline(){
 	ensurePages();
 	const page = config.pages[activePageIndex];
 	const theme = config.theme || {};
+	const firstBtn = (page.buttons||[])[0] || {};
+	const buttonFontFamily = firstDefined(firstBtn.font_family, theme.button_font_family, 'montserrat');
+	const buttonFontSize = firstDefined(firstBtn.font_size, theme.button_font_size, 24);
 	config.theme = {
 		...theme,
 		page_bg_color: page.bg_color || theme.page_bg_color || '#0f0f0f',
 		text_primary: page.text_color || theme.text_primary || '#f2f4f8',
 		accent_color: page.button_color || theme.accent_color || '#ff9d2e',
+		button_pressed_color: page.button_pressed_color || theme.button_pressed_color || '#ff7a1a',
 		border_color: page.button_border_color || theme.border_color || '#20232f',
 		border_width: page.button_border_width || theme.border_width || 0,
-		button_radius: page.button_radius || theme.button_radius || 12
+		button_radius: page.button_radius || theme.button_radius || 12,
+		button_font_family: buttonFontFamily,
+		button_font_size: buttonFontSize
 	};
 	hydrateThemeFields();
 	renderPreview();
@@ -576,10 +600,21 @@ function applyBaselineToPage(){
 	page.bg_color = theme.page_bg_color || page.bg_color || '#0f0f0f';
 	page.text_color = theme.text_primary || page.text_color || '#f2f4f8';
 	page.button_color = theme.accent_color || page.button_color || '#ff9d2e';
-	page.button_pressed_color = page.button_pressed_color || theme.accent_color || '#ff7a1a';
+	page.button_pressed_color = firstDefined(theme.button_pressed_color, page.button_pressed_color, '#ff7a1a');
 	page.button_border_color = theme.border_color || page.button_border_color || '#20232f';
 	page.button_border_width = theme.border_width !== undefined ? theme.border_width : (page.button_border_width || 0);
 	page.button_radius = theme.button_radius !== undefined ? theme.button_radius : (page.button_radius || 12);
+	// push updated fills/borders into existing buttons
+	page.buttons = (page.buttons||[]).map(btn=>({
+		...btn,
+		color: theme.accent_color || page.button_color || btn.color,
+		pressed_color: firstDefined(theme.button_pressed_color, page.button_pressed_color, btn.pressed_color, theme.accent_color, '#ff7a1a'),
+		border_color: theme.border_color || page.button_border_color || btn.border_color,
+		border_width: theme.border_width !== undefined ? theme.border_width : (page.button_border_width || btn.border_width),
+		corner_radius: theme.button_radius !== undefined ? theme.button_radius : (page.button_radius || btn.corner_radius),
+		font_family: theme.button_font_family || btn.font_family || 'montserrat',
+		font_size: theme.button_font_size || btn.font_size || 24
+	}));
 	hydratePageFields();
 	renderGrid();
 	renderPreview();
@@ -656,12 +691,12 @@ function openButtonModal(row,col){
 	const defaults = {
 		label:`Button ${row}${col}`,
 		color: page.button_color || theme.button_color || theme.accent_color || '#ff9d2e',
-		pressed_color: page.button_pressed_color || '#ff7a1a',
+		pressed_color: firstDefined(page.button_pressed_color, theme.button_pressed_color, '#ff7a1a'),
 		border_color: page.button_border_color || theme.border_color || '#3a3a3a',
 		border_width: page.button_border_width || 0,
 		corner_radius: page.button_radius || theme.button_radius || 12,
-		font_size: 24,
-		font_family: 'montserrat',
+		font_size: firstDefined(theme.button_font_size, 24),
+		font_family: firstDefined(theme.button_font_family, 'montserrat'),
 		text_align: 'center',
 		momentary: false,
 		can:{enabled:false,pgn:0,priority:6,source_address:0xF9,destination_address:0xFF,data:[0,0,0,0,0,0,0,0]}
@@ -806,6 +841,8 @@ function renderNav(){
 	const nav = document.getElementById('preview-nav');
 	const theme = config.theme || {};
 	nav.innerHTML = '';
+	nav.style.background = firstDefined(theme.surface_color, '#12141c');
+	nav.style.borderBottom = `1px solid ${firstDefined(theme.border_color, '#20232f')}`;
 	config.pages.forEach((p,idx)=>{
 		const chip = document.createElement('div');
 		chip.className = 'pill';
@@ -844,27 +881,25 @@ function updateHeaderFromInputs(){
 
 function hydrateThemeFields(){
 	const theme = config.theme || {};
-	document.getElementById('theme-bg').value = theme.bg_color || '#0b0c10';
 	document.getElementById('theme-surface').value = theme.surface_color || '#12141c';
 	document.getElementById('theme-page-bg').value = theme.page_bg_color || '#0f0f0f';
-	document.getElementById('theme-accent').value = theme.accent_color || '#ff9d2e';
 	document.getElementById('theme-text-primary').value = theme.text_primary || '#f2f4f8';
 	document.getElementById('theme-text-secondary').value = theme.text_secondary || '#8d92a3';
 	document.getElementById('theme-border').value = theme.border_color || '#20232f';
 	document.getElementById('theme-nav-button').value = theme.nav_button_color || '#2a2a2a';
-	document.getElementById('theme-nav-active').value = theme.nav_button_active_color || theme.accent_color || '#ff9d2e';
+	document.getElementById('theme-nav-active').value = theme.nav_button_active_color || '#ff9d2e';
 	document.getElementById('theme-radius').value = theme.button_radius || 12;
 	document.getElementById('theme-border-width').value = theme.border_width || 0;
-	document.getElementById('theme-header-border').value = theme.header_border_color || theme.accent_color || '#ff9d2e';
+	document.getElementById('theme-header-border').value = theme.header_border_color || '#ff9d2e';
 	document.getElementById('theme-header-border-width').value = theme.header_border_width || 0;
 }
 
 function collectTheme(){
+	const existing = config.theme || {};
 	config.theme = {
-		bg_color: document.getElementById('theme-bg').value,
 		surface_color: document.getElementById('theme-surface').value,
 		page_bg_color: document.getElementById('theme-page-bg').value,
-		accent_color: document.getElementById('theme-accent').value,
+		button_pressed_color: existing.button_pressed_color || '#ff7a1a',
 		text_primary: document.getElementById('theme-text-primary').value,
 		text_secondary: document.getElementById('theme-text-secondary').value,
 		border_color: document.getElementById('theme-border').value,
@@ -873,7 +908,9 @@ function collectTheme(){
 		button_radius: parseInt(document.getElementById('theme-radius').value)||12,
 		border_width: parseInt(document.getElementById('theme-border-width').value)||0,
 		header_border_color: document.getElementById('theme-header-border').value,
-		header_border_width: parseInt(document.getElementById('theme-header-border-width').value)||0
+		header_border_width: parseInt(document.getElementById('theme-header-border-width').value)||0,
+		button_font_family: existing.button_font_family || 'montserrat',
+		button_font_size: existing.button_font_size || 24
 	};
 }
 
@@ -884,6 +921,68 @@ function wireThemeInputs(){
 		el.addEventListener('input', ()=>{ collectTheme(); renderPreview(); });
 		el.addEventListener('change', ()=>{ collectTheme(); renderPreview(); });
 	});
+}
+
+function updatePageConfig(){
+	if(!config.theme) config.theme = {};
+	config.theme.page_bg_color = document.getElementById('page-bg').value;
+	config.theme.nav_button_active_color = document.getElementById('nav-active').value;
+	config.theme.nav_button_color = document.getElementById('nav-inactive').value;
+	config.theme.accent_color = document.getElementById('button-active').value;
+	config.theme.button_pressed_color = document.getElementById('button-pressed').value;
+	config.theme.button_radius = parseInt(document.getElementById('button-radius').value)||8;
+	config.theme.border_width = parseInt(document.getElementById('button-border-width').value)||1;
+	renderPreview();
+}
+
+function applyBaseline(){
+	const pageBg = document.getElementById('baseline-page-bg').value;
+	const navActive = document.getElementById('baseline-nav-active').value;
+	const navInactive = document.getElementById('baseline-nav-inactive').value;
+	const buttonActive = document.getElementById('baseline-button-active').value;
+	const buttonPressed = document.getElementById('baseline-button-pressed').value;
+	const buttonRadius = parseInt(document.getElementById('baseline-button-radius').value)||8;
+	const buttonBorderWidth = parseInt(document.getElementById('baseline-button-border-width').value)||1;
+	
+	document.getElementById('page-bg').value = pageBg;
+	document.getElementById('nav-active').value = navActive;
+	document.getElementById('nav-inactive').value = navInactive;
+	document.getElementById('button-active').value = buttonActive;
+	document.getElementById('button-pressed').value = buttonPressed;
+	document.getElementById('button-radius').value = buttonRadius;
+	document.getElementById('button-border-width').value = buttonBorderWidth;
+	
+	updatePageConfig();
+	showBanner('Baseline applied to page configuration','success');
+}
+
+function saveAsBaseline(){
+	const pageBg = document.getElementById('page-bg').value;
+	const navActive = document.getElementById('nav-active').value;
+	const navInactive = document.getElementById('nav-inactive').value;
+	const buttonActive = document.getElementById('button-active').value;
+	const buttonPressed = document.getElementById('button-pressed').value;
+	const buttonRadius = parseInt(document.getElementById('button-radius').value)||8;
+	const buttonBorderWidth = parseInt(document.getElementById('button-border-width').value)||1;
+	
+	document.getElementById('baseline-page-bg').value = pageBg;
+	document.getElementById('baseline-nav-active').value = navActive;
+	document.getElementById('baseline-nav-inactive').value = navInactive;
+	document.getElementById('baseline-button-active').value = buttonActive;
+	document.getElementById('baseline-button-pressed').value = buttonPressed;
+	document.getElementById('baseline-button-radius').value = buttonRadius;
+	document.getElementById('baseline-button-border-width').value = buttonBorderWidth;
+	
+	if(!config.theme) config.theme = {};
+	config.theme.baseline_page_bg = pageBg;
+	config.theme.baseline_nav_active = navActive;
+	config.theme.baseline_nav_inactive = navInactive;
+	config.theme.baseline_button_active = buttonActive;
+	config.theme.baseline_button_pressed = buttonPressed;
+	config.theme.baseline_button_radius = buttonRadius;
+	config.theme.baseline_button_border_width = buttonBorderWidth;
+	
+	showBanner('Current page configuration saved as baseline','success');
 }
 
 function hydrateHeaderFields(){

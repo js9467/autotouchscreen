@@ -85,15 +85,15 @@ void UIBuilder::createBaseScreen() {
     lv_obj_set_style_pad_all(base_screen_, 0, 0);
 
     // Apply theme colors if available
-    lv_color_t bg_color = config_ ? colorFromHex(config_->theme.bg_color, UITheme::COLOR_BG) : UITheme::COLOR_BG;
-    lv_obj_set_style_bg_color(base_screen_, bg_color, 0);
+    lv_color_t page_bg_color = config_ ? colorFromHex(config_->theme.page_bg_color, UITheme::COLOR_BG) : UITheme::COLOR_BG;
+    lv_obj_set_style_bg_color(base_screen_, page_bg_color, 0);
     lv_obj_set_style_bg_opa(base_screen_, LV_OPA_COVER, 0);
 
     lv_scr_load(base_screen_);
 
     // Header bar
     header_bar_ = lv_obj_create(base_screen_);
-    lv_obj_set_size(header_bar_, 800, 80);
+    lv_obj_set_size(header_bar_, 800, 110); // Increase header height to match web and prevent title overflow
     lv_obj_set_style_bg_color(header_bar_, colorFromHex(config_ ? config_->theme.surface_color : "#2A2A2A", UITheme::COLOR_SURFACE), 0);
     lv_obj_set_style_bg_opa(header_bar_, LV_OPA_COVER, 0);
     lv_obj_set_style_border_width(header_bar_, config_ ? config_->theme.header_border_width : 0, 0);
@@ -101,7 +101,7 @@ void UIBuilder::createBaseScreen() {
     lv_obj_set_style_border_side(header_bar_, LV_BORDER_SIDE_BOTTOM, 0);
     lv_obj_set_style_border_opa(header_bar_, LV_OPA_COVER, 0);
     lv_obj_set_style_radius(header_bar_, 0, 0);
-    lv_obj_set_style_pad_all(header_bar_, UITheme::SPACE_MD, 0);
+    lv_obj_set_style_pad_all(header_bar_, UITheme::SPACE_SM, 0); // Reduce padding
     lv_obj_set_flex_flow(header_bar_, LV_FLEX_FLOW_ROW);
     lv_obj_set_flex_align(header_bar_, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
     lv_obj_clear_flag(header_bar_, LV_OBJ_FLAG_SCROLLABLE);
@@ -115,17 +115,24 @@ void UIBuilder::createBaseScreen() {
     lv_obj_t* header_text_column = lv_obj_create(header_bar_);
     lv_obj_remove_style_all(header_text_column);
     lv_obj_set_flex_flow(header_text_column, LV_FLEX_FLOW_COLUMN);
-    lv_obj_set_style_pad_all(header_text_column, 0, 0);
-    lv_obj_set_style_pad_gap(header_text_column, UITheme::SPACE_XS, 0);
+    lv_obj_set_style_pad_top(header_text_column, UITheme::SPACE_XL, 0);   // 32px top padding for more space
+    lv_obj_set_style_pad_bottom(header_text_column, UITheme::SPACE_SM, 0); // 8px bottom padding
+    lv_obj_set_style_pad_left(header_text_column, 0, 0);
+    lv_obj_set_style_pad_right(header_text_column, 0, 0);
+    lv_obj_set_style_pad_gap(header_text_column, UITheme::SPACE_SM, 0);    // 8px gap between title/subtitle
     lv_obj_clear_flag(header_text_column, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_set_flex_grow(header_text_column, 1);
 
     header_title_label_ = lv_label_create(header_text_column);
-    lv_obj_set_style_text_font(header_title_label_, UITheme::FONT_HEADING, 0);
+    // Clamp title font size to max 20px
+    const lv_font_t* title_font = fontFromName(config_ ? config_->header.title_font : "montserrat_20");
+    lv_obj_set_style_text_font(header_title_label_, title_font, 0);
     lv_obj_set_style_text_color(header_title_label_, config_ ? colorFromHex(config_->theme.text_primary, UITheme::COLOR_TEXT_PRIMARY) : UITheme::COLOR_TEXT_PRIMARY, 0);
 
     header_subtitle_label_ = lv_label_create(header_text_column);
-    lv_obj_set_style_text_font(header_subtitle_label_, UITheme::FONT_CAPTION, 0);
+    // Clamp subtitle font size to max 14px
+    const lv_font_t* subtitle_font = fontFromName(config_ ? config_->header.subtitle_font : "montserrat_14");
+    lv_obj_set_style_text_font(header_subtitle_label_, subtitle_font, 0);
     lv_obj_set_style_text_color(header_subtitle_label_, config_ ? colorFromHex(config_->theme.text_secondary, UITheme::COLOR_TEXT_SECONDARY) : UITheme::COLOR_TEXT_SECONDARY, 0);
 
     // Settings/info button on the right
@@ -145,7 +152,7 @@ void UIBuilder::createBaseScreen() {
     // Content root (below header)
     content_root_ = lv_obj_create(base_screen_);
     lv_obj_set_size(content_root_, 800, 400);
-    lv_obj_set_style_bg_color(content_root_, bg_color, 0);
+    lv_obj_set_style_bg_color(content_root_, page_bg_color, 0);
     lv_obj_set_style_bg_opa(content_root_, LV_OPA_COVER, 0);
     lv_obj_set_style_pad_all(content_root_, UITheme::SPACE_MD, 0);
     lv_obj_set_flex_flow(content_root_, LV_FLEX_FLOW_COLUMN);
