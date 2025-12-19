@@ -44,7 +44,8 @@ struct ButtonConfig {
 struct PageConfig {
     std::string id = "page_0";
     std::string name = "Home";
-    std::string nav_color = "";
+    std::string nav_color = "";             // Active nav button color
+    std::string nav_inactive_color = "";    // Inactive nav button color
     std::string bg_color = "";              // Optional per-page background
     std::string text_color = "";            // Optional per-page text color
     std::string button_color = "";          // Optional per-page button fill
@@ -84,17 +85,27 @@ struct HeaderConfig {
     std::string title = "CAN Control";
     std::string subtitle = "Configuration Interface";
     bool show_logo = true;
-    std::string logo_variant = "default";  // Matches icon registry ids
+    std::string logo_variant = "";  // Empty by default - custom logos only
     std::string logo_base64 = "";  // Custom uploaded logo (base64 encoded image)
     std::string title_font = "montserrat_24";
     std::string subtitle_font = "montserrat_12";
+    std::string title_align = "center";  // "left", "center", "right"
+    std::uint8_t title_x_offset = 0;  // X offset in pixels (-100 to 100)
+    std::uint8_t title_y_offset = 0;  // Y offset in pixels (-50 to 50)
+};
+
+struct ImageAssets {
+    std::string header_logo = "";      // Header logo (max 48x36, PNG with alpha)
+    std::string splash_logo = "";      // Splash screen logo (max 400x300, PNG with alpha)
+    std::string background_image = ""; // Background image (800x480, JPG or PNG)
+    std::string sleep_logo = "";       // Sleep overlay logo (max 200x150, PNG with alpha)
 };
 
 struct DisplayConfig {
     std::uint8_t brightness = 100;  // 0-100 percent
     bool sleep_enabled = false;
     std::uint16_t sleep_timeout_seconds = 60;  // idle timeout before sleep overlay
-    std::string sleep_icon_base64 = "";  // Custom sleep image (PNG/JPG base64)
+    std::string sleep_icon_base64 = "";  // Custom sleep image (PNG/JPG base64) - DEPRECATED, use ImageAssets
 };
 
 struct ThemeConfig {
@@ -130,6 +141,7 @@ struct DeviceConfig {
     HeaderConfig header{};
     ThemeConfig theme{};
     DisplayConfig display{};
+    ImageAssets images{};
     std::vector<PageConfig> pages;
     std::vector<CanMessage> can_library;
     std::vector<FontConfig> available_fonts;  // List of available fonts for UI

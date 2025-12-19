@@ -137,6 +137,8 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); bo
 	margin: 6px 0 0;
 	color: var(--muted);
 }
+.preview-header { display: flex; padding: 14px; gap: 12px; align-items: center; border-bottom: 2px solid transparent; }
+.preview-header .title-wrap { flex: 1; display: flex; flex-direction: column; gap: 4px; }
 .preview-nav { display: flex; gap: 8px; padding: 10px 12px; flex-wrap: wrap; background: var(--panel); border-bottom: 1px solid var(--border); }
 .preview-nav .pill { cursor: grab; }
 .preview-body { padding: 14px; min-height: 220px; }
@@ -229,14 +231,10 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); bo
 					<div class="row">
 						<label>Title</label>
 						<input id="header-title-input" type="text" placeholder="CAN Control" oninput="updateHeaderFromInputs()" />
-						<label>Title Text</label>
-						<input id="theme-text-primary" type="color" />
 					</div>
 					<div class="row">
 						<label>Subtitle</label>
 						<input id="header-subtitle-input" type="text" placeholder="Configuration Interface" oninput="updateHeaderFromInputs()" />
-						<label>Subtitle Text</label>
-						<input id="theme-text-secondary" type="color" />
 					</div>
 					<div class="row">
 						<label>Title Font</label>
@@ -245,25 +243,41 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); bo
 						<select id="header-subtitle-font" onchange="updateHeaderFromInputs()"></select>
 					</div>
 					<div class="row">
-						<label><input id="header-show-logo" type="checkbox" onchange="updateHeaderFromInputs()" /> Show logo</label>
-						<input id="logo-upload" type="file" accept="image/png,image/jpeg" />
+						<label>Text Alignment</label>
+						<select id="header-title-align" onchange="updateHeaderFromInputs()">
+							<option value="left">Left</option>
+							<option value="center">Center</option>
+							<option value="right">Right</option>
+						</select>
 					</div>
-					<div id="logo-preview" style="display:none;">
-						<img id="logo-preview-img" style="max-height:48px; border:1px solid var(--border); border-radius:8px; padding:6px; background: var(--surface);" />
-						<button class="btn small" onclick="clearCustomLogo()">Reset Logo</button>
+					<div class="row">
+						<label>X Offset (<span id="header-x-offset-value">0</span>px)</label>
+						<input id="header-title-x-offset" type="range" min="-100" max="100" value="0" oninput="updateHeaderFromInputs()" />
+						<label>Y Offset (<span id="header-y-offset-value">0</span>px)</label>
+						<input id="header-title-y-offset" type="range" min="-50" max="50" value="0" oninput="updateHeaderFromInputs()" />
 					</div>
+					<!-- Logo upload moved to Image Assets section -->
 				</div>
-				<h4>Theme Baseline</h4>
+				<h4>Header Appearance</h4>
 				<div class="grid two-col">
 					<div><label>Header BG</label><input id="theme-surface" type="color" /></div>
-					<div><label>Page BG</label><input id="theme-page-bg" type="color" /></div>
-					<div><label>Border</label><input id="theme-border" type="color" /></div>
-					<div><label>Active NAV</label><input id="theme-nav-active" type="color" /></div>
-					<div><label>Inactive NAV</label><input id="theme-nav-button" type="color" /></div>
-					<div><label>Button Radius (default)</label><input id="theme-radius" type="number" min="0" max="50" /></div>
-					<div><label>Border Width (default)</label><input id="theme-border-width" type="number" min="0" max="10" /></div>
+					<div><label>Title Color</label><input id="theme-text-primary" type="color" /></div>
+					<div><label>Subtitle Color</label><input id="theme-text-secondary" type="color" /></div>
+					<div><label>Header Border Color</label><input id="theme-header-border" type="color" /></div>
 					<div><label>Header Border Width</label><input id="theme-header-border-width" type="number" min="0" max="10" /></div>
-					<div><label>Header Border</label><input id="theme-header-border" type="color" /></div>
+				</div>
+				<h4>Window Baseline (Template)</h4>
+				<p class="muted">Define default styling that can be applied to windows</p>
+				<div class="grid two-col">
+					<div><label>Page BG</label><input id="theme-page-bg" type="color" /></div>
+					<div><label>Text Color</label><input id="theme-text-color" type="color" /></div>
+					<div><label>Nav Active</label><input id="theme-nav-active" type="color" /></div>
+					<div><label>Nav Inactive</label><input id="theme-nav-button" type="color" /></div>
+					<div><label>Button Fill</label><input id="theme-button-color" type="color" /></div>
+					<div><label>Button Pressed</label><input id="theme-button-pressed" type="color" /></div>
+					<div><label>Button Border</label><input id="theme-border" type="color" /></div>
+					<div><label>Button Border Width</label><input id="theme-border-width" type="number" min="0" max="10" /></div>
+					<div><label>Button Radius</label><input id="theme-radius" type="number" min="0" max="50" /></div>
 				</div>
 			</div>
 
@@ -278,10 +292,14 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); bo
 						<select id="page-cols" onchange="updateGrid()"><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option></select>
 					</div>
 					<div class="field"><label>Name</label><input id="page-name-input" type="text" oninput="updatePageMeta()" /></div>
-					<div class="field"><label>Nav</label><input id="page-nav-color" type="color" onchange="updatePageMeta()" /></div>
+				</div>
+				<div class="quick-edit" style="border-top: 1px solid var(--border); padding-top: 10px; margin-top: 0;">
+					<h4 style="grid-column: 1/-1; margin: 0 0 8px;">Window Config</h4>
 					<div class="field"><label>Page BG</label><input id="page-bg-color" type="color" onchange="updatePageStyle()" /></div>
 					<div class="field"><label>Text</label><input id="page-text-color" type="color" onchange="updatePageStyle()" /></div>
-					<div class="field"><label>Button</label><input id="page-btn-color" type="color" onchange="updatePageStyle()" /></div>
+					<div class="field"><label>Nav Active</label><input id="page-nav-color" type="color" onchange="updatePageMeta()" /></div>
+					<div class="field"><label>Nav Inactive</label><input id="page-nav-inactive-color" type="color" onchange="updatePageMeta()" /></div>
+					<div class="field"><label>Button Fill</label><input id="page-btn-color" type="color" onchange="updatePageStyle()" /></div>
 					<div class="field"><label>Pressed</label><input id="page-btn-pressed" type="color" onchange="updatePageStyle()" /></div>
 					<div class="field"><label>Border</label><input id="page-btn-border" type="color" onchange="updatePageStyle()" /></div>
 					<div class="field"><label>Border W</label><input id="page-btn-border-width" type="number" min="0" max="10" onchange="updatePageStyle()" /></div>
@@ -292,10 +310,10 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); bo
 				</div>
 				<div class="device-preview" id="live-preview">
 					<div class="preview-header" id="preview-header">
-						<div style="width:34px;height:34px; border-radius:10px; background: var(--accent);" id="preview-logo"></div>
-						<div class="title-wrap" style="flex:1;">
-							<div id="preview-title">CAN Control</div>
-							<div id="preview-subtitle" class="muted" style="margin-top:4px;">Configuration Interface</div>
+						<div style="width:38px;height:38px; border-radius:10px; background: var(--accent);" id="preview-logo"></div>
+						<div class="title-wrap">
+							<div id="preview-title" style="font-weight: 700; line-height: 1.2;">CAN Control</div>
+							<div id="preview-subtitle" class="muted" style="font-size: 0.85rem; line-height: 1.3;">Configuration Interface</div>
 						</div>
 					</div>
 					<div class="preview-nav" id="preview-nav"></div>
@@ -306,15 +324,69 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); bo
 
 		<div class="layout" style="margin-top:16px;">
 			<div class="card">
+				<h3>🖼️ Image Assets</h3>
+				<div style="background: #fff3cd; border: 1px solid #ffc107; border-radius: 8px; padding: 12px; margin-bottom: 16px;">
+					<strong>⚠️ Important:</strong> Use <code>prepare_images.py</code> to optimize images before uploading.<br>
+					<span class="muted">Large images may cause device crashes. Keep files under 50KB each.</span><br>
+					<span class="muted">Example: <code>python prepare_images.py mylogo.png output.png header</code></span>
+				</div>
+				
+				<h4>Header Logo (48x48px recommended)</h4>
+				<div class="grid">
+					<div class="row">
+						<input id="header-logo-upload" type="file" accept="image/*" />
+						<button class="btn small" onclick="clearImage('header')">Clear</button>
+					</div>
+					<div id="header-logo-preview" style="display:none; padding:8px; background: var(--surface); border: 1px solid var(--border); border-radius:8px;">
+						<img id="header-logo-preview-img" style="max-height:36px; display:block;" />
+						<span class="muted" style="font-size:0.75rem;" id="header-logo-size"></span>
+					</div>
+				</div>
+
+				<h4>Splash Screen Logo (400x300px max)</h4>
+				<div class="grid">
+					<div class="row">
+						<input id="splash-logo-upload" type="file" accept="image/*" />
+						<button class="btn small" onclick="clearImage('splash')">Clear</button>
+					</div>
+					<div id="splash-logo-preview" style="display:none; padding:8px; background: var(--surface); border: 1px solid var(--border); border-radius:8px;">
+						<img id="splash-logo-preview-img" style="max-height:100px; display:block;" />
+						<span class="muted" style="font-size:0.75rem;" id="splash-logo-size"></span>
+					</div>
+				</div>
+
+				<h4>Background Image (800x480px)</h4>
+				<div class="grid">
+					<div class="row">
+						<input id="background-upload" type="file" accept="image/*" />
+						<button class="btn small" onclick="clearImage('background')">Clear</button>
+					</div>
+					<div id="background-preview" style="display:none; padding:8px; background: var(--surface); border: 1px solid var(--border); border-radius:8px;">
+						<img id="background-preview-img" style="max-height:120px; max-width:100%; display:block;" />
+						<span class="muted" style="font-size:0.75rem;" id="background-size"></span>
+					</div>
+				</div>
+
+				<h4>Sleep Overlay Logo (200x150px max)</h4>
+				<div class="grid">
+					<div class="row">
+						<input id="sleep-logo-upload" type="file" accept="image/*" />
+						<button class="btn small" onclick="clearImage('sleep')">Clear</button>
+					</div>
+					<div id="sleep-logo-preview" style="display:none; padding:8px; background: var(--surface); border: 1px solid var(--border); border-radius:8px;">
+						<img id="sleep-logo-preview-img" style="max-height:80px; display:block;" />
+						<span class="muted" style="font-size:0.75rem;" id="sleep-logo-size"></span>
+					</div>
+				</div>
+			</div>
+
+			<div class="card">
 				<h3>Display & Sleep</h3>
 				<div class="grid two-col">
 					<div><label>Brightness</label><input id="display-brightness" type="range" min="0" max="100" oninput="document.getElementById('brightness-value').textContent=this.value+'%';" /></div>
 					<div class="row" style="justify-content:space-between;"><span class="muted">Value</span><span id="brightness-value">100%</span></div>
 					<div class="row"><label><input id="sleep-enabled" type="checkbox" /> Enable Sleep Overlay</label></div>
 					<div><label>Sleep Timeout (s)</label><input id="sleep-timeout" type="number" min="5" max="3600" /></div>
-					<div class="row"><label>Sleep Icon</label><input id="sleep-icon-upload" type="file" accept="image/png,image/jpeg" /></div>
-					<div id="sleep-icon-preview" style="display:none;"><img id="sleep-icon-preview-img" style="max-height:60px; border:1px solid var(--border); border-radius:8px; padding:6px; background: var(--surface);" /></div>
-					<button class="btn small" onclick="clearSleepIcon()">Clear Sleep Icon</button>
 				</div>
 			</div>
 		</div>
@@ -515,10 +587,11 @@ function hydratePageFields(){
 	const theme = config.theme || {};
 	const nameInput = document.getElementById('page-name-input');
 	if(nameInput) nameInput.value = page.name || '';
-	document.getElementById('page-nav-color').value = page.nav_color || '#3a3a3a';
+	document.getElementById('page-nav-color').value = page.nav_color || theme.nav_button_active_color || '#ff9d2e';
+	document.getElementById('page-nav-inactive-color').value = page.nav_inactive_color || theme.nav_button_color || '#3a3a3a';
 	document.getElementById('page-bg-color').value = page.bg_color || theme.page_bg_color || '#0f0f0f';
 	document.getElementById('page-text-color').value = page.text_color || theme.text_primary || '#ffffff';
-	document.getElementById('page-btn-color').value = page.button_color || theme.button_color || theme.accent_color || '#ff9d2e';
+	document.getElementById('page-btn-color').value = page.button_color || theme.accent_color || '#ff9d2e';
 	document.getElementById('page-btn-pressed').value = page.button_pressed_color || theme.button_pressed_color || '#ff7a1a';
 	document.getElementById('page-btn-border').value = page.button_border_color || theme.border_color || '#3a3a3a';
 	document.getElementById('page-btn-border-width').value = page.button_border_width || 0;
@@ -534,6 +607,7 @@ function updatePageMeta(){
 	const page = config.pages[activePageIndex];
 	page.name = document.getElementById('page-name-input').value || page.name;
 	page.nav_color = document.getElementById('page-nav-color').value;
+	page.nav_inactive_color = document.getElementById('page-nav-inactive-color').value;
 	renderPageList();
 	renderNav();
 	renderPreview();
@@ -576,10 +650,13 @@ function capturePageAsBaseline(){
 	const firstBtn = (page.buttons||[])[0] || {};
 	const buttonFontFamily = firstDefined(firstBtn.font_family, theme.button_font_family, 'montserrat');
 	const buttonFontSize = firstDefined(firstBtn.font_size, theme.button_font_size, 24);
+	
 	config.theme = {
 		...theme,
 		page_bg_color: page.bg_color || theme.page_bg_color || '#0f0f0f',
 		text_primary: page.text_color || theme.text_primary || '#f2f4f8',
+		nav_button_active_color: page.nav_color || theme.nav_button_active_color || '#ff9d2e',
+		nav_button_color: page.nav_inactive_color || theme.nav_button_color || '#3a3a3a',
 		accent_color: page.button_color || theme.accent_color || '#ff9d2e',
 		button_pressed_color: page.button_pressed_color || theme.button_pressed_color || '#ff7a1a',
 		border_color: page.button_border_color || theme.border_color || '#20232f',
@@ -597,13 +674,17 @@ function applyBaselineToPage(){
 	ensurePages();
 	const theme = config.theme || {};
 	const page = config.pages[activePageIndex];
+	
 	page.bg_color = theme.page_bg_color || page.bg_color || '#0f0f0f';
 	page.text_color = theme.text_primary || page.text_color || '#f2f4f8';
+	page.nav_color = theme.nav_button_active_color || page.nav_color || '#ff9d2e';
+	page.nav_inactive_color = theme.nav_button_color || page.nav_inactive_color || '#3a3a3a';
 	page.button_color = theme.accent_color || page.button_color || '#ff9d2e';
 	page.button_pressed_color = firstDefined(theme.button_pressed_color, page.button_pressed_color, '#ff7a1a');
 	page.button_border_color = theme.border_color || page.button_border_color || '#20232f';
 	page.button_border_width = theme.border_width !== undefined ? theme.border_width : (page.button_border_width || 0);
 	page.button_radius = theme.button_radius !== undefined ? theme.button_radius : (page.button_radius || 12);
+	
 	// push updated fills/borders into existing buttons
 	page.buttons = (page.buttons||[]).map(btn=>({
 		...btn,
@@ -791,10 +872,25 @@ function renderPreview(){
 	header.style.background = theme.surface_color || '#12141c';
 	header.style.borderBottom = `${firstDefined(theme.header_border_width, 0)}px solid ${firstDefined(theme.header_border_color, theme.accent_color, '#ff9d2e')}`;
 	document.getElementById('preview-logo').style.display = headerCfg.show_logo === false ? 'none' : 'block';
-	document.getElementById('preview-title').textContent = headerCfg.title || 'CAN Control';
-	document.getElementById('preview-subtitle').textContent = headerCfg.subtitle || '';
-	document.getElementById('preview-title').style.color = theme.text_primary || '#fff';
-	document.getElementById('preview-subtitle').style.color = theme.text_secondary || '#8d92a3';
+	
+	const titleEl = document.getElementById('preview-title');
+	const subtitleEl = document.getElementById('preview-subtitle');
+	titleEl.textContent = headerCfg.title || 'CAN Control';
+	subtitleEl.textContent = headerCfg.subtitle || '';
+	titleEl.style.color = theme.text_primary || '#fff';
+	subtitleEl.style.color = theme.text_secondary || '#8d92a3';
+	
+	// Apply font styling to match what will be shown on device
+	const titleFont = headerCfg.title_font || 'montserrat_24';
+	const subtitleFont = headerCfg.subtitle_font || 'montserrat_12';
+	const titleSize = parseInt(titleFont.split('_')[1]) || 24;
+	const subtitleSize = parseInt(subtitleFont.split('_')[1]) || 12;
+	const titleFamily = titleFont.startsWith('unscii') ? 'monospace' : 'Space Grotesk, sans-serif';
+	const subtitleFamily = subtitleFont.startsWith('unscii') ? 'monospace' : 'Space Grotesk, sans-serif';
+	titleEl.style.fontSize = `${Math.min(titleSize, 28)}px`;
+	titleEl.style.fontFamily = titleFamily;
+	subtitleEl.style.fontSize = `${Math.min(subtitleSize, 16)}px`;
+	subtitleEl.style.fontFamily = subtitleFamily;
 
 	renderNav();
 
@@ -848,7 +944,9 @@ function renderNav(){
 		chip.className = 'pill';
 		chip.textContent = p.name || 'Page '+(idx+1);
 		const active = idx===activePageIndex;
-		chip.style.background = active ? (theme.nav_button_active_color || theme.accent_color || '#ff9d2e') : (p.nav_color || theme.nav_button_color || '#2a2a2a');
+		chip.style.background = active 
+			? (p.nav_color || theme.nav_button_active_color || theme.accent_color || '#ff9d2e') 
+			: (p.nav_inactive_color || theme.nav_button_color || '#2a2a2a');
 		chip.style.color = active ? '#16110a' : '#f2f4f8';
 		chip.draggable = true;
 		chip.ondragstart = (e)=>{ e.dataTransfer.setData('text/plain', idx); };
@@ -875,47 +973,70 @@ function updateHeaderFromInputs(){
 	config.header.subtitle = document.getElementById('header-subtitle-input').value || '';
 	config.header.title_font = document.getElementById('header-title-font').value || 'montserrat_24';
 	config.header.subtitle_font = document.getElementById('header-subtitle-font').value || 'montserrat_12';
-	config.header.show_logo = document.getElementById('header-show-logo').checked;
+	config.header.title_align = document.getElementById('header-title-align').value || 'center';
+	config.header.title_x_offset = parseInt(document.getElementById('header-title-x-offset').value) || 0;
+	config.header.title_y_offset = parseInt(document.getElementById('header-title-y-offset').value) || 0;
+	
+	// Update offset displays
+	document.getElementById('header-x-offset-value').textContent = config.header.title_x_offset;
+	document.getElementById('header-y-offset-value').textContent = config.header.title_y_offset;
+	
+	// show_logo now controlled by image upload - always true if image exists
+	config.header.show_logo = !!(config.images && config.images.header_logo);
 	renderPreview();
 }
 
 function hydrateThemeFields(){
 	const theme = config.theme || {};
+	// Header appearance
 	document.getElementById('theme-surface').value = theme.surface_color || '#12141c';
-	document.getElementById('theme-page-bg').value = theme.page_bg_color || '#0f0f0f';
 	document.getElementById('theme-text-primary').value = theme.text_primary || '#f2f4f8';
 	document.getElementById('theme-text-secondary').value = theme.text_secondary || '#8d92a3';
-	document.getElementById('theme-border').value = theme.border_color || '#20232f';
-	document.getElementById('theme-nav-button').value = theme.nav_button_color || '#2a2a2a';
-	document.getElementById('theme-nav-active').value = theme.nav_button_active_color || '#ff9d2e';
-	document.getElementById('theme-radius').value = theme.button_radius || 12;
-	document.getElementById('theme-border-width').value = theme.border_width || 0;
 	document.getElementById('theme-header-border').value = theme.header_border_color || '#ff9d2e';
 	document.getElementById('theme-header-border-width').value = theme.header_border_width || 0;
+	
+	// Window baseline
+	document.getElementById('theme-page-bg').value = theme.page_bg_color || '#0f0f0f';
+	document.getElementById('theme-text-color').value = theme.text_primary || '#f2f4f8';
+	document.getElementById('theme-nav-active').value = theme.nav_button_active_color || '#ff9d2e';
+	document.getElementById('theme-nav-button').value = theme.nav_button_color || '#2a2a2a';
+	document.getElementById('theme-button-color').value = theme.accent_color || '#ff9d2e';
+	document.getElementById('theme-button-pressed').value = theme.button_pressed_color || '#ff7a1a';
+	document.getElementById('theme-border').value = theme.border_color || '#20232f';
+	document.getElementById('theme-border-width').value = theme.border_width || 0;
+	document.getElementById('theme-radius').value = theme.button_radius || 12;
 }
 
 function collectTheme(){
 	const existing = config.theme || {};
 	config.theme = {
+		// Header appearance
 		surface_color: document.getElementById('theme-surface').value,
-		page_bg_color: document.getElementById('theme-page-bg').value,
-		button_pressed_color: existing.button_pressed_color || '#ff7a1a',
 		text_primary: document.getElementById('theme-text-primary').value,
 		text_secondary: document.getElementById('theme-text-secondary').value,
+		header_border_color: document.getElementById('theme-header-border').value,
+		header_border_width: parseInt(document.getElementById('theme-header-border-width').value)||0,
+		
+		// Window baseline
+		page_bg_color: document.getElementById('theme-page-bg').value,
+		accent_color: document.getElementById('theme-button-color').value,
+		button_pressed_color: document.getElementById('theme-button-pressed').value,
 		border_color: document.getElementById('theme-border').value,
 		nav_button_color: document.getElementById('theme-nav-button').value,
 		nav_button_active_color: document.getElementById('theme-nav-active').value,
 		button_radius: parseInt(document.getElementById('theme-radius').value)||12,
 		border_width: parseInt(document.getElementById('theme-border-width').value)||0,
-		header_border_color: document.getElementById('theme-header-border').value,
-		header_border_width: parseInt(document.getElementById('theme-header-border-width').value)||0,
+		
+		// Preserve additional fields
 		button_font_family: existing.button_font_family || 'montserrat',
 		button_font_size: existing.button_font_size || 24
 	};
 }
 
 function wireThemeInputs(){
-	['theme-bg','theme-surface','theme-page-bg','theme-accent','theme-text-primary','theme-text-secondary','theme-border','theme-nav-button','theme-nav-active','theme-radius','theme-border-width','theme-header-border','theme-header-border-width'].forEach(id=>{
+	['theme-surface','theme-text-primary','theme-text-secondary','theme-header-border','theme-header-border-width',
+	 'theme-page-bg','theme-text-color','theme-nav-active','theme-nav-button','theme-button-color','theme-button-pressed',
+	 'theme-border','theme-border-width','theme-radius'].forEach(id=>{
 		const el = document.getElementById(id);
 		if(!el) return;
 		el.addEventListener('input', ()=>{ collectTheme(); renderPreview(); });
@@ -989,7 +1110,12 @@ function hydrateHeaderFields(){
 	const header = config.header || {};
 	document.getElementById('header-title-input').value = header.title || 'CAN Control';
 	document.getElementById('header-subtitle-input').value = header.subtitle || '';
-	document.getElementById('header-show-logo').checked = header.show_logo !== false;
+	document.getElementById('header-title-align').value = header.title_align || 'center';
+	document.getElementById('header-title-x-offset').value = header.title_x_offset || 0;
+	document.getElementById('header-title-y-offset').value = header.title_y_offset || 0;
+	document.getElementById('header-x-offset-value').textContent = header.title_x_offset || 0;
+	document.getElementById('header-y-offset-value').textContent = header.title_y_offset || 0;
+	// show_logo checkbox removed - logo display controlled by Image Assets upload
 }
 
 function populateFontSelects(){
@@ -1132,20 +1258,7 @@ function renderWifiList(){
 	});
 }
 
-function handleLogoUpload(evt){
-	const file = evt.target.files[0];
-	if(!file) return;
-	if(file.size>512000){ showBanner('Logo too large (500KB max)','error'); evt.target.value=''; return; }
-	const reader = new FileReader();
-	reader.onload = (e)=>{
-		if(!config.header) config.header={};
-		config.header.logo_base64 = e.target.result;
-		document.getElementById('logo-preview-img').src = e.target.result;
-		document.getElementById('logo-preview').style.display='block';
-		renderPreview();
-	};
-	reader.readAsDataURL(file);
-}
+// Legacy logo upload function removed - use Image Assets section instead
 
 function handleSleepIconUpload(evt){
 	const file = evt.target.files[0];
@@ -1161,8 +1274,218 @@ function handleSleepIconUpload(evt){
 	reader.readAsDataURL(file);
 }
 
-function clearCustomLogo(){ if(!config.header) config.header={}; config.header.logo_base64=''; document.getElementById('logo-preview').style.display='none'; renderPreview(); }
-function clearSleepIcon(){ if(!config.display) config.display={}; config.display.sleep_icon_base64=''; document.getElementById('sleep-icon-preview').style.display='none'; }
+// clearSleepIcon removed - use Image Assets clear button instead
+
+// Image upload configurations - reduced sizes for memory safety
+const IMAGE_CONFIGS = {
+	header: {
+		maxSize: [48, 36],
+		maxBytes: 10 * 1024,  // 10KB max
+		format: 'PNG',
+		hasAlpha: true,
+		configPath: 'images.header_logo'
+	},
+	splash: {
+		maxSize: [300, 225],  // Reduced from 400x300
+		maxBytes: 40 * 1024,  // 40KB max
+		format: 'JPEG',  // Changed to JPEG for better compression
+		hasAlpha: false,
+		configPath: 'images.splash_logo'
+	},
+	background: {
+		maxSize: [400, 240],  // Reduced from 800x480 for memory
+		maxBytes: 50 * 1024,  // 50KB max
+		format: 'JPEG',
+		hasAlpha: false,
+		configPath: 'images.background_image'
+	},
+	sleep: {
+		maxSize: [150, 113],  // Reduced from 200x150
+		maxBytes: 15 * 1024,  // 15KB max
+		format: 'JPEG',  // Changed to JPEG
+		hasAlpha: false,
+		configPath: 'images.sleep_logo'
+	}
+};
+
+// Image processing utility - resize image using canvas
+function resizeImage(file, imageType) {
+	return new Promise((resolve, reject) => {
+		const imgConfig = IMAGE_CONFIGS[imageType];
+		if (!imgConfig) {
+			reject(new Error('Unknown image type'));
+			return;
+		}
+
+		const reader = new FileReader();
+		reader.onload = (e) => {
+			const img = new Image();
+			img.onload = () => {
+				const canvas = document.createElement('canvas');
+				const ctx = canvas.getContext('2d');
+
+				// Calculate scaling to fit within max dimensions
+				const [maxWidth, maxHeight] = imgConfig.maxSize;
+				let { width, height } = img;
+				const ratio = Math.min(maxWidth / width, maxHeight / height, 1);
+				
+				width = Math.floor(width * ratio);
+				height = Math.floor(height * ratio);
+
+				canvas.width = width;
+				canvas.height = height;
+
+				// Draw resized image
+				ctx.drawImage(img, 0, 0, width, height);
+
+				// Progressive compression to hit size target
+				const mimeType = imgConfig.format === 'PNG' ? 'image/png' : 'image/jpeg';
+				let qualityLevels = imgConfig.format === 'PNG' 
+					? [0.9, 0.8, 0.7, 0.6, 0.5]  // PNG quality levels
+					: [0.8, 0.7, 0.6, 0.5, 0.4, 0.3];  // JPEG quality levels
+				
+				let qualityIndex = 0;
+				
+				const tryCompress = () => {
+					if (qualityIndex >= qualityLevels.length) {
+						reject(new Error(`Cannot compress image below ${(imgConfig.maxBytes / 1024).toFixed(1)}KB. Try a simpler image or remove details.`));
+						return;
+					}
+					
+					const quality = qualityLevels[qualityIndex];
+					canvas.toBlob((blob) => {
+						if (!blob) {
+							reject(new Error('Failed to process image'));
+							return;
+						}
+
+						console.log(`${imageType}: Trying quality ${quality.toFixed(2)}, size: ${(blob.size / 1024).toFixed(1)}KB`);
+						
+						if (blob.size > imgConfig.maxBytes) {
+							qualityIndex++;
+							tryCompress();  // Try next quality level
+						} else {
+							// Success - convert to base64
+							const reader2 = new FileReader();
+							reader2.onload = () => resolve({ 
+								dataUrl: reader2.result, 
+								size: blob.size, 
+								width, 
+								height,
+								quality: quality
+							});
+							reader2.readAsDataURL(blob);
+						}
+					}, mimeType, quality);
+				};
+				
+				tryCompress();
+			};
+			img.onerror = () => reject(new Error('Failed to load image'));
+			img.src = e.target.result;
+		};
+		reader.onerror = () => reject(new Error('Failed to read file'));
+		reader.readAsDataURL(file);
+	});
+}
+
+// Handle image upload for any type
+async function handleImageUpload(evt, imageType) {
+	const file = evt.target.files[0];
+	if (!file) return;
+
+	// Check file size (50KB limit recommended)
+	if (file.size > 512000) {
+		showBanner(`Image too large (${(file.size/1024).toFixed(0)}KB). Use prepare_images.py to optimize first.`, 'error');
+		evt.target.value = '';
+		return;
+	}
+
+	try {
+		showBanner(`Uploading ${imageType} image...`, 'info');
+		
+		// Read file as data URL
+		const reader = new FileReader();
+		const dataUrl = await new Promise((resolve, reject) => {
+			reader.onload = () => resolve(reader.result);
+			reader.onerror = reject;
+			reader.readAsDataURL(file);
+		});
+		
+		// Upload directly without client-side resizing
+		console.log(`Uploading ${imageType}: ${(dataUrl.length / 1024).toFixed(1)}KB base64`);
+		const response = await fetch('/api/image/upload', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({
+				type: imageType,
+				data: dataUrl
+			})
+		});
+		
+		if (!response.ok) {
+			throw new Error(`Upload failed: ${response.statusText}`);
+		}
+		
+		// Store in local config for preview
+		if (!config.images) config.images = {};
+		const configPath = IMAGE_CONFIGS[imageType].configPath.split('.');
+		if (configPath[0] === 'images') {
+			config.images[configPath[1]] = dataUrl;
+		}
+
+		// Update preview
+		const previewImg = document.getElementById(`${imageType}-logo-preview-img`);
+		const previewDiv = document.getElementById(`${imageType}-logo-preview`);
+		const sizeSpan = document.getElementById(`${imageType}-logo-size`);
+		
+		if (previewImg && previewDiv && sizeSpan) {
+			previewImg.src = dataUrl;
+			previewDiv.style.display = 'block';
+			const img = new Image();
+			img.onload = () => {
+				sizeSpan.textContent = `${img.width}x${img.height}, ${(file.size / 1024).toFixed(1)}KB`;
+			};
+			img.src = dataUrl;
+		}
+
+		showBanner(`✅ ${imageType} image uploaded! Check device display.`, 'success');
+	} catch (error) {
+		showBanner(`Error: ${error.message}`, 'error');
+		evt.target.value = '';
+	}
+}
+
+// Clear image
+function clearImage(imageType) {
+	if (!config.images) config.images = {};
+	const configPath = IMAGE_CONFIGS[imageType].configPath.split('.');
+	if (configPath[0] === 'images') {
+		config.images[configPath[1]] = '';
+	}
+	
+	// Upload empty image to server
+	fetch('/api/image/upload', {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify({
+			type: imageType,
+			data: ''
+		})
+	}).then(response => {
+		if (response.ok) {
+			const previewDiv = document.getElementById(`${imageType}-logo-preview`);
+			const uploadInput = document.getElementById(`${imageType}-logo-upload`);
+			
+			if (previewDiv) previewDiv.style.display = 'none';
+			if (uploadInput) uploadInput.value = '';
+			
+			showBanner(`${imageType} image cleared`, 'success');
+		}
+	}).catch(err => {
+		showBanner(`Error clearing image: ${err.message}`, 'error');
+	});
+}
 
 function hydrateDisplay(){
 	const display = config.display || {};
@@ -1170,9 +1493,40 @@ function hydrateDisplay(){
 	document.getElementById('brightness-value').textContent = `${display.brightness ?? 100}%`;
 	document.getElementById('sleep-enabled').checked = display.sleep_enabled || false;
 	document.getElementById('sleep-timeout').value = display.sleep_timeout_seconds ?? 60;
+
+	// Hydrate image assets
+	const images = config.images || {};
+	
+	// Header logo
+	if (images.header_logo) {
+		document.getElementById('header-logo-preview-img').src = images.header_logo;
+		document.getElementById('header-logo-preview').style.display = 'block';
+	}
+	
+	// Splash logo
+	if (images.splash_logo) {
+		document.getElementById('splash-logo-preview-img').src = images.splash_logo;
+		document.getElementById('splash-logo-preview').style.display = 'block';
+	}
+	
+	// Background image
+	if (images.background_image) {
+		document.getElementById('background-preview-img').src = images.background_image;
+		document.getElementById('background-preview').style.display = 'block';
+	}
+	
+	// Sleep logo
+	if (images.sleep_logo) {
+		document.getElementById('sleep-logo-preview-img').src = images.sleep_logo;
+		document.getElementById('sleep-logo-preview').style.display = 'block';
+	}
+
+	// Legacy sleep icon support
 	if(display.sleep_icon_base64){
-		document.getElementById('sleep-icon-preview').style.display='block';
-		document.getElementById('sleep-icon-preview-img').src = display.sleep_icon_base64;
+		if (!config.images) config.images = {};
+		if (!config.images.sleep_logo) {
+			config.images.sleep_logo = display.sleep_icon_base64;
+		}
 	}
 }
 
@@ -1181,9 +1535,9 @@ async function loadConfig(){
 		const res = await fetch('/api/config');
 		config = await res.json();
 		ensurePages();
+		populateFontSelects();  // Must populate fonts BEFORE hydrating header fields
 		hydrateThemeFields();
 		hydrateHeaderFields();
-		populateFontSelects();
 		hydratePageFields();
 		hydrateDisplay();
 		const wifiCfg = config.wifi || {};
@@ -1211,7 +1565,11 @@ async function saveConfig(){
 	config.header.subtitle = document.getElementById('header-subtitle-input').value || '';
 	config.header.title_font = document.getElementById('header-title-font').value;
 	config.header.subtitle_font = document.getElementById('header-subtitle-font').value;
-	config.header.show_logo = document.getElementById('header-show-logo').checked;
+	config.header.title_align = document.getElementById('header-title-align').value || 'center';
+	config.header.title_x_offset = parseInt(document.getElementById('header-title-x-offset').value) || 0;
+	config.header.title_y_offset = parseInt(document.getElementById('header-title-y-offset').value) || 0;
+	// show_logo controlled by whether image exists
+	config.header.show_logo = !!(config.images && config.images.header_logo);
 
 	config.wifi = {
 		ap:{ enabled: document.getElementById('ap-enabled').checked, ssid: document.getElementById('ap-ssid').value, password: document.getElementById('ap-password').value },
@@ -1225,9 +1583,13 @@ async function saveConfig(){
 		sleep_timeout_seconds: parseInt(document.getElementById('sleep-timeout').value)||60,
 		sleep_icon_base64: existingDisplay.sleep_icon_base64 || ''
 	};
+	
+	// Remove images from config - they're uploaded separately via /api/image/upload
+	const configToSave = JSON.parse(JSON.stringify(config));
+	delete configToSave.images;
 
 	try{
-		const res = await fetch('/api/config',{ method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(config) });
+		const res = await fetch('/api/config',{ method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(configToSave) });
 		if(!res.ok){ const text = await res.text(); throw new Error(text); }
 		showBanner('Configuration saved. Reboot device to apply display changes.','success');
 	}catch(err){ showBanner('Save failed: '+err.message,'error'); }
@@ -1235,8 +1597,20 @@ async function saveConfig(){
 
 document.addEventListener('DOMContentLoaded',()=>{
 	loadConfig();
-	document.getElementById('logo-upload').addEventListener('change', handleLogoUpload);
-	document.getElementById('sleep-icon-upload').addEventListener('change', handleSleepIconUpload);
+	
+	// Image upload handlers for new Image Assets section
+	const headerUpload = document.getElementById('header-logo-upload');
+	if (headerUpload) headerUpload.addEventListener('change', (e) => handleImageUpload(e, 'header'));
+	
+	const splashUpload = document.getElementById('splash-logo-upload');
+	if (splashUpload) splashUpload.addEventListener('change', (e) => handleImageUpload(e, 'splash'));
+	
+	const bgUpload = document.getElementById('background-upload');
+	if (bgUpload) bgUpload.addEventListener('change', (e) => handleImageUpload(e, 'background'));
+	
+	const sleepUpload = document.getElementById('sleep-logo-upload');
+	if (sleepUpload) sleepUpload.addEventListener('change', (e) => handleImageUpload(e, 'sleep'));
+	
 	wireThemeInputs();
 });
 </script>

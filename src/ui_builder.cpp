@@ -160,13 +160,13 @@ void UIBuilder::createBaseScreen() {
     lv_obj_set_pos(content_root_, 0, 80);
     lv_obj_clear_flag(content_root_, LV_OBJ_FLAG_SCROLLABLE);
 
-    // Navigation bar
+    // Navigation bar (transparent background, no padding)
     nav_bar_ = lv_obj_create(content_root_);
     lv_obj_set_width(nav_bar_, 800);
     lv_obj_set_height(nav_bar_, LV_SIZE_CONTENT);
-    lv_obj_set_style_bg_opa(nav_bar_, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_bg_opa(nav_bar_, LV_OPA_0, 0);  // Fully transparent
     lv_obj_set_style_border_width(nav_bar_, 0, 0);
-    lv_obj_set_style_pad_all(nav_bar_, UITheme::SPACE_XS, 0);
+    lv_obj_set_style_pad_all(nav_bar_, 0, 0);  // No padding
     lv_obj_set_style_pad_gap(nav_bar_, UITheme::SPACE_SM, 0);
     lv_obj_set_flex_flow(nav_bar_, LV_FLEX_FLOW_ROW);
     lv_obj_clear_flag(nav_bar_, LV_OBJ_FLAG_SCROLLABLE);
@@ -229,16 +229,18 @@ void UIBuilder::buildNavigation() {
     for (const auto& page : config_->pages) {
         lv_obj_t* btn = lv_btn_create(nav_bar_);
 
-        // Use page-specific color or fall back to theme default
-        lv_color_t nav_color = page.nav_color.empty() ?
-            colorFromHex(config_->theme.nav_button_color, UITheme::COLOR_SURFACE) :
-            colorFromHex(page.nav_color, UITheme::COLOR_SURFACE);
+        // Use page-specific inactive color, fall back to theme nav_button_color
+        lv_color_t inactive_color = !page.nav_inactive_color.empty() ?
+            colorFromHex(page.nav_inactive_color, UITheme::COLOR_SURFACE) :
+            colorFromHex(config_->theme.nav_button_color, UITheme::COLOR_SURFACE);
 
-        lv_obj_set_style_bg_color(btn, nav_color, 0);
+        lv_obj_set_style_bg_color(btn, inactive_color, 0);
         lv_obj_set_style_bg_opa(btn, LV_OPA_COVER, 0);
 
-        // Set active state color
-        lv_color_t active_color = colorFromHex(config_->theme.nav_button_active_color, UITheme::COLOR_ACCENT);
+        // Use page-specific active color, fall back to theme nav_button_active_color
+        lv_color_t active_color = !page.nav_color.empty() ?
+            colorFromHex(page.nav_color, UITheme::COLOR_ACCENT) :
+            colorFromHex(config_->theme.nav_button_active_color, UITheme::COLOR_ACCENT);
         lv_obj_set_style_bg_color(btn, active_color, LV_STATE_CHECKED);
         lv_obj_set_style_bg_opa(btn, LV_OPA_COVER, LV_STATE_CHECKED);
 
@@ -524,6 +526,21 @@ void UIBuilder::updateHeaderBranding() {
     lv_label_set_text(header_title_label_, config_->header.title.c_str());
     const lv_font_t* title_font = fontFromName(config_->header.title_font);
     lv_obj_set_style_text_font(header_title_label_, title_font, 0);
+    
+    // Apply text alignment
+    lv_text_align_t align = LV_TEXT_ALIGN_CENTER;
+    if (config_->header.title_align == "left") {
+        align = LV_TEXT_ALIGN_LEFT;
+    } else if (config_->header.title_align == "right") {
+        align = LV_TEXT_ALIGN_RIGHT;
+    }
+    lv_obj_set_style_text_align(header_title_label_, align, 0);
+    
+    // Apply position offsets (convert signed int8 to pixels)
+    int8_t x_offset = static_cast<int8_t>(config_->header.title_x_offset);
+    int8_t y_offset = static_cast<int8_t>(config_->header.title_y_offset);
+    lv_obj_set_style_translate_x(header_title_label_, x_offset, 0);
+    lv_obj_set_style_translate_y(header_title_label_, y_offset, 0);
 
     // Update subtitle text and font
     if (header_subtitle_label_) {
@@ -533,6 +550,9 @@ void UIBuilder::updateHeaderBranding() {
             lv_label_set_text(header_subtitle_label_, config_->header.subtitle.c_str());
             const lv_font_t* subtitle_font = fontFromName(config_->header.subtitle_font);
             lv_obj_set_style_text_font(header_subtitle_label_, subtitle_font, 0);
+            lv_obj_set_style_text_align(header_subtitle_label_, align, 0);
+            lv_obj_set_style_translate_x(header_subtitle_label_, x_offset, 0);
+            lv_obj_set_style_translate_y(header_subtitle_label_, y_offset, 0);
             lv_obj_clear_flag(header_subtitle_label_, LV_OBJ_FLAG_HIDDEN);
         }
     }
@@ -546,12 +566,42 @@ void UIBuilder::updateHeaderBranding() {
                   config_->header.logo_variant.c_str());
     
     if (config_->header.show_logo) {
-        // Use built-in logo from logo_variant
+        // Priority 1: Custom uploaded header logo
+        if (!config_->images.header_logo.empty()) {
+            Serial.printf("[UI] Custom header logo found, length=%d\n", config_->images.header_logo.length());
+            Serial.printf("[UI] Data URL prefix: %.50s...\n", config_->images.header_logo.c_str());
+            
+            // LVGL can decode PNG/JPEG from data URLs directly
+            lv_img_set_src(header_logo_img_, config_->images.header_logo.c_str());
+            lv_obj_clear_flag(header_logo_img_, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_invalidate(header_logo_img_);
+            
+            // Check if image loaded successfully
+            lv_img_header_t header;
+            lv_res_t res = lv_img_decoder_get_info(config_->images.header_logo.c_str(), &header);
+            if (res == LV_RES_OK) {
+                Serial.printf("[UI] Image decoded: %dx%d, format=%d\n", header.w, header.h, header.cf);
+            } else {
+                Serial.printf("[UI] ERROR: Failed to decode image, res=%d\n", res);
+            }
+            return;
+        }
+        
+        // Priority 2: Legacy custom logo from header.logo_base64
+        if (!config_->header.logo_base64.empty()) {
+            Serial.println("[UI] Using legacy custom header logo");
+            lv_img_set_src(header_logo_img_, config_->header.logo_base64.c_str());
+            lv_obj_clear_flag(header_logo_img_, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_invalidate(header_logo_img_);
+            return;
+        }
+        
+        // Priority 3: Built-in logo from logo_variant
         if (const lv_img_dsc_t* logo = iconForId(config_->header.logo_variant)) {
-            Serial.printf("[UI] Setting logo image source for variant: %s\n", config_->header.logo_variant.c_str());
+            Serial.printf("[UI] Using built-in logo variant: %s\n", config_->header.logo_variant.c_str());
             lv_img_set_src(header_logo_img_, logo);
             lv_obj_clear_flag(header_logo_img_, LV_OBJ_FLAG_HIDDEN);
-            lv_obj_invalidate(header_logo_img_);  // Force redraw
+            lv_obj_invalidate(header_logo_img_);
         } else {
             Serial.printf("[UI] No logo found for variant: %s\n", config_->header.logo_variant.c_str());
             lv_obj_add_flag(header_logo_img_, LV_OBJ_FLAG_HIDDEN);
@@ -563,10 +613,8 @@ void UIBuilder::updateHeaderBranding() {
 }
 
 const lv_img_dsc_t* UIBuilder::iconForId(const std::string& id) const {
-    // Map known logo IDs to compiled image descriptors; default to Bronco logo
-    if (id == "bronco" || id.empty()) {
-        return &img_bronco_logo;
-    }
+    // No built-in logos - all logos must be custom uploaded
+    // This function kept for future expansion if built-in logos are added
     return nullptr;
 }
 
@@ -768,11 +816,18 @@ void UIBuilder::setBrightness(uint8_t percent) {
 void UIBuilder::loadSleepIcon() {
     sleep_icon_buffer_.clear();
 
-    if (!config_ || config_->display.sleep_icon_base64.empty()) {
+    if (!config_) {
         return;
     }
 
-    sleep_icon_buffer_ = decodeBase64Logo(config_->display.sleep_icon_base64);
+    // Priority: new images.sleep_logo > legacy display.sleep_icon_base64
+    if (!config_->images.sleep_logo.empty()) {
+        sleep_icon_data_url_ = config_->images.sleep_logo;
+    } else if (!config_->display.sleep_icon_base64.empty()) {
+        sleep_icon_data_url_ = config_->display.sleep_icon_base64;
+    } else {
+        sleep_icon_data_url_.clear();
+    }
 }
 
 void UIBuilder::armSleepTimer() {
@@ -802,12 +857,25 @@ void UIBuilder::showSleepOverlay() {
     if (!sleep_overlay_) {
         return;
     }
-    if (!sleep_icon_buffer_.empty()) {
-        lv_img_set_src(sleep_image_, sleep_icon_buffer_.data());
+    if (!sleep_icon_data_url_.empty()) {
+        Serial.printf("[UI] Loading sleep icon, length=%d\n", sleep_icon_data_url_.length());
+        lv_img_set_src(sleep_image_, sleep_icon_data_url_.c_str());
+        lv_obj_clear_flag(sleep_image_, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_center(sleep_image_);
+        
+        // Check decode result
+        lv_img_header_t header;
+        lv_res_t res = lv_img_decoder_get_info(sleep_icon_data_url_.c_str(), &header);
+        if (res == LV_RES_OK) {
+            Serial.printf("[UI] Sleep icon decoded: %dx%d\n", header.w, header.h);
+        } else {
+            Serial.printf("[UI] ERROR: Sleep icon decode failed, res=%d\n", res);
+        }
     } else {
-        lv_img_set_src(sleep_image_, &img_bronco_logo);
+        // No image configured - hide the image object
+        Serial.println("[UI] No sleep icon configured");
+        lv_obj_add_flag(sleep_image_, LV_OBJ_FLAG_HIDDEN);
     }
-    lv_obj_center(sleep_image_);
     lv_obj_clear_flag(sleep_overlay_, LV_OBJ_FLAG_HIDDEN);
 }
 
@@ -830,6 +898,18 @@ const lv_font_t* UIBuilder::fontFromName(const std::string& name) const {
     if (name == "montserrat_28") return &lv_font_montserrat_28;
     if (name == "montserrat_30") return &lv_font_montserrat_30;
     if (name == "montserrat_32") return &lv_font_montserrat_32;
+    if (name == "montserrat_34") return &lv_font_montserrat_34;
+    if (name == "montserrat_36") return &lv_font_montserrat_36;
+    if (name == "montserrat_38") return &lv_font_montserrat_38;
+    if (name == "montserrat_40") return &lv_font_montserrat_40;
+    if (name == "montserrat_42") return &lv_font_montserrat_42;
+    if (name == "montserrat_44") return &lv_font_montserrat_44;
+    if (name == "montserrat_46") return &lv_font_montserrat_46;
+    if (name == "montserrat_48") return &lv_font_montserrat_48;
+    
+    // Special fonts
+    if (name == "dejavu_16") return &lv_font_dejavu_16_persian_hebrew;
+    if (name == "simsun_16") return &lv_font_simsun_16_cjk;
     
     // UNSCII monospace fonts
     if (name == "unscii_8") return &lv_font_unscii_8;

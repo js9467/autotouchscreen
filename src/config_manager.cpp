@@ -64,6 +64,7 @@ bool ConfigManager::begin() {
     }
 
     if (!LittleFS.exists(kConfigPath)) {
+        Serial.println("[ConfigManager] No config file found. Creating defaults.");
         config_ = buildDefaultConfig();
         return save();
     }
@@ -71,6 +72,16 @@ bool ConfigManager::begin() {
     if (!loadFromStorage()) {
         Serial.println("[ConfigManager] Failed to load config. Reverting to defaults.");
         config_ = buildDefaultConfig();
+        return save();
+    }
+
+    // Check if config needs upgrade based on available fonts
+    DeviceConfig defaults = buildDefaultConfig();
+    if (config_.available_fonts.size() < defaults.available_fonts.size()) {
+        Serial.printf("[ConfigManager] Config upgrade needed: %d fonts -> %d fonts\n", 
+                     config_.available_fonts.size(), defaults.available_fonts.size());
+        // Preserve user settings but update available fonts
+        config_.available_fonts = defaults.available_fonts;
         return save();
     }
 
@@ -88,7 +99,7 @@ bool ConfigManager::resetToDefaults() {
 }
 
 std::string ConfigManager::toJson() const {
-    DynamicJsonDocument doc(16384);
+    DynamicJsonDocument doc(524288);  // 512KB for base64 images
     encodeConfig(config_, doc);
 
     std::string output;
@@ -113,7 +124,7 @@ bool ConfigManager::loadFromStorage() {
         return false;
     }
 
-    DynamicJsonDocument doc(16384);
+    DynamicJsonDocument doc(524288);  // 512KB for base64 images
     DeserializationError err = deserializeJson(doc, file);
     file.close();
 
@@ -149,7 +160,7 @@ DeviceConfig ConfigManager::buildDefaultConfig() const {
     cfg.header.title = "CAN Control";
     cfg.header.subtitle = "Configuration Interface";
     cfg.header.show_logo = true;
-    cfg.header.logo_variant = "default";
+    cfg.header.logo_variant = "";  // Empty by default - no built-in logo
     cfg.header.title_font = "montserrat_24";
     cfg.header.subtitle_font = "montserrat_12";
 
@@ -173,10 +184,38 @@ DeviceConfig ConfigManager::buildDefaultConfig() const {
     cfg.available_fonts.push_back(font_22);
     FontConfig font_24; font_24.name = "montserrat_24"; font_24.display_name = "Montserrat 24"; font_24.size = 24;
     cfg.available_fonts.push_back(font_24);
+    FontConfig font_26; font_26.name = "montserrat_26"; font_26.display_name = "Montserrat 26"; font_26.size = 26;
+    cfg.available_fonts.push_back(font_26);
     FontConfig font_28; font_28.name = "montserrat_28"; font_28.display_name = "Montserrat 28"; font_28.size = 28;
     cfg.available_fonts.push_back(font_28);
+    FontConfig font_30; font_30.name = "montserrat_30"; font_30.display_name = "Montserrat 30"; font_30.size = 30;
+    cfg.available_fonts.push_back(font_30);
     FontConfig font_32; font_32.name = "montserrat_32"; font_32.display_name = "Montserrat 32"; font_32.size = 32;
     cfg.available_fonts.push_back(font_32);
+    FontConfig font_34; font_34.name = "montserrat_34"; font_34.display_name = "Montserrat 34"; font_34.size = 34;
+    cfg.available_fonts.push_back(font_34);
+    FontConfig font_36; font_36.name = "montserrat_36"; font_36.display_name = "Montserrat 36"; font_36.size = 36;
+    cfg.available_fonts.push_back(font_36);
+    FontConfig font_38; font_38.name = "montserrat_38"; font_38.display_name = "Montserrat 38"; font_38.size = 38;
+    cfg.available_fonts.push_back(font_38);
+    FontConfig font_40; font_40.name = "montserrat_40"; font_40.display_name = "Montserrat 40"; font_40.size = 40;
+    cfg.available_fonts.push_back(font_40);
+    FontConfig font_42; font_42.name = "montserrat_42"; font_42.display_name = "Montserrat 42"; font_42.size = 42;
+    cfg.available_fonts.push_back(font_42);
+    FontConfig font_44; font_44.name = "montserrat_44"; font_44.display_name = "Montserrat 44"; font_44.size = 44;
+    cfg.available_fonts.push_back(font_44);
+    FontConfig font_46; font_46.name = "montserrat_46"; font_46.display_name = "Montserrat 46"; font_46.size = 46;
+    cfg.available_fonts.push_back(font_46);
+    FontConfig font_48; font_48.name = "montserrat_48"; font_48.display_name = "Montserrat 48"; font_48.size = 48;
+    cfg.available_fonts.push_back(font_48);
+    FontConfig font_dejavu16; font_dejavu16.name = "dejavu_16"; font_dejavu16.display_name = "DejaVu 16 (Persian/Hebrew)"; font_dejavu16.size = 16;
+    cfg.available_fonts.push_back(font_dejavu16);
+    FontConfig font_simsun16; font_simsun16.name = "simsun_16"; font_simsun16.display_name = "SimSun 16 (CJK)"; font_simsun16.size = 16;
+    cfg.available_fonts.push_back(font_simsun16);
+    FontConfig font_unscii8; font_unscii8.name = "unscii_8"; font_unscii8.display_name = "UNSCII 8"; font_unscii8.size = 8;
+    cfg.available_fonts.push_back(font_unscii8);
+    FontConfig font_unscii16; font_unscii16.name = "unscii_16"; font_unscii16.display_name = "UNSCII 16"; font_unscii16.size = 16;
+    cfg.available_fonts.push_back(font_unscii16);
 
     PageConfig home;
     home.id = "home";
@@ -236,6 +275,12 @@ void ConfigManager::encodeConfig(const DeviceConfig& source, DynamicJsonDocument
     display["sleep_enabled"] = source.display.sleep_enabled;
     display["sleep_timeout_seconds"] = source.display.sleep_timeout_seconds;
     display["sleep_icon_base64"] = source.display.sleep_icon_base64.c_str();
+
+    JsonObject images = doc["images"].to<JsonObject>();
+    images["header_logo"] = source.images.header_logo.c_str();
+    images["splash_logo"] = source.images.splash_logo.c_str();
+    images["background_image"] = source.images.background_image.c_str();
+    images["sleep_logo"] = source.images.sleep_logo.c_str();
 
     JsonObject theme = doc["theme"].to<JsonObject>();
     theme["bg_color"] = source.theme.bg_color.c_str();
@@ -367,6 +412,14 @@ bool ConfigManager::decodeConfig(JsonVariantConst json, DeviceConfig& target, st
         target.display.sleep_enabled = display["sleep_enabled"] | target.display.sleep_enabled;
         target.display.sleep_timeout_seconds = clampValue<std::uint16_t>(display["sleep_timeout_seconds"] | target.display.sleep_timeout_seconds, 5u, 3600u);
         target.display.sleep_icon_base64 = safeString(display["sleep_icon_base64"], target.display.sleep_icon_base64);
+    }
+
+    JsonObjectConst images = json["images"];
+    if (!images.isNull()) {
+        target.images.header_logo = safeString(images["header_logo"], target.images.header_logo);
+        target.images.splash_logo = safeString(images["splash_logo"], target.images.splash_logo);
+        target.images.background_image = safeString(images["background_image"], target.images.background_image);
+        target.images.sleep_logo = safeString(images["sleep_logo"], target.images.sleep_logo);
     }
 
     JsonObjectConst theme = json["theme"];

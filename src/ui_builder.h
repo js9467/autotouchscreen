@@ -81,5 +81,6 @@ private:
     std::string last_ap_ip_ = "";
     std::string last_sta_ip_ = "";
     bool last_sta_connected_ = false;
-    std::vector<uint8_t> sleep_icon_buffer_;
+    std::vector<uint8_t> sleep_icon_buffer_;  // Kept for compatibility
+    std::string sleep_icon_data_url_;  // Data URL for sleep icon
 };

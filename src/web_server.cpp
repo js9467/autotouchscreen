@@ -13,7 +13,7 @@ namespace {
 const IPAddress kApIp(192, 168, 4, 250);
 const IPAddress kApGateway(192, 168, 4, 250);
 const IPAddress kApMask(255, 255, 255, 0);
-constexpr std::size_t kConfigJsonLimit = 65536;  // 64KB for config with larger images
+constexpr std::size_t kConfigJsonLimit = 524288;  // 512KB for config with base64 images (base64 adds ~33% overhead)
 constexpr std::size_t kWifiConnectJsonLimit = 1024;
 
 const char* AuthModeToString(wifi_auth_mode_t mode) {
@@ -131,7 +131,11 @@ void WebServerManager::setupRoutes() {
     
     // Main configuration page
     server_.on("/", HTTP_GET, [](AsyncWebServerRequest* request) {
-        request->send_P(200, "text/html", WEB_INTERFACE_HTML);
+        AsyncWebServerResponse* response = request->beginResponse_P(200, "text/html", WEB_INTERFACE_HTML);
+        response->addHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+        response->addHeader("Pragma", "no-cache");
+        response->addHeader("Expires", "0");
+        request->send(response);
     });
 
     server_.on("/api/status", HTTP_GET, [this](AsyncWebServerRequest* request) {
@@ -217,6 +221,53 @@ void WebServerManager::setupRoutes() {
             request->send(200, "application/json", payload);
         }, kWifiConnectJsonLimit);
     server_.addHandler(wifi_handler);
+
+    // Dedicated image upload endpoints (separate from main config to avoid size limits)
+    auto* image_handler = new AsyncCallbackJsonWebHandler("/api/image/upload",
+        [this](AsyncWebServerRequest* request, JsonVariant& json) {
+            String imageType = json["type"] | "";
+            String imageData = json["data"] | "";
+            
+            if (imageType.isEmpty()) {
+                request->send(400, "application/json", "{\"status\":\"error\",\"message\":\"Missing type\"}");
+                return;
+            }
+            
+            // Allow empty data for clearing images
+            Serial.printf("[WebServer] Image upload: type=%s, data_length=%d\n", imageType.c_str(), imageData.length());
+            
+            auto& cfg = ConfigManager::instance().getConfig();
+            
+            // Store image in appropriate field
+            if (imageType == "header") {
+                cfg.images.header_logo = imageData.c_str();
+                // Clear logo_variant when custom header is uploaded
+                cfg.header.logo_variant = "";
+            } else if (imageType == "splash") {
+                cfg.images.splash_logo = imageData.c_str();
+            } else if (imageType == "background") {
+                cfg.images.background_image = imageData.c_str();
+            } else if (imageType == "sleep") {
+                cfg.images.sleep_logo = imageData.c_str();
+            } else {
+                request->send(400, "application/json", "{\"status\":\"error\",\"message\":\"Invalid image type\"}");
+                return;
+            }
+            
+            if (!ConfigManager::instance().save()) {
+                request->send(500, "application/json", "{\"status\":\"error\",\"message\":\"Failed to save\"}");
+                return;
+            }
+            
+            UIBuilder::instance().markDirty();
+            
+            DynamicJsonDocument doc(64);
+            doc["status"] = "ok";
+            String payload;
+            serializeJson(doc, payload);
+            request->send(200, "application/json", payload);
+        }, 262144);  // 256KB limit for single image upload
+    server_.addHandler(image_handler);
 
     server_.on("/api/wifi/scan", HTTP_GET, [](AsyncWebServerRequest* request) {
         const int16_t count = WiFi.scanNetworks(/*async=*/false, /*show_hidden=*/true);
