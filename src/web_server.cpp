@@ -77,8 +77,21 @@ void WebServerManager::notifyConfigChanged() {
 }
 
 void WebServerManager::configureWifi() {
-    const auto& wifi = ConfigManager::instance().getConfig().wifi;
+    auto& wifi = ConfigManager::instance().getConfig().wifi;
     WiFi.mode(WIFI_MODE_APSTA);
+
+    // SAFETY: Always enable AP if it was disabled (prevents lockout)
+    if (!wifi.ap.enabled) {
+        Serial.println("[WebServer] WARNING: AP was disabled. Re-enabling to prevent lockout.");
+        wifi.ap.enabled = true;
+        if (wifi.ap.ssid.empty()) {
+            wifi.ap.ssid = "CAN-Control";
+        }
+        if (wifi.ap.password.empty() || wifi.ap.password.length() < 8) {
+            wifi.ap.password = "canbus123";
+        }
+        ConfigManager::instance().save();
+    }
 
     if (wifi.ap.enabled) {
         const char* password = nullptr;
@@ -89,6 +102,10 @@ void WebServerManager::configureWifi() {
         if (!WiFi.softAPConfig(kApIp, kApGateway, kApMask)) {
             Serial.println("[WebServer] Failed to set AP IP config");
         }
+        
+        Serial.printf("[WebServer] Starting AP - SSID: %s, Password: %s\n", 
+                     wifi.ap.ssid.c_str(), password ? password : "(none - open network)");
+        
         if (!WiFi.softAP(wifi.ap.ssid.c_str(), password)) {
             Serial.println("[WebServer] Failed to start access point");
         }
@@ -132,9 +149,10 @@ void WebServerManager::setupRoutes() {
     // Main configuration page
     server_.on("/", HTTP_GET, [](AsyncWebServerRequest* request) {
         AsyncWebServerResponse* response = request->beginResponse_P(200, "text/html", WEB_INTERFACE_HTML);
-        response->addHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+        response->addHeader("Cache-Control", "no-cache, no-store, must-revalidate, max-age=0");
         response->addHeader("Pragma", "no-cache");
         response->addHeader("Expires", "0");
+        response->addHeader("ETag", String(millis()).c_str());  // Force fresh content
         request->send(response);
     });
 

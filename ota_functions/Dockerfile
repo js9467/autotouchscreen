@@ -7,11 +7,11 @@ RUN apk add --no-cache vips
 WORKDIR /app
 
 # Install deps first (better layer caching)
-COPY package.json package-lock.json* ./
+COPY ota_functions/package.json ota_functions/package-lock.json* ./
 RUN npm ci --omit=dev || npm i --omit=dev
 
 # Copy app
-COPY server.js ./
+COPY ota_functions/server.js ./
 
 # Fly expects the app to listen on 0.0.0.0 and PORT
 ENV NODE_ENV=production

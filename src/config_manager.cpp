@@ -168,6 +168,12 @@ DeviceConfig ConfigManager::buildDefaultConfig() const {
     cfg.display.sleep_enabled = false;
     cfg.display.sleep_timeout_seconds = 60;
 
+    // Ensure WiFi AP is always enabled by default
+    cfg.wifi.ap.enabled = true;
+    cfg.wifi.ap.ssid = "CAN-Control";
+    cfg.wifi.ap.password = "canbus123";
+    cfg.wifi.sta.enabled = false;
+
     // Initialize available fonts
     cfg.available_fonts.clear();
     FontConfig font_12; font_12.name = "montserrat_12"; font_12.display_name = "Montserrat 12"; font_12.size = 12;
@@ -269,6 +275,9 @@ void ConfigManager::encodeConfig(const DeviceConfig& source, DynamicJsonDocument
     header["logo_base64"] = source.header.logo_base64.c_str();
     header["title_font"] = source.header.title_font.c_str();
     header["subtitle_font"] = source.header.subtitle_font.c_str();
+    header["title_align"] = source.header.title_align.c_str();
+    header["title_x_offset"] = source.header.title_x_offset;
+    header["title_y_offset"] = source.header.title_y_offset;
 
     JsonObject display = doc["display"].to<JsonObject>();
     display["brightness"] = source.display.brightness;
@@ -293,6 +302,7 @@ void ConfigManager::encodeConfig(const DeviceConfig& source, DynamicJsonDocument
     theme["header_border_color"] = source.theme.header_border_color.c_str();
     theme["nav_button_color"] = source.theme.nav_button_color.c_str();
     theme["nav_button_active_color"] = source.theme.nav_button_active_color.c_str();
+    theme["nav_button_text_color"] = source.theme.nav_button_text_color.c_str();
     theme["button_radius"] = source.theme.button_radius;
     theme["border_width"] = source.theme.border_width;
     theme["header_border_width"] = source.theme.header_border_width;
@@ -404,6 +414,9 @@ bool ConfigManager::decodeConfig(JsonVariantConst json, DeviceConfig& target, st
         target.header.logo_base64 = safeString(header["logo_base64"], target.header.logo_base64);
         target.header.title_font = safeString(header["title_font"], target.header.title_font);
         target.header.subtitle_font = safeString(header["subtitle_font"], target.header.subtitle_font);
+        target.header.title_align = safeString(header["title_align"], target.header.title_align);
+        target.header.title_x_offset = header["title_x_offset"] | target.header.title_x_offset;
+        target.header.title_y_offset = header["title_y_offset"] | target.header.title_y_offset;
     }
 
     JsonObjectConst display = json["display"];
@@ -434,6 +447,7 @@ bool ConfigManager::decodeConfig(JsonVariantConst json, DeviceConfig& target, st
         target.theme.header_border_color = sanitizeColor(safeString(theme["header_border_color"], target.theme.header_border_color));
         target.theme.nav_button_color = sanitizeColor(safeString(theme["nav_button_color"], target.theme.nav_button_color));
         target.theme.nav_button_active_color = sanitizeColor(safeString(theme["nav_button_active_color"], target.theme.nav_button_active_color));
+        target.theme.nav_button_text_color = sanitizeColor(safeString(theme["nav_button_text_color"], target.theme.nav_button_text_color));
         target.theme.button_radius = clampValue<std::uint8_t>(theme["button_radius"] | target.theme.button_radius, 0u, 50u);
         target.theme.border_width = clampValue<std::uint8_t>(theme["border_width"] | target.theme.border_width, 0u, 10u);
         target.theme.header_border_width = clampValue<std::uint8_t>(theme["header_border_width"] | target.theme.header_border_width, 0u, 10u);

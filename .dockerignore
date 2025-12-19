@@ -1,0 +1,60 @@
+# flyctl launch added from .gitignore
+**\.pio
+**\.vscode\.browse.c_cpp.db*
+**\.vscode\c_cpp_properties.json
+**\.vscode\launch.json
+**\.vscode\ipch
+
+# flyctl launch added from .pio\libdeps\esp32s3box\AsyncTCP\.gitignore
+.pio\libdeps\esp32s3box\AsyncTCP\**\.DS_Store
+.pio\libdeps\esp32s3box\AsyncTCP\**\.lh
+.pio\libdeps\esp32s3box\AsyncTCP\.pio
+.pio\libdeps\esp32s3box\AsyncTCP\.vscode
+
+.pio\libdeps\esp32s3box\AsyncTCP\logs
+
+# flyctl launch added from .pio\libdeps\esp32s3box\AsyncTCP-esphome\.gitignore
+
+.pio\libdeps\esp32s3box\AsyncTCP-esphome\**\.DS_Store
+
+# flyctl launch added from .pio\libdeps\esp32s3box\ESPAsyncWebServer-esphome\.gitignore
+.pio\libdeps\esp32s3box\ESPAsyncWebServer-esphome\**\.vscode
+.pio\libdeps\esp32s3box\ESPAsyncWebServer-esphome\**\.DS_Store
+.pio\libdeps\esp32s3box\ESPAsyncWebServer-esphome\dist
+
+
+# flyctl launch added from .pio\libdeps\esp32s3box\lvgl\.gitignore
+.pio\libdeps\esp32s3box\lvgl\**\**\*.o
+.pio\libdeps\esp32s3box\lvgl\**\**\*bin
+.pio\libdeps\esp32s3box\lvgl\**\**\*.swp
+.pio\libdeps\esp32s3box\lvgl\**\**\*.swo
+.pio\libdeps\esp32s3box\lvgl\**\**\*.gcda
+.pio\libdeps\esp32s3box\lvgl\**\**\*.gcno
+.pio\libdeps\esp32s3box\lvgl\**\tags
+.pio\libdeps\esp32s3box\lvgl\**\docs\api_doc
+.pio\libdeps\esp32s3box\lvgl\**\scripts\cppcheck_res.txt
+.pio\libdeps\esp32s3box\lvgl\**\scripts\built_in_font\lv_font_*
+.pio\libdeps\esp32s3box\lvgl\**\docs\doxygen_html
+.pio\libdeps\esp32s3box\lvgl\**\docs\xml
+.pio\libdeps\esp32s3box\lvgl\**\docs\examples.md
+.pio\libdeps\esp32s3box\lvgl\**\docs\out_latex
+.pio\libdeps\esp32s3box\lvgl\**\docs\_static\built_lv_examples
+.pio\libdeps\esp32s3box\lvgl\**\docs\LVGL.pdf
+.pio\libdeps\esp32s3box\lvgl\**\docs\env
+.pio\libdeps\esp32s3box\lvgl\**\out_html
+.pio\libdeps\esp32s3box\lvgl\**\__pycache__
+.pio\libdeps\esp32s3box\lvgl\emscripten_builder
+.pio\libdeps\esp32s3box\lvgl\**\test_screenshot_error.h
+.pio\libdeps\esp32s3box\lvgl\**\build
+.pio\libdeps\esp32s3box\lvgl\**\tests\build_*
+.pio\libdeps\esp32s3box\lvgl\**\tests\report
+.pio\libdeps\esp32s3box\lvgl\**\.DS_Store
+.pio\libdeps\esp32s3box\lvgl\**\.vscode
+.pio\libdeps\esp32s3box\lvgl\**\*.bak
+
+# flyctl launch added from .pio\libdeps\esp32s3box\lvgl\scripts\.gitignore
+.pio\libdeps\esp32s3box\lvgl\scripts\**\CHANGELOG_LAST.md
+
+# flyctl launch added from .venv\.gitignore
+.venv\**\*
+fly.toml

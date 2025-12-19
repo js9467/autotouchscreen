@@ -434,6 +434,7 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); bo
 			<div><label>Text Align</label><select id="btn-text-align"><option value="center">Center</option><option value="top-left">Top Left</option><option value="top-center">Top Center</option><option value="top-right">Top Right</option><option value="bottom-left">Bottom Left</option><option value="bottom-center">Bottom Center</option><option value="bottom-right">Bottom Right</option></select></div>
 			<div><label>Fill</label><input id="btn-color" type="color" /></div>
 			<div><label>Pressed</label><input id="btn-pressed-color" type="color" /></div>
+			<div><label>Text Color</label><input id="btn-text-color" type="color" /></div>
 			<div><label>Border</label><input id="btn-border-color" type="color" /></div>
 			<div><label>Border Width</label><input id="btn-border-width" type="number" min="0" max="10" /></div>
 			<div><label>Corner Radius</label><input id="btn-corner-radius" type="number" min="0" max="50" /></div>
@@ -587,17 +588,28 @@ function hydratePageFields(){
 	const theme = config.theme || {};
 	const nameInput = document.getElementById('page-name-input');
 	if(nameInput) nameInput.value = page.name || '';
-	document.getElementById('page-nav-color').value = page.nav_color || theme.nav_button_active_color || '#ff9d2e';
-	document.getElementById('page-nav-inactive-color').value = page.nav_inactive_color || theme.nav_button_color || '#3a3a3a';
-	document.getElementById('page-bg-color').value = page.bg_color || theme.page_bg_color || '#0f0f0f';
-	document.getElementById('page-text-color').value = page.text_color || theme.text_primary || '#ffffff';
-	document.getElementById('page-btn-color').value = page.button_color || theme.accent_color || '#ff9d2e';
-	document.getElementById('page-btn-pressed').value = page.button_pressed_color || theme.button_pressed_color || '#ff7a1a';
-	document.getElementById('page-btn-border').value = page.button_border_color || theme.border_color || '#3a3a3a';
-	document.getElementById('page-btn-border-width').value = page.button_border_width || 0;
-	document.getElementById('page-btn-radius').value = page.button_radius || theme.button_radius || 12;
-	document.getElementById('page-rows').value = page.rows || 2;
-	document.getElementById('page-cols').value = page.cols || 2;
+	const pageNavColor = document.getElementById('page-nav-color');
+	if (pageNavColor) pageNavColor.value = page.nav_color || theme.nav_button_active_color || '#ff9d2e';
+	const pageNavInactive = document.getElementById('page-nav-inactive-color');
+	if (pageNavInactive) pageNavInactive.value = page.nav_inactive_color || theme.nav_button_color || '#3a3a3a';
+	const pageBgColor = document.getElementById('page-bg-color');
+	if (pageBgColor) pageBgColor.value = page.bg_color || theme.page_bg_color || '#0f0f0f';
+	const pageTextColor = document.getElementById('page-text-color');
+	if (pageTextColor) pageTextColor.value = page.text_color || theme.text_primary || '#ffffff';
+	const pageBtnColor = document.getElementById('page-btn-color');
+	if (pageBtnColor) pageBtnColor.value = page.button_color || theme.accent_color || '#ff9d2e';
+	const pageBtnPressed = document.getElementById('page-btn-pressed');
+	if (pageBtnPressed) pageBtnPressed.value = page.button_pressed_color || theme.button_pressed_color || '#ff7a1a';
+	const pageBtnBorder = document.getElementById('page-btn-border');
+	if (pageBtnBorder) pageBtnBorder.value = page.button_border_color || theme.border_color || '#3a3a3a';
+	const pageBtnBorderWidth = document.getElementById('page-btn-border-width');
+	if (pageBtnBorderWidth) pageBtnBorderWidth.value = page.button_border_width || 0;
+	const pageBtnRadius = document.getElementById('page-btn-radius');
+	if (pageBtnRadius) pageBtnRadius.value = page.button_radius || theme.button_radius || 12;
+	const pageRows = document.getElementById('page-rows');
+	if (pageRows) pageRows.value = page.rows || 2;
+	const pageCols = document.getElementById('page-cols');
+	if (pageCols) pageCols.value = page.cols || 2;
 	const sel = document.getElementById('quick-page-select');
 	if(sel) sel.value = `${activePageIndex}`;
 }
@@ -630,17 +642,26 @@ function updatePageStyle(){
 function applyPageStyleToButtons(){
 	ensurePages();
 	const page = config.pages[activePageIndex];
-	page.buttons = (page.buttons||[]).map(btn=>({
-		...btn,
-		color: page.button_color || btn.color,
-		pressed_color: page.button_pressed_color || btn.pressed_color,
-		border_color: page.button_border_color || btn.border_color,
-		border_width: page.button_border_width || btn.border_width,
-		corner_radius: page.button_radius || btn.corner_radius
-	}));
+	page.buttons = (page.buttons||[]).map(btn=>{
+		// Only apply page styles to buttons with default values
+		const isDefaultColor = !btn.color || btn.color === '#FFA500';
+		const isDefaultPressed = !btn.pressed_color || btn.pressed_color === '#FF8800';
+		const isDefaultBorder = !btn.border_color || btn.border_color === '#FFFFFF';
+		const isDefaultBorderWidth = btn.border_width === 0 || btn.border_width === undefined;
+		const isDefaultRadius = btn.corner_radius === 12 || btn.corner_radius === undefined;
+		
+		return {
+			...btn,
+			color: (isDefaultColor && page.button_color) ? page.button_color : btn.color,
+			pressed_color: (isDefaultPressed && page.button_pressed_color) ? page.button_pressed_color : btn.pressed_color,
+			border_color: (isDefaultBorder && page.button_border_color) ? page.button_border_color : btn.border_color,
+			border_width: (isDefaultBorderWidth && page.button_border_width !== undefined) ? page.button_border_width : btn.border_width,
+			corner_radius: (isDefaultRadius && page.button_radius !== undefined) ? page.button_radius : btn.corner_radius
+		};
+	});
 	renderGrid();
 	renderPreview();
-	showBanner('Applied page styling to all buttons','success');
+	showBanner('Applied page styling to buttons with default values','success');
 }
 
 function capturePageAsBaseline(){
@@ -666,7 +687,7 @@ function capturePageAsBaseline(){
 		button_font_size: buttonFontSize
 	};
 	hydrateThemeFields();
-	renderPreview();
+	// Don't change active page - just update preview
 	showBanner('Saved this page as the baseline theme','success');
 }
 
@@ -786,6 +807,7 @@ function openButtonModal(row,col){
 	document.getElementById('btn-label').value = data.label || '';
 	document.getElementById('btn-color').value = data.color;
 	document.getElementById('btn-pressed-color').value = firstDefined(data.pressed_color, defaults.pressed_color);
+	document.getElementById('btn-text-color').value = data.text_color || theme.text_primary || '#FFFFFF';
 	document.getElementById('btn-border-color').value = firstDefined(data.border_color, defaults.border_color);
 	document.getElementById('btn-border-width').value = firstDefined(data.border_width, defaults.border_width);
 	document.getElementById('btn-corner-radius').value = firstDefined(data.corner_radius, defaults.corner_radius);
@@ -825,6 +847,7 @@ function saveButtonFromModal(){
 		label: document.getElementById('btn-label').value || 'Button',
 		color: document.getElementById('btn-color').value,
 		pressed_color: document.getElementById('btn-pressed-color').value,
+		text_color: document.getElementById('btn-text-color').value,
 		border_color: document.getElementById('btn-border-color').value,
 		border_width: parseInt(document.getElementById('btn-border-width').value)||0,
 		corner_radius: parseInt(document.getElementById('btn-corner-radius').value)||0,
@@ -891,6 +914,17 @@ function renderPreview(){
 	titleEl.style.fontFamily = titleFamily;
 	subtitleEl.style.fontSize = `${Math.min(subtitleSize, 16)}px`;
 	subtitleEl.style.fontFamily = subtitleFamily;
+	
+	// Apply text alignment
+	const titleAlign = headerCfg.title_align || 'center';
+	titleEl.style.textAlign = titleAlign;
+	subtitleEl.style.textAlign = titleAlign;
+	
+	// Apply offsets - stored as 0-200 (0-100), convert to actual pixel offsets
+	const xOffset = (headerCfg.title_x_offset !== undefined) ? (headerCfg.title_x_offset - 100) : 0;
+	const yOffset = (headerCfg.title_y_offset !== undefined) ? (headerCfg.title_y_offset - 50) : 0;
+	titleEl.style.transform = `translate(${xOffset}px, ${yOffset}px)`;
+	subtitleEl.style.transform = `translate(${xOffset}px, ${yOffset}px)`;
 
 	renderNav();
 
@@ -909,9 +943,26 @@ function renderPreview(){
 			el.style.background = fill;
 			el.style.borderColor = firstDefined(btn && btn.border_color, page.button_border_color, theme.border_color, 'transparent');
 			el.style.borderWidth = `${firstDefined(btn && btn.border_width, page.button_border_width, theme.border_width, 0)}px`;
-			el.style.color = '#000';
+			const textColor = firstDefined(btn && btn.text_color, page.text_color, theme.text_primary, '#FFFFFF');
+			el.style.color = textColor;
 			el.style.borderRadius = `${firstDefined(btn && btn.corner_radius, page.button_radius, theme.button_radius, 12)}px`;
 			el.textContent = (btn && btn.label) || '+';
+			// Apply text alignment if button has specific alignment
+			if (btn && btn.text_align) {
+				const alignMap = {
+					'top-left': 'flex-start', 'top-center': 'center', 'top-right': 'flex-end',
+					'center': 'center',
+					'bottom-left': 'flex-start', 'bottom-center': 'center', 'bottom-right': 'flex-end'
+				};
+				const vAlignMap = {
+					'top-left': 'flex-start', 'top-center': 'flex-start', 'top-right': 'flex-start',
+					'center': 'center',
+					'bottom-left': 'flex-end', 'bottom-center': 'flex-end', 'bottom-right': 'flex-end'
+				};
+				el.style.display = 'flex';
+				el.style.alignItems = vAlignMap[btn.text_align] || 'center';
+				el.style.justifyContent = alignMap[btn.text_align] || 'center';
+			}
 			el.dataset.row = r;
 			el.dataset.col = c;
 			el.draggable = !!btn;
@@ -974,12 +1025,16 @@ function updateHeaderFromInputs(){
 	config.header.title_font = document.getElementById('header-title-font').value || 'montserrat_24';
 	config.header.subtitle_font = document.getElementById('header-subtitle-font').value || 'montserrat_12';
 	config.header.title_align = document.getElementById('header-title-align').value || 'center';
-	config.header.title_x_offset = parseInt(document.getElementById('header-title-x-offset').value) || 0;
-	config.header.title_y_offset = parseInt(document.getElementById('header-title-y-offset').value) || 0;
 	
-	// Update offset displays
-	document.getElementById('header-x-offset-value').textContent = config.header.title_x_offset;
-	document.getElementById('header-y-offset-value').textContent = config.header.title_y_offset;
+	// Convert slider values (-100 to +100, -50 to +50) to stored range (0 to 200, 0 to 100)
+	const sliderX = parseInt(document.getElementById('header-title-x-offset').value) || 0;
+	const sliderY = parseInt(document.getElementById('header-title-y-offset').value) || 0;
+	config.header.title_x_offset = sliderX + 100;  // Convert -100..+100 to 0..200
+	config.header.title_y_offset = sliderY + 50;   // Convert -50..+50 to 0..100
+	
+	// Update offset displays with actual slider values
+	document.getElementById('header-x-offset-value').textContent = sliderX;
+	document.getElementById('header-y-offset-value').textContent = sliderY;
 	
 	// show_logo now controlled by image upload - always true if image exists
 	config.header.show_logo = !!(config.images && config.images.header_logo);
@@ -989,22 +1044,36 @@ function updateHeaderFromInputs(){
 function hydrateThemeFields(){
 	const theme = config.theme || {};
 	// Header appearance
-	document.getElementById('theme-surface').value = theme.surface_color || '#12141c';
-	document.getElementById('theme-text-primary').value = theme.text_primary || '#f2f4f8';
-	document.getElementById('theme-text-secondary').value = theme.text_secondary || '#8d92a3';
-	document.getElementById('theme-header-border').value = theme.header_border_color || '#ff9d2e';
-	document.getElementById('theme-header-border-width').value = theme.header_border_width || 0;
+	const themeSurface = document.getElementById('theme-surface');
+	if (themeSurface) themeSurface.value = theme.surface_color || '#12141c';
+	const themeTextPrimary = document.getElementById('theme-text-primary');
+	if (themeTextPrimary) themeTextPrimary.value = theme.text_primary || '#f2f4f8';
+	const themeTextSecondary = document.getElementById('theme-text-secondary');
+	if (themeTextSecondary) themeTextSecondary.value = theme.text_secondary || '#8d92a3';
+	const themeHeaderBorder = document.getElementById('theme-header-border');
+	if (themeHeaderBorder) themeHeaderBorder.value = theme.header_border_color || '#ff9d2e';
+	const themeHeaderBorderWidth = document.getElementById('theme-header-border-width');
+	if (themeHeaderBorderWidth) themeHeaderBorderWidth.value = theme.header_border_width || 0;
 	
 	// Window baseline
-	document.getElementById('theme-page-bg').value = theme.page_bg_color || '#0f0f0f';
-	document.getElementById('theme-text-color').value = theme.text_primary || '#f2f4f8';
-	document.getElementById('theme-nav-active').value = theme.nav_button_active_color || '#ff9d2e';
-	document.getElementById('theme-nav-button').value = theme.nav_button_color || '#2a2a2a';
-	document.getElementById('theme-button-color').value = theme.accent_color || '#ff9d2e';
-	document.getElementById('theme-button-pressed').value = theme.button_pressed_color || '#ff7a1a';
-	document.getElementById('theme-border').value = theme.border_color || '#20232f';
-	document.getElementById('theme-border-width').value = theme.border_width || 0;
-	document.getElementById('theme-radius').value = theme.button_radius || 12;
+	const themePageBg = document.getElementById('theme-page-bg');
+	if (themePageBg) themePageBg.value = theme.page_bg_color || '#0f0f0f';
+	const themeTextColor = document.getElementById('theme-text-color');
+	if (themeTextColor) themeTextColor.value = theme.text_primary || '#f2f4f8';
+	const themeNavActive = document.getElementById('theme-nav-active');
+	if (themeNavActive) themeNavActive.value = theme.nav_button_active_color || '#ff9d2e';
+	const themeNavButton = document.getElementById('theme-nav-button');
+	if (themeNavButton) themeNavButton.value = theme.nav_button_color || '#2a2a2a';
+	const themeButtonColor = document.getElementById('theme-button-color');
+	if (themeButtonColor) themeButtonColor.value = theme.accent_color || '#ff9d2e';
+	const themeButtonPressed = document.getElementById('theme-button-pressed');
+	if (themeButtonPressed) themeButtonPressed.value = theme.button_pressed_color || '#ff7a1a';
+	const themeBorder = document.getElementById('theme-border');
+	if (themeBorder) themeBorder.value = theme.border_color || '#20232f';
+	const themeBorderWidth = document.getElementById('theme-border-width');
+	if (themeBorderWidth) themeBorderWidth.value = theme.border_width || 0;
+	const themeRadius = document.getElementById('theme-radius');
+	if (themeRadius) themeRadius.value = theme.button_radius || 12;
 }
 
 function collectTheme(){
@@ -1108,31 +1177,52 @@ function saveAsBaseline(){
 
 function hydrateHeaderFields(){
 	const header = config.header || {};
-	document.getElementById('header-title-input').value = header.title || 'CAN Control';
-	document.getElementById('header-subtitle-input').value = header.subtitle || '';
-	document.getElementById('header-title-align').value = header.title_align || 'center';
-	document.getElementById('header-title-x-offset').value = header.title_x_offset || 0;
-	document.getElementById('header-title-y-offset').value = header.title_y_offset || 0;
-	document.getElementById('header-x-offset-value').textContent = header.title_x_offset || 0;
-	document.getElementById('header-y-offset-value').textContent = header.title_y_offset || 0;
+	const titleInput = document.getElementById('header-title-input');
+	if (titleInput) titleInput.value = header.title || 'CAN Control';
+	const subtitleInput = document.getElementById('header-subtitle-input');
+	if (subtitleInput) subtitleInput.value = header.subtitle || '';
+	const titleAlign = document.getElementById('header-title-align');
+	if (titleAlign) titleAlign.value = header.title_align || 'center';
+	
+	// Convert offset-encoded values (0-200, 0-100) back to slider range (-100 to +100, -50 to +50)
+	const xOffset = (header.title_x_offset !== undefined) ? header.title_x_offset - 100 : 0;
+	const yOffset = (header.title_y_offset !== undefined) ? header.title_y_offset - 50 : 0;
+	const xOffsetEl = document.getElementById('header-title-x-offset');
+	if (xOffsetEl) xOffsetEl.value = xOffset;
+	const yOffsetEl = document.getElementById('header-title-y-offset');
+	if (yOffsetEl) yOffsetEl.value = yOffset;
+	const xOffsetValue = document.getElementById('header-x-offset-value');
+	if (xOffsetValue) xOffsetValue.textContent = xOffset;
+	const yOffsetValue = document.getElementById('header-y-offset-value');
+	if (yOffsetValue) yOffsetValue.textContent = yOffset;
+	
+	// Set full font names in selects
+	const titleFont = document.getElementById('header-title-font');
+	if (titleFont) titleFont.value = header.title_font || 'montserrat_24';
+	
+	const subFont = document.getElementById('header-subtitle-font');
+	if (subFont) subFont.value = header.subtitle_font || 'montserrat_12';
 	// show_logo checkbox removed - logo display controlled by Image Assets upload
 }
 
 function populateFontSelects(){
 	const fonts = config.available_fonts || [];
+	
+	// Populate title and subtitle font selects with full font names
 	const titleSel = document.getElementById('header-title-font');
 	const subSel = document.getElementById('header-subtitle-font');
-	[titleSel, subSel].forEach(sel=>{ sel.innerHTML=''; });
-	fonts.forEach(f=>{
-		const opt = document.createElement('option');
-		opt.value = f.name;
-		opt.textContent = f.display_name || f.name;
-		titleSel.appendChild(opt.cloneNode(true));
-		subSel.appendChild(opt);
+	
+	if (!titleSel || !subSel) return;  // Elements don't exist yet
+	
+	[titleSel, subSel].forEach(sel => {
+		sel.innerHTML = '';
+		fonts.forEach(font => {
+			const opt = document.createElement('option');
+			opt.value = font.name;
+			opt.textContent = font.display_name || font.name;
+			sel.appendChild(opt);
+		});
 	});
-	const headerCfg = config.header || {};
-	titleSel.value = headerCfg.title_font || 'montserrat_24';
-	subSel.value = headerCfg.subtitle_font || 'montserrat_12';
 }
 
 function renderCanLibrary(){
@@ -1389,31 +1479,75 @@ function resizeImage(file, imageType) {
 	});
 }
 
-// Handle image upload for any type
+// Handle image upload for any type with Fly optimization
 async function handleImageUpload(evt, imageType) {
 	const file = evt.target.files[0];
 	if (!file) return;
 
-	// Check file size (50KB limit recommended)
-	if (file.size > 512000) {
-		showBanner(`Image too large (${(file.size/1024).toFixed(0)}KB). Use prepare_images.py to optimize first.`, 'error');
+	// Check file size (20MB max for upload to Fly)
+	if (file.size > 20 * 1024 * 1024) {
+		showBanner(`Image too large (${(file.size/(1024*1024)).toFixed(1)}MB). Maximum 20MB.`, 'error');
 		evt.target.value = '';
 		return;
 	}
 
 	try {
-		showBanner(`Uploading ${imageType} image...`, 'info');
+		showBanner(`Optimizing ${imageType} image via Fly.io...`, 'info');
 		
-		// Read file as data URL
-		const reader = new FileReader();
-		const dataUrl = await new Promise((resolve, reject) => {
-			reader.onload = () => resolve(reader.result);
-			reader.onerror = reject;
-			reader.readAsDataURL(file);
+		const imgConfig = IMAGE_CONFIGS[imageType];
+		const [maxWidth, maxHeight] = imgConfig.maxSize;
+		const format = imgConfig.format.toLowerCase();
+		
+		// Send to Fly optimization service
+		const formData = new FormData();
+		formData.append('file', file);
+		
+		const flyUrl = 'https://image-optimizer-still-flower-1282.fly.dev/optimize';
+		const params = new URLSearchParams({
+			w: maxWidth.toString(),
+			h: maxHeight.toString(),
+			fit: 'contain',
+			fmt: format === 'png' ? 'png' : 'jpeg',
+			q: '80',
+			bg: '000000',
+			rotate: '1'
 		});
 		
-		// Upload directly without client-side resizing
-		console.log(`Uploading ${imageType}: ${(dataUrl.length / 1024).toFixed(1)}KB base64`);
+		console.log(`Optimizing ${imageType} via Fly: ${flyUrl}?${params}`);
+		
+		const optimizeResponse = await fetch(`${flyUrl}?${params}`, {
+			method: 'POST',
+			body: formData
+		});
+		
+		if (!optimizeResponse.ok) {
+			throw new Error(`Fly optimization failed: ${optimizeResponse.statusText}`);
+		}
+		
+		// Get optimized image as blob
+		const optimizedBlob = await optimizeResponse.blob();
+		console.log(`Optimized ${imageType}: ${(optimizedBlob.size / 1024).toFixed(1)}KB`);
+		
+		// Convert to base64 for ESP32
+		const dataUrl = await new Promise((resolve, reject) => {
+			const reader = new FileReader();
+			reader.onload = () => resolve(reader.result);
+			reader.onerror = reject;
+			reader.readAsDataURL(optimizedBlob);
+		});
+		
+		// Check final size
+		const base64Size = dataUrl.length;
+		if (base64Size > imgConfig.maxBytes * 2) { // Allow some overhead for base64
+			showBanner(`Optimized image still too large (${(base64Size/1024).toFixed(1)}KB). Try a simpler image.`, 'error');
+			evt.target.value = '';
+			return;
+		}
+		
+		// Upload to ESP32
+		showBanner(`Uploading optimized ${imageType} to device...`, 'info');
+		// Upload to ESP32
+		showBanner(`Uploading optimized ${imageType} to device...`, 'info');
 		const response = await fetch('/api/image/upload', {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
@@ -1424,7 +1558,7 @@ async function handleImageUpload(evt, imageType) {
 		});
 		
 		if (!response.ok) {
-			throw new Error(`Upload failed: ${response.statusText}`);
+			throw new Error(`ESP32 upload failed: ${response.statusText}`);
 		}
 		
 		// Store in local config for preview
@@ -1444,13 +1578,14 @@ async function handleImageUpload(evt, imageType) {
 			previewDiv.style.display = 'block';
 			const img = new Image();
 			img.onload = () => {
-				sizeSpan.textContent = `${img.width}x${img.height}, ${(file.size / 1024).toFixed(1)}KB`;
+				sizeSpan.textContent = `${img.width}x${img.height}, ${(optimizedBlob.size / 1024).toFixed(1)}KB (optimized)`;
 			};
 			img.src = dataUrl;
 		}
 
-		showBanner(`✅ ${imageType} image uploaded! Check device display.`, 'success');
+		showBanner(`✅ ${imageType} image optimized & uploaded! Check device display.`, 'success');
 	} catch (error) {
+		console.error('Image upload error:', error);
 		showBanner(`Error: ${error.message}`, 'error');
 		evt.target.value = '';
 	}
@@ -1489,30 +1624,40 @@ function clearImage(imageType) {
 
 function hydrateDisplay(){
 	const display = config.display || {};
-	document.getElementById('display-brightness').value = display.brightness ?? 100;
-	document.getElementById('brightness-value').textContent = `${display.brightness ?? 100}%`;
-	document.getElementById('sleep-enabled').checked = display.sleep_enabled || false;
-	document.getElementById('sleep-timeout').value = display.sleep_timeout_seconds ?? 60;
+	const brightnessEl = document.getElementById('display-brightness');
+	if (brightnessEl) brightnessEl.value = display.brightness ?? 100;
+	const brightnessValue = document.getElementById('brightness-value');
+	if (brightnessValue) brightnessValue.textContent = `${display.brightness ?? 100}%`;
+	const sleepEnabled = document.getElementById('sleep-enabled');
+	if (sleepEnabled) sleepEnabled.checked = display.sleep_enabled || false;
+	const sleepTimeout = document.getElementById('sleep-timeout');
+	if (sleepTimeout) sleepTimeout.value = display.sleep_timeout_seconds ?? 60;
 
 	// Hydrate image assets
 	const images = config.images || {};
 	
 	// Header logo
 	if (images.header_logo) {
-		document.getElementById('header-logo-preview-img').src = images.header_logo;
-		document.getElementById('header-logo-preview').style.display = 'block';
+		const headerPreviewImg = document.getElementById('header-logo-preview-img');
+		if (headerPreviewImg) headerPreviewImg.src = images.header_logo;
+		const headerPreview = document.getElementById('header-logo-preview');
+		if (headerPreview) headerPreview.style.display = 'block';
 	}
 	
 	// Splash logo
 	if (images.splash_logo) {
-		document.getElementById('splash-logo-preview-img').src = images.splash_logo;
-		document.getElementById('splash-logo-preview').style.display = 'block';
+		const splashPreviewImg = document.getElementById('splash-logo-preview-img');
+		if (splashPreviewImg) splashPreviewImg.src = images.splash_logo;
+		const splashPreview = document.getElementById('splash-logo-preview');
+		if (splashPreview) splashPreview.style.display = 'block';
 	}
 	
 	// Background image
 	if (images.background_image) {
-		document.getElementById('background-preview-img').src = images.background_image;
-		document.getElementById('background-preview').style.display = 'block';
+		const bgPreviewImg = document.getElementById('background-preview-img');
+		if (bgPreviewImg) bgPreviewImg.src = images.background_image;
+		const bgPreview = document.getElementById('background-preview');
+		if (bgPreview) bgPreview.style.display = 'block';
 	}
 	
 	// Sleep logo
@@ -1543,12 +1688,18 @@ async function loadConfig(){
 		const wifiCfg = config.wifi || {};
 		const apCfg = wifiCfg.ap || {};
 		const staCfg = wifiCfg.sta || {};
-		document.getElementById('ap-ssid').value = apCfg.ssid || 'CAN-Control';
-		document.getElementById('ap-password').value = apCfg.password || '';
-		document.getElementById('ap-enabled').checked = apCfg.enabled !== false;
-		document.getElementById('sta-ssid').value = staCfg.ssid || '';
-		document.getElementById('sta-password').value = staCfg.password || '';
-		document.getElementById('sta-enabled').checked = staCfg.enabled || false;
+		const apSsid = document.getElementById('ap-ssid');
+		if (apSsid) apSsid.value = apCfg.ssid || 'CAN-Control';
+		const apPassword = document.getElementById('ap-password');
+		if (apPassword) apPassword.value = apCfg.password || '';
+		const apEnabled = document.getElementById('ap-enabled');
+		if (apEnabled) apEnabled.checked = apCfg.enabled !== false;
+		const staSsid = document.getElementById('sta-ssid');
+		if (staSsid) staSsid.value = staCfg.ssid || '';
+		const staPassword = document.getElementById('sta-password');
+		if (staPassword) staPassword.value = staCfg.password || '';
+		const staEnabled = document.getElementById('sta-enabled');
+		if (staEnabled) staEnabled.checked = staCfg.enabled || false;
 		renderPageList();
 		renderGrid();
 		renderPreview();
@@ -1561,19 +1712,32 @@ async function saveConfig(){
 	ensurePages();
 	collectTheme();
 	config.header = config.header || {};
-	config.header.title = document.getElementById('header-title-input').value || 'CAN Control';
-	config.header.subtitle = document.getElementById('header-subtitle-input').value || '';
-	config.header.title_font = document.getElementById('header-title-font').value;
-	config.header.subtitle_font = document.getElementById('header-subtitle-font').value;
-	config.header.title_align = document.getElementById('header-title-align').value || 'center';
-	config.header.title_x_offset = parseInt(document.getElementById('header-title-x-offset').value) || 0;
-	config.header.title_y_offset = parseInt(document.getElementById('header-title-y-offset').value) || 0;
+	const titleInput = document.getElementById('header-title-input');
+	if (titleInput) config.header.title = titleInput.value || 'CAN Control';
+	const subtitleInput = document.getElementById('header-subtitle-input');
+	if (subtitleInput) config.header.subtitle = subtitleInput.value || '';
+	const titleFont = document.getElementById('header-title-font');
+	if (titleFont) config.header.title_font = titleFont.value || 'montserrat_24';
+	const subtitleFont = document.getElementById('header-subtitle-font');
+	if (subtitleFont) config.header.subtitle_font = subtitleFont.value || 'montserrat_12';
+	const titleAlign = document.getElementById('header-title-align');
+	if (titleAlign) config.header.title_align = titleAlign.value || 'center';
+	const xOffset = document.getElementById('header-title-x-offset');
+	if (xOffset) config.header.title_x_offset = parseInt(xOffset.value) || 0;
+	const yOffset = document.getElementById('header-title-y-offset');
+	if (yOffset) config.header.title_y_offset = parseInt(yOffset.value) || 0;
 	// show_logo controlled by whether image exists
 	config.header.show_logo = !!(config.images && config.images.header_logo);
 
+	const apEnabled = document.getElementById('ap-enabled');
+	const apSsid = document.getElementById('ap-ssid');
+	const apPassword = document.getElementById('ap-password');
+	const staEnabled = document.getElementById('sta-enabled');
+	const staSsid = document.getElementById('sta-ssid');
+	const staPassword = document.getElementById('sta-password');
 	config.wifi = {
-		ap:{ enabled: document.getElementById('ap-enabled').checked, ssid: document.getElementById('ap-ssid').value, password: document.getElementById('ap-password').value },
-		sta:{ enabled: document.getElementById('sta-enabled').checked, ssid: document.getElementById('sta-ssid').value, password: document.getElementById('sta-password').value }
+		ap:{ enabled: apEnabled ? apEnabled.checked : true, ssid: apSsid ? apSsid.value : 'CAN-Control', password: apPassword ? apPassword.value : '' },
+		sta:{ enabled: staEnabled ? staEnabled.checked : false, ssid: staSsid ? staSsid.value : '', password: staPassword ? staPassword.value : '' }
 	};
 
 	const existingDisplay = config.display || {};

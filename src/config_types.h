@@ -24,6 +24,7 @@ struct ButtonConfig {
     std::string label = "Button";
     std::string color = "#FFA500";
     std::string pressed_color = "#FF8800";
+    std::string text_color = "";  // Optional button text color (empty = use page/theme default)
     std::string icon = "";  // Reserved for future icon uploads
     std::uint8_t row = 0;
     std::uint8_t col = 0;
@@ -119,6 +120,7 @@ struct ThemeConfig {
     std::string header_border_color = "#FFA500";
     std::string nav_button_color = "#3A3A3A";
     std::string nav_button_active_color = "#FFA500";
+    std::string nav_button_text_color = "#FFFFFF";
     std::uint8_t button_radius = 12;
     std::uint8_t border_width = 2;
     std::uint8_t header_border_width = 0;
