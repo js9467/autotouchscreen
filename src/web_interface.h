@@ -4,1555 +4,1142 @@ const char WEB_INTERFACE_HTML[] PROGMEM = R"rawliteral(
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>CAN Control Configuration</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>CAN controls configurator</title>
 <style>
-:root{--bg:#0d0d0d;--panel:#1a1a1a;--surface:#242424;--accent:#00aaff;--accent-bright:#00ccff;--text:#e0e0e0;--text-dim:#888;--border:#333;--success:#00ff88;--danger:#ff4444;--warning:#ffaa00}
-*{box-sizing:border-box;margin:0;padding:0}
-body{font-family:'Consolas','Monaco','Courier New',monospace;background:var(--bg);color:var(--text);line-height:1.5;letter-spacing:0.3px}
-.header{background:var(--panel);border-bottom:2px solid var(--accent);padding:16px 24px;border-left:4px solid var(--accent)}
-.header h1{font-size:1.6rem;margin-bottom:2px;color:var(--accent-bright);font-weight:700;letter-spacing:2px;text-transform:uppercase}
-.header .subtitle{color:var(--text-dim);font-size:.85rem;font-family:monospace;letter-spacing:1px}
-.container{max-width:1400px;margin:0 auto;padding:24px}
-.tabs{display:flex;gap:2px;background:var(--panel);padding:0;border-radius:0;margin-bottom:20px;overflow-x:auto;border-bottom:2px solid var(--border)}
-.tab-btn{padding:12px 24px;background:transparent;border:none;border-bottom:2px solid transparent;color:var(--text-dim);cursor:pointer;border-radius:0;transition:all .15s;font-weight:600;white-space:nowrap;font-family:monospace;font-size:.9rem;text-transform:uppercase;letter-spacing:1px}
-.tab-btn:hover{background:rgba(0,170,255,0.1);color:var(--accent-bright);border-bottom-color:var(--accent)}
-.tab-btn.active{background:rgba(0,170,255,0.15);color:var(--accent-bright);border-bottom-color:var(--accent-bright)}
-.tab-content{display:none}
-.tab-content.active{display:block;animation:fadeIn .3s}
-@keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
-.card{background:var(--panel);border-radius:0;padding:20px;margin-bottom:16px;border:1px solid var(--border);border-left:3px solid var(--accent);box-shadow:none}
-.card-title{font-size:1.1rem;margin-bottom:16px;color:var(--accent-bright);display:flex;align-items:center;gap:8px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;font-family:monospace}
-.card-title::before{content:'▸';color:var(--accent);font-size:1.2rem}
-.form-group{margin-bottom:20px}
-.form-label{display:block;margin-bottom:8px;color:var(--text);font-weight:500;font-size:.95rem}
-.form-label small{color:var(--text-dim);font-weight:normal}
-input[type=text],input[type=password],input[type=number],select,textarea{width:100%;padding:10px 12px;background:var(--surface);border:1px solid var(--border);border-radius:0;color:var(--text);font-size:.9rem;transition:all .15s;font-family:monospace}
-input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent-bright);border-left:3px solid var(--accent-bright);box-shadow:none;background:rgba(0,170,255,0.05)}
-input[type=color]{width:100%;height:50px;padding:4px;background:var(--surface);border:1px solid var(--border);border-radius:8px;cursor:pointer}
-input[type=color]::-webkit-color-swatch-wrapper{padding:0}
-input[type=color]::-webkit-color-swatch{border:none;border-radius:6px}
-.checkbox-wrapper{display:flex;align-items:center;gap:10px;margin:12px 0}
-input[type=checkbox]{width:20px;height:20px;accent-color:var(--accent);cursor:pointer}
-.btn{padding:10px 20px;border:1px solid var(--border);border-radius:0;font-size:.85rem;font-weight:700;cursor:pointer;transition:all .15s;display:inline-flex;align-items:center;gap:8px;font-family:monospace;text-transform:uppercase;letter-spacing:1px}
-.btn-primary{background:var(--accent);color:#000;border-color:var(--accent)}
-.btn-primary:hover{background:var(--accent-bright);border-color:var(--accent-bright);box-shadow:0 0 10px rgba(0,170,255,0.3)}
-.btn-secondary{background:var(--surface);color:var(--text);border:1px solid var(--border)}
-.btn-secondary:hover{background:var(--border);border-color:var(--accent)}
-.btn-success{background:var(--success);color:#000;border-color:var(--success)}
-.btn-danger{background:var(--danger);color:#fff;border-color:var(--danger)}
-.btn-small{padding:8px 16px;font-size:.85rem}
-.btn-block{width:100%;justify-content:center}
-.grid{display:grid;gap:16px}
-.grid-2{grid-template-columns:repeat(auto-fit,minmax(300px,1fr))}
-.grid-3{grid-template-columns:repeat(auto-fit,minmax(250px,1fr))}
-.grid-preview{background:#000;border-radius:0;padding:16px;border:2px solid var(--accent);min-height:400px;display:grid;gap:8px;position:relative;overflow:hidden;box-shadow:inset 0 0 20px rgba(0,170,255,0.2)}
-.grid-preview-btn{background:var(--accent);border-radius:2px;padding:12px;color:#000;font-weight:700;display:flex;align-items:center;justify-content:center;text-align:center;min-height:80px;box-shadow:0 2px 4px rgba(0,0,0,.5);transition:all .15s;flex-direction:column;gap:6px;cursor:move;position:relative;border:2px solid rgba(255,255,255,0.2);font-family:monospace;text-transform:uppercase;letter-spacing:1px}
-.grid-preview-btn:hover{box-shadow:0 0 12px rgba(0,170,255,0.8);border-color:var(--accent-bright)}
-.grid-preview-btn.dragging{opacity:0.6;transform:scale(0.98)}
-.grid-preview-btn.drag-over{border:2px solid var(--accent-bright);box-shadow:0 0 16px rgba(0,170,255,1)}
-.grid-preview-empty{background:rgba(0,170,255,0.05);border:1px dashed var(--border);border-radius:0;display:flex;align-items:center;justify-content:center;color:var(--text-dim);font-size:1.5rem;cursor:pointer;font-weight:300;transition:all .15s}
-.grid-preview-empty:hover{border-color:var(--accent);color:var(--accent);background:rgba(0,170,255,0.1);box-shadow:0 0 10px rgba(0,170,255,0.3)}
-.btn-icon{font-size:1.5rem}
-.modal{display:none;position:fixed;z-index:1000;left:0;top:0;width:100%;height:100%;background:rgba(0,0,0,.8);animation:fadeIn .2s;overflow-y:auto}
-.modal-content{background:var(--panel);margin:5% auto;padding:24px;border-radius:0;max-width:600px;max-height:85vh;overflow-y:auto;border:2px solid var(--accent);border-left:4px solid var(--accent);box-shadow:0 0 30px rgba(0,170,255,0.3)}
-.modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;border-bottom:1px solid var(--border);padding-bottom:12px}
-.modal-title{font-size:1.2rem;color:var(--accent-bright);font-weight:700;text-transform:uppercase;letter-spacing:2px;font-family:monospace}
-.close-btn{background:none;border:none;color:var(--text-dim);font-size:2rem;cursor:pointer;padding:0;width:32px;height:32px;display:flex;align-items:center;justify-content:center}
-.close-btn:hover{color:var(--accent)}
-.wifi-list{max-height:300px;overflow-y:auto;margin-top:12px}
-.wifi-item{background:var(--surface);padding:16px;margin-bottom:8px;border-radius:8px;border:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;cursor:pointer;transition:all .2s}
-.wifi-item:hover{background:var(--border);border-color:var(--accent)}
-.wifi-item.selected{border-color:var(--accent);background:rgba(255,165,0,.1)}
-.wifi-name{font-weight:600;color:var(--text)}
-.wifi-signal{color:var(--text-dim);font-size:.85rem}
-.wifi-strength{display:inline-block;margin-left:8px}
-.can-message-item{background:var(--surface);padding:16px;margin-bottom:12px;border-radius:8px;border:1px solid var(--border)}
-.can-message-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
-.can-message-name{font-weight:600;color:var(--text)}
-.can-message-pgn{font-family:'Courier New',monospace;color:var(--accent);font-size:.9rem}
-.can-message-data{font-family:'Courier New',monospace;font-size:.85rem;color:var(--text-dim);background:var(--panel);padding:8px;border-radius:4px;margin-top:8px;overflow-x:auto;white-space:nowrap}
-.can-data-bytes{display:inline-flex;gap:6px}
-.can-data-byte{background:var(--border);padding:4px 8px;border-radius:4px;font-weight:600}
-.alert{padding:16px;border-radius:8px;margin-bottom:16px;display:flex;align-items:center;gap:12px;animation:slideIn .3s}
-@keyframes slideIn{from{transform:translateX(-20px);opacity:0}to{transform:translateX(0);opacity:1}}
-.alert-success{background:rgba(26,188,156,.1);border:1px solid var(--success);color:var(--success)}
-.alert-danger{background:rgba(231,76,60,.1);border:1px solid var(--danger);color:var(--danger)}
-.alert-warning{background:rgba(243,156,18,.1);border:1px solid #F39C12;color:#F39C12}
-.spinner{border:3px solid var(--border);border-top:3px solid var(--accent);border-radius:50%;width:24px;height:24px;animation:spin 1s linear infinite}
-@keyframes spin{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}
-.text-center{text-align:center}
-.text-muted{color:var(--text-dim)}
-.mb-1{margin-bottom:8px}
-.mb-2{margin-bottom:16px}
-.mt-2{margin-top:16px}
-.flex{display:flex}
-.flex-between{justify-content:space-between}
-.flex-center{align-items:center}
-.gap-1{gap:8px}
-.gap-2{gap:16px}
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&display=swap');
+:root {
+	--bg: #0b0c10;
+	--panel: #12141c;
+	--surface: #191c26;
+	--accent: #ff9d2e;
+	--accent-2: #7ad7f0;
+	--text: #f2f4f8;
+	--muted: #8d92a3;
+	--border: #20232f;
+	--success: #3dd598;
+	--danger: #ff6b6b;
+}
+* { box-sizing: border-box; }
+body {
+	margin: 0;
+	font-family: 'Space Grotesk', 'Segoe UI', sans-serif;
+	background: radial-gradient(circle at 10% 10%, rgba(255,157,46,0.12), transparent 40%),
+							radial-gradient(circle at 90% 10%, rgba(122,215,240,0.12), transparent 40%),
+							var(--bg);
+	color: var(--text);
+	min-height: 100vh;
+}
+.hero {
+	padding: 32px 4vw 16px;
+	border-bottom: 1px solid var(--border);
+	display: flex;
+	justify-content: space-between;
+	align-items: flex-start;
+	gap: 12px;
+	flex-wrap: wrap;
+}
+.hero h1 { margin: 0; letter-spacing: 0.08em; font-size: 2rem; line-height: 1.1; max-width: min(460px, 70vw); overflow-wrap: anywhere; }
+.hero p { margin: 6px 0 0; color: var(--muted); }
+.container { padding: 0 4vw 48px; }
+.tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+.tab-btn {
+	border: 1px solid var(--border);
+	background: var(--surface);
+	color: var(--muted);
+	padding: 10px 14px;
+	border-radius: 12px;
+	cursor: pointer;
+	transition: all .15s ease;
+	font-weight: 600;
+}
+.tab-btn.active { background: var(--accent); color: #16110a; border-color: var(--accent); }
+.tab-btn:hover { border-color: var(--accent); color: var(--text); }
+.status-banner { display: none; padding: 12px 14px; border-radius: 12px; margin-bottom: 16px; }
+.status-success { background: rgba(61,213,152,0.12); border: 1px solid var(--success); color: var(--success); }
+.status-error { background: rgba(255,107,107,0.12); border: 1px solid var(--danger); color: var(--danger); }
+.layout { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
+.card {
+	background: var(--panel);
+	border: 1px solid var(--border);
+	border-radius: 18px;
+	padding: 18px 18px 14px;
+	box-shadow: 0 18px 50px rgba(0,0,0,0.35);
+}
+.card h3 { margin: 0 0 10px; font-size: 1.05rem; display: flex; align-items: center; gap: 8px; letter-spacing: 0.03em; }
+.card h4 { margin: 16px 0 8px; color: var(--muted); font-size: 0.9rem; letter-spacing: 0.02em; }
+.muted { color: var(--muted); font-size: 0.9rem; }
+.grid { display: grid; gap: 12px; }
+.two-col { grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
+.three-col { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+label { color: var(--muted); font-size: 0.85rem; letter-spacing: 0.01em; }
+input, select, textarea {
+	width: 100%;
+	padding: 10px 12px;
+	border-radius: 12px;
+	border: 1px solid var(--border);
+	background: var(--surface);
+	color: var(--text);
+	font-size: 0.95rem;
+}
+input[type=color] { padding: 6px; height: 46px; }
+input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); border-color: var(--accent); }
+.row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.row > * { flex: 1; }
+.btn {
+	border: 1px solid var(--border);
+	background: var(--surface);
+	color: var(--text);
+	padding: 10px 14px;
+	border-radius: 12px;
+	cursor: pointer;
+	font-weight: 700;
+	transition: all .15s ease;
+}
+.btn.primary { background: var(--accent); color: #16110a; border-color: var(--accent); }
+.btn.ghost { background: transparent; }
+.btn.danger { background: var(--danger); border-color: var(--danger); color: #fff; }
+.btn.small { padding: 8px 12px; font-size: 0.9rem; }
+.pill { padding: 4px 10px; border-radius: 999px; border: 1px solid var(--border); color: var(--muted); font-size: 0.8rem; }
+.pill.success { border-color: var(--success); color: var(--success); }
+.pill.warn { border-color: var(--accent); color: var(--accent); }
+.tab { display: none; }
+.tab.active { display: block; animation: fade .25s ease; }
+@keyframes fade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+.panel-split { display: grid; gap: 16px; grid-template-columns: minmax(320px, 380px) 1fr; }
+.page-list { display: flex; flex-direction: column; gap: 8px; }
+.page-chip { padding: 12px; border: 1px solid var(--border); border-radius: 14px; background: var(--surface); display: flex; justify-content: space-between; align-items: center; cursor: grab; }
+.page-chip.active { border-color: var(--accent); box-shadow: 0 0 0 1px rgba(255,157,46,0.4); }
+.page-chip .name { font-weight: 600; }
+.preview-shell { border: 1px solid var(--border); border-radius: 18px; background: linear-gradient(135deg, rgba(255,157,46,0.05), rgba(122,215,240,0.05)); padding: 14px; }
+.device-preview { border-radius: 16px; overflow: hidden; border: 1px solid var(--border); background: var(--bg); box-shadow: inset 0 0 0 1px rgba(255,255,255,0.02); }
+.preview-header { padding: 14px 16px; display: flex; gap: 12px; align-items: center; border-bottom: 1px solid var(--border); }
+.preview-header #preview-title { font-size: 1.05rem; line-height: 1.2; margin: 0; word-break: break-word; max-width: 100%; white-space: normal; }
+.preview-header #preview-subtitle { font-size: 0.9rem; line-height: 1.2; margin: 2px 0 0; }
+.preview-nav { display: flex; gap: 8px; padding: 10px 12px; flex-wrap: wrap; }
+.preview-nav .pill { cursor: grab; }
+.preview-body { padding: 14px; min-height: 220px; }
+.preview-grid { display: grid; gap: 10px; }
+.preview-btn { padding: 14px 12px; border-radius: 12px; font-weight: 700; text-align: center; border: 1px solid transparent; cursor: pointer; }
+.preview-btn.empty { border: 1px dashed var(--border); background: rgba(255,255,255,0.03); color: var(--muted); }
+.quick-edit { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 10px; align-items: center; }
+.quick-edit .field { display: inline-flex; align-items: center; gap: 6px; }
+.quick-edit input[type="color"] { width: 46px; padding: 0; }
+.quick-edit input[type="text"] { width: 150px; }
+.builder-grid { border: 1px dashed var(--border); border-radius: 14px; padding: 12px; background: rgba(255,255,255,0.02); }
+.grid-cell { border: 1px dashed var(--border); border-radius: 10px; min-height: 72px; display: flex; align-items: center; justify-content: center; color: var(--muted); cursor: pointer; transition: all .12s ease; }
+.grid-cell:hover { border-color: var(--accent); color: var(--accent); background: rgba(255,157,46,0.06); }
+.grid-btn { width: 100%; height: 100%; border-radius: 12px; padding: 10px; border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; cursor: grab; }
+.floating-bar { position: sticky; bottom: 0; margin-top: 18px; padding: 12px; background: rgba(11,12,16,0.7); backdrop-filter: blur(8px); border: 1px solid var(--border); border-radius: 14px; display: flex; justify-content: space-between; align-items: center; gap: 12px; box-shadow: 0 20px 40px rgba(0,0,0,0.35); }
+.modal { position: fixed; inset: 0; display: none; background: rgba(0,0,0,0.6); align-items: center; justify-content: center; padding: 24px; z-index: 20; }
+.modal.open { display: flex; }
+.modal-content { background: var(--panel); border: 1px solid var(--border); border-radius: 16px; padding: 18px; width: min(680px, 96vw); max-height: 90vh; overflow: auto; box-shadow: 0 24px 60px rgba(0,0,0,0.45); }
+.modal-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+.wifi-list { margin-top: 10px; display: grid; gap: 8px; }
+.wifi-item { padding: 12px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); display: flex; justify-content: space-between; cursor: pointer; }
+.wifi-item.active { border-color: var(--accent); }
+.can-card { border: 1px solid var(--border); border-radius: 12px; padding: 12px; background: var(--surface); }
 </style>
 </head>
 <body>
-<div class="header">
-<h1>CAN Control</h1>
-<div class="subtitle">Professional CAN Bus Configuration Interface</div>
+<div class="hero">
+	<div>
+		<h1>CAN controls configurator</h1>
+		<p>Build, preview, and save the exact UI layout before flashing.</p>
+	</div>
+	<div class="pill">Live builder</div>
 </div>
 <div class="container">
-<div class="tabs">
-<button class="tab-btn active" onclick="switchTab('wifi')">📡 WiFi</button>
-<button class="tab-btn" onclick="switchTab('defaults')">⚙️ Defaults</button>
-<button class="tab-btn" onclick="switchTab('pages')">📱 Pages</button>
-<button class="tab-btn" onclick="switchTab('can-library')">📚 CAN Library</button>
-</div>
-<div id="status-alert" style="display:none;"></div>
-<div id="tab-wifi" class="tab-content active">
-<div class="card">
-<div class="card-title">Access Point Configuration</div>
-<div class="alert alert-warning" style="margin-bottom:16px;font-size:0.85rem;">
-⚠ Changes to AP SSID require saving configuration and rebooting the device to take effect.
-</div>
-<div class="form-group">
-<label class="form-label">AP SSID</label>
-<input type="text" id="ap-ssid" placeholder="CAN-Control"/>
-</div>
-<div class="form-group">
-<label class="form-label">AP Password <small>(8+ characters)</small></label>
-<input type="password" id="ap-password" placeholder="••••••••"/>
-</div>
-<div class="checkbox-wrapper">
-<input type="checkbox" id="ap-enabled" checked/>
-<label for="ap-enabled">Enable Access Point (Always Accessible)</label>
-</div>
-</div>
-<div class="card">
-<div class="card-title">Connect to WiFi Network</div>
-<button class="btn btn-secondary btn-block mb-2" onclick="scanWiFi()">
-<span id="scan-icon">🔍</span> Scan Networks
-</button>
-<div id="wifi-list" class="wifi-list" style="display:none;"></div>
-<div class="form-group mt-2">
-<label class="form-label">Network SSID</label>
-<input type="text" id="sta-ssid" placeholder="Your WiFi Network"/>
-</div>
-<div class="form-group">
-<label class="form-label">Password</label>
-<input type="password" id="sta-password" placeholder="••••••••"/>
-</div>
-<div class="checkbox-wrapper">
-<input type="checkbox" id="sta-enabled"/>
-<label for="sta-enabled">Connect to this network on startup</label>
-</div>
-</div>
-</div>
-<div id="tab-defaults" class="tab-content">
-<div class="card">
-<div class="card-title">Device Preview - Click Elements to Edit Defaults</div>
-<div id="interactive-preview" style="padding:0;background:#0F0F0F;border:2px solid var(--border);border-radius:0;overflow:hidden;">
-<!-- Header Section -->
-<div id="defaults-header" onclick="showHeaderEditor()" style="padding:16px;border-bottom:2px solid #00aaff;cursor:pointer;background:transparent;" onmouseover="this.style.background='rgba(0,170,255,0.1)'" onmouseout="this.style.background='transparent'">
-<div style="display:flex;align-items:center;gap:12px;">
-<img id="defaults-logo" src="" style="height:40px;width:40px;display:none;"/>
-<div style="flex:1;">
-<div id="defaults-header-title" style="font-size:1.4rem;font-weight:700;color:#00aaff;line-height:1.2;">CAN Control</div>
-<div id="defaults-header-subtitle" style="font-size:0.85rem;color:#888;margin-top:4px;">Configuration Interface</div>
-</div>
-</div>
-</div>
-<!-- Page Navigation -->
-<div id="defaults-nav" style="display:flex;gap:4px;padding:8px;background:#0F0F0F;border-bottom:1px solid #333;">
-</div>
-<!-- Page Content Section -->
-<div id="defaults-page" onclick="showPageEditor()" style="padding:20px;background:#000;cursor:pointer;min-height:200px;" onmouseover="this.style.background='rgba(255,255,255,0.05)'" onmouseout="this.style.background='#000'">
-<div id="defaults-button-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-<!-- Buttons will be generated here -->
-</div>
-</div>
-</div>
-<small style="display:block;color:#888;text-align:center;margin-top:12px;">💡 This preview shows your actual configuration. Click elements to edit default colors.</small>
+	<div class="tabs">
+		<button class="tab-btn active" data-tab="wifi" onclick="switchTab('wifi')">WiFi</button>
+		<button class="tab-btn" data-tab="builder" onclick="switchTab('builder')">Interface Builder</button>
+		<button class="tab-btn" data-tab="can" onclick="switchTab('can')">CAN Library</button>
+	</div>
+	<div id="status-banner" class="status-banner"></div>
+
+	<section id="tab-wifi" class="tab active">
+		<div class="layout">
+			<div class="card">
+				<h3>Access Point</h3>
+				<div class="muted">Always-on local network to reach the configurator.</div>
+				<div class="grid">
+					<div>
+						<label>SSID</label>
+						<input id="ap-ssid" type="text" placeholder="CAN-Control" />
+					</div>
+					<div>
+						<label>Password (8+ chars)</label>
+						<input id="ap-password" type="password" placeholder="********" />
+					</div>
+					<div class="row">
+						<label><input id="ap-enabled" type="checkbox" /> Enable AP</label>
+					</div>
+				</div>
+			</div>
+			<div class="card">
+				<h3>Join Existing WiFi</h3>
+				<div class="row">
+					<button class="btn" onclick="scanWiFi()" id="scan-btn">Scan</button>
+					<span class="pill warn">Choose, then save</span>
+				</div>
+				<div class="wifi-list" id="wifi-results"></div>
+				<div class="grid">
+					<div>
+						<label>SSID</label>
+						<input id="sta-ssid" type="text" placeholder="Your WiFi" />
+					</div>
+					<div>
+						<label>Password</label>
+						<input id="sta-password" type="password" placeholder="********" />
+					</div>
+					<div class="row">
+						<label><input id="sta-enabled" type="checkbox" /> Connect on boot</label>
+					</div>
+				</div>
+			</div>
+		</div>
+	</section>
+
+	<section id="tab-builder" class="tab">
+		<div class="panel-split">
+			<div class="card">
+				<h3>Branding & Header</h3>
+				<div class="grid">
+					<div>
+						<label>Title</label>
+						<input id="header-title-input" type="text" placeholder="CAN Control" oninput="updateHeaderFromInputs()" />
+					</div>
+					<div>
+						<label>Subtitle</label>
+						<input id="header-subtitle-input" type="text" placeholder="Configuration Interface" oninput="updateHeaderFromInputs()" />
+					</div>
+					<div class="row">
+						<label>Title Font</label>
+						<select id="header-title-font" onchange="updateHeaderFromInputs()"></select>
+					</div>
+					<div class="row">
+						<label>Subtitle Font</label>
+						<select id="header-subtitle-font" onchange="updateHeaderFromInputs()"></select>
+					</div>
+					<div class="row">
+						<label><input id="header-show-logo" type="checkbox" onchange="updateHeaderFromInputs()" /> Show logo</label>
+						<input id="logo-upload" type="file" accept="image/png,image/jpeg" />
+					</div>
+					<div id="logo-preview" style="display:none;">
+						<img id="logo-preview-img" style="max-height:48px; border:1px solid var(--border); border-radius:8px; padding:6px; background: var(--surface);" />
+						<button class="btn small" onclick="clearCustomLogo()">Reset Logo</button>
+					</div>
+				</div>
+				<h4>Theme Baseline</h4>
+				<div class="grid two-col">
+					<div><label>Canvas BG</label><input id="theme-bg" type="color" /></div>
+					<div><label>Header BG</label><input id="theme-surface" type="color" /></div>
+					<div><label>Page BG (default)</label><input id="theme-page-bg" type="color" /></div>
+					<div><label>Accent</label><input id="theme-accent" type="color" /></div>
+					<div><label>Text Primary</label><input id="theme-text-primary" type="color" /></div>
+					<div><label>Text Secondary</label><input id="theme-text-secondary" type="color" /></div>
+					<div><label>Border</label><input id="theme-border" type="color" /></div>
+					<div><label>Nav Inactive</label><input id="theme-nav-button" type="color" /></div>
+					<div><label>Nav Active</label><input id="theme-nav-active" type="color" /></div>
+					<div><label>Button Radius (default)</label><input id="theme-radius" type="number" min="0" max="50" /></div>
+					<div><label>Border Width (default)</label><input id="theme-border-width" type="number" min="0" max="10" /></div>
+					<div><label>Header Border Width</label><input id="theme-header-border-width" type="number" min="0" max="10" /></div>
+					<div><label>Header Border</label><input id="theme-header-border" type="color" /></div>
+				</div>
+			</div>
+
+			<div class="preview-shell">
+				<div class="quick-edit">
+					<div class="field"><label>Window</label><select id="quick-page-select" onchange="quickPageSelectChanged()"></select></div>
+					<button class="btn small" onclick="addPage()">Add</button>
+					<button class="btn small" onclick="deletePage()">Delete</button>
+					<div class="field" style="min-width:140px;"><label>Grid</label>
+						<select id="page-rows" onchange="updateGrid()"><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option></select>
+						<span style="color:var(--muted);">x</span>
+						<select id="page-cols" onchange="updateGrid()"><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option></select>
+					</div>
+					<div class="field"><label>Name</label><input id="page-name-input" type="text" oninput="updatePageMeta()" /></div>
+					<div class="field"><label>Nav</label><input id="page-nav-color" type="color" onchange="updatePageMeta()" /></div>
+					<div class="field"><label>Page BG</label><input id="page-bg-color" type="color" onchange="updatePageStyle()" /></div>
+					<div class="field"><label>Text</label><input id="page-text-color" type="color" onchange="updatePageStyle()" /></div>
+					<div class="field"><label>Button</label><input id="page-btn-color" type="color" onchange="updatePageStyle()" /></div>
+					<div class="field"><label>Pressed</label><input id="page-btn-pressed" type="color" onchange="updatePageStyle()" /></div>
+					<div class="field"><label>Border</label><input id="page-btn-border" type="color" onchange="updatePageStyle()" /></div>
+					<div class="field"><label>Border W</label><input id="page-btn-border-width" type="number" min="0" max="10" onchange="updatePageStyle()" /></div>
+					<div class="field"><label>Radius</label><input id="page-btn-radius" type="number" min="0" max="50" onchange="updatePageStyle()" /></div>
+					<button class="btn small" onclick="applyPageStyleToButtons()">Apply to buttons</button>
+					<button class="btn small ghost" onclick="capturePageAsBaseline()">Save as baseline</button>
+					<button class="btn small ghost" onclick="applyBaselineToPage()">Apply baseline</button>
+				</div>
+				<div class="device-preview" id="live-preview">
+					<div class="preview-header" id="preview-header">
+						<div style="width:34px;height:34px; border-radius:10px; background: var(--accent);" id="preview-logo"></div>
+						<div style="flex:1;">
+							<div id="preview-title">CAN Control</div>
+							<div id="preview-subtitle" class="muted" style="margin-top:4px;">Configuration Interface</div>
+						</div>
+					</div>
+					<div class="preview-nav" id="preview-nav"></div>
+					<div class="preview-body" id="preview-body"></div>
+				</div>
+			</div>
+		</div>
+
+		<div class="layout" style="margin-top:16px;">
+			<div class="card">
+				<h3>Display & Sleep</h3>
+				<div class="grid two-col">
+					<div><label>Brightness</label><input id="display-brightness" type="range" min="0" max="100" oninput="document.getElementById('brightness-value').textContent=this.value+'%';" /></div>
+					<div class="row" style="justify-content:space-between;"><span class="muted">Value</span><span id="brightness-value">100%</span></div>
+					<div class="row"><label><input id="sleep-enabled" type="checkbox" /> Enable Sleep Overlay</label></div>
+					<div><label>Sleep Timeout (s)</label><input id="sleep-timeout" type="number" min="5" max="3600" /></div>
+					<div class="row"><label>Sleep Icon</label><input id="sleep-icon-upload" type="file" accept="image/png,image/jpeg" /></div>
+					<div id="sleep-icon-preview" style="display:none;"><img id="sleep-icon-preview-img" style="max-height:60px; border:1px solid var(--border); border-radius:8px; padding:6px; background: var(--surface);" /></div>
+					<button class="btn small" onclick="clearSleepIcon()">Clear Sleep Icon</button>
+				</div>
+			</div>
+		</div>
+	</section>
+
+	<section id="tab-can" class="tab">
+		<div class="layout">
+			<div class="card">
+				<h3>CAN Message Library</h3>
+				<div class="row" style="margin-bottom:10px;">
+					<button class="btn primary" onclick="addCanMessage()">Add Message</button>
+				</div>
+				<div id="can-library-list" class="grid"></div>
+			</div>
+			<div class="card">
+				<h3>Quick Import</h3>
+				<div class="row">
+					<button class="btn" onclick="importCanMessage('windows')">Windows</button>
+					<button class="btn" onclick="importCanMessage('locks')">Locks</button>
+					<button class="btn" onclick="importCanMessage('boards')">Running Boards</button>
+				</div>
+			</div>
+		</div>
+	</section>
+
+	<div class="floating-bar">
+		<div class="muted">Save mirrors what you preview. Reload pulls the current device config.</div>
+		<div class="row" style="flex:0 0 auto;">
+			<button class="btn" onclick="loadConfig()">Reload</button>
+			<button class="btn primary" onclick="saveConfig()">Save</button>
+		</div>
+	</div>
 </div>
 
-<!-- Hidden Editor Panels -->
-<div id="header-editor" style="display:none;" class="card">
-<div class="card-title">Header Defaults</div>
-<div class="grid grid-2">
-<div class="form-group">
-<label class="form-label">Header Background</label>
-<input type="color" id="theme-surface" value="#2A2A2A" onchange="updateDefaultsPreview()"/>
-</div>
-<div class="form-group">
-<label class="form-label">Header Text</label>
-<input type="color" id="theme-accent" value="#00aaff" onchange="updateDefaultsPreview()"/>
-</div>
-<div class="form-group">
-<label class="form-label">Header Border Color</label>
-<input type="color" id="theme-header-border" value="#00aaff" onchange="updateDefaultsPreview()"/>
-</div>
-<div class="form-group">
-<label class="form-label">Header Border Width (px)</label>
-<input type="number" id="theme-header-border-width" value="2" min="0" max="10" onchange="updateDefaultsPreview()"/>
-</div>
-</div>
-</div>
-
-<div id="page-editor" style="display:none;" class="card">
-<div class="card-title">Page Defaults</div>
-<div class="grid grid-2">
-<div class="form-group">
-<label class="form-label">Page Background</label>
-<input type="color" id="theme-page-bg" value="#0F0F0F" onchange="updateDefaultsPreview()"/>
-</div>
-<div class="form-group">
-<label class="form-label">Page Text</label>
-<input type="color" id="theme-text-secondary" value="#888888" onchange="updateDefaultsPreview()"/>
-</div>
-</div>
-</div>
-
-<div id="button-editor-defaults" style="display:none;" class="card">
-<div class="card-title">Button Defaults</div>
-<div class="grid grid-2">
-<div class="form-group">
-<label class="form-label">Button Color</label>
-<input type="color" id="theme-btn-color" value="#00aaff" onchange="updateDefaultsPreview()"/>
-</div>
-<div class="form-group">
-<label class="form-label">Button Click Color</label>
-<input type="color" id="theme-btn-pressed" value="#FF8800" onchange="updateDefaultsPreview()"/>
-</div>
-<div class="form-group">
-<label class="form-label">Button Border Color</label>
-<input type="color" id="theme-border" value="#FFFFFF" onchange="updateDefaultsPreview()"/>
-</div>
-<div class="form-group">
-<label class="form-label">Button Border Width (px)</label>
-<input type="number" id="theme-border-width" value="2" min="0" max="10" onchange="updateDefaultsPreview()"/>
-</div>
-<div class="form-group">
-<label class="form-label">Button Corner Radius (px)</label>
-<input type="number" id="theme-radius" value="12" min="0" max="50" onchange="updateDefaultsPreview()"/>
-</div>
-</div>
+<div class="modal" id="button-modal">
+	<div class="modal-content">
+		<div class="modal-head">
+			<h3>Edit Button</h3>
+			<button class="btn ghost" onclick="closeModal()">Close</button>
+		</div>
+		<div class="grid two-col">
+			<div><label>Label</label><input id="btn-label" type="text" /></div>
+			<div><label>Font Size</label><select id="btn-font-size"><option value="12">12</option><option value="14">14</option><option value="16">16</option><option value="18">18</option><option value="20">20</option><option value="22">22</option><option value="24">24</option><option value="28">28</option><option value="32">32</option></select></div>
+			<div><label>Font Family</label><select id="btn-font-family"><option value="montserrat">Montserrat</option><option value="unscii">UNSCII</option></select></div>
+			<div><label>Text Align</label><select id="btn-text-align"><option value="center">Center</option><option value="top-left">Top Left</option><option value="top-center">Top Center</option><option value="top-right">Top Right</option><option value="bottom-left">Bottom Left</option><option value="bottom-center">Bottom Center</option><option value="bottom-right">Bottom Right</option></select></div>
+			<div><label>Fill</label><input id="btn-color" type="color" /></div>
+			<div><label>Pressed</label><input id="btn-pressed-color" type="color" /></div>
+			<div><label>Border</label><input id="btn-border-color" type="color" /></div>
+			<div><label>Border Width</label><input id="btn-border-width" type="number" min="0" max="10" /></div>
+			<div><label>Corner Radius</label><input id="btn-corner-radius" type="number" min="0" max="50" /></div>
+			<div class="row"><label><input id="btn-momentary" type="checkbox" /> Momentary</label></div>
+		</div>
+		<h4>CAN Frame</h4>
+		<div class="row" style="margin-bottom:10px;"><label><input id="btn-can-enabled" type="checkbox" onchange="toggleCanFields()" /> Send CAN on press</label></div>
+		<div id="can-config-wrapper" class="grid two-col" style="display:none;">
+			<div><label>PGN (hex)</label><input id="btn-can-pgn" type="text" placeholder="FEF9" /></div>
+			<div><label>Priority</label><input id="btn-can-priority" type="number" min="0" max="7" /></div>
+			<div><label>Source (hex)</label><input id="btn-can-src" type="text" placeholder="F9" /></div>
+			<div><label>Dest (hex)</label><input id="btn-can-dest" type="text" placeholder="FF" /></div>
+			<div class="row" style="grid-column:1/-1;">
+				<label>Data Bytes</label>
+				<input id="btn-can-data" type="text" placeholder="00 00 00 00 00 00 00 00" />
+			</div>
+			<div class="row" style="grid-column:1/-1;">
+				<label>From Library</label>
+				<select id="btn-can-library-select" onchange="loadCanFromLibrary()"></select>
+			</div>
+		</div>
+		<div class="row" style="margin-top:12px; justify-content:flex-end; gap:8px;">
+			<button class="btn danger" onclick="deleteButtonFromModal()">Delete</button>
+			<button class="btn primary" onclick="saveButtonFromModal()">Save</button>
+		</div>
+	</div>
 </div>
 
-<div class="card">
-<div class="text-muted" style="font-size:0.9rem;"><small>💡 These are default values that apply to all new buttons. Existing buttons can override these individually.</small></div>
-</div>
-</div>
-<div class="card">
-<div class="card-title">Live Theme Preview</div>
-<div id="theme-preview" style="padding:20px;background:var(--surface);border:2px solid var(--border);margin-bottom:16px;">
-<div id="preview-header" style="padding:16px;border-bottom:2px solid #00aaff;margin-bottom:16px;">
-<div id="preview-title" style="font-size:1.4rem;font-weight:700;color:#00aaff;">CAN Control</div>
-<div id="preview-subtitle" style="font-size:0.85rem;color:#888;">Configuration Interface</div>
-</div>
-<div id="preview-page" style="padding:16px;background:#000;">
-<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-<div id="preview-btn-1" style="padding:20px;background:#00aaff;color:#000;text-align:center;font-weight:700;border:2px solid rgba(255,255,255,0.2);">Button 1</div>
-<div id="preview-btn-2" style="padding:20px;background:#00aaff;color:#000;text-align:center;font-weight:700;border:2px solid rgba(255,255,255,0.2);">Button 2</div>
-</div>
-<div id="preview-nav" style="display:flex;gap:4px;margin-top:12px;">
-<div style="padding:8px 16px;background:#333;color:#888;text-align:center;font-size:0.8rem;">Home</div>
-<div style="padding:8px 16px;background:#00aaff;color:#000;text-align:center;font-size:0.8rem;font-weight:700;">Page 2</div>
-<div style="padding:8px 16px;background:#333;color:#888;text-align:center;font-size:0.8rem;">Page 3</div>
-</div>
-</div>
-</div>
-<button class="btn btn-secondary" onclick="updateThemePreview()">🔄 Refresh Preview</button>
-</div>
-<div class="card">
-<div class="card-title">Color Scheme</div>
-<div class="grid grid-2">
-<div class="form-group">
-<label class="form-label">Background Color</label>
-<input type="color" id="theme-bg" value="#1A1A1A"/>
-</div>
-<div class="form-group">
-<label class="form-label">Page Background Color</label>
-<input type="color" id="theme-page-bg" value="#0F0F0F"/>
-</div>
-<div class="form-group">
-<label class="form-label">Surface/Header Color</label>
-<input type="color" id="theme-surface" value="#2A2A2A"/>
-</div>
-<div class="form-group">
-<label class="form-label">Accent Color</label>
-<input type="color" id="theme-accent" value="#FFA500"/>
-</div>
-<div class="form-group">
-<label class="form-label">Primary Text</label>
-<input type="color" id="theme-text-primary" value="#FFFFFF"/>
-</div>
-<div class="form-group">
-<label class="form-label">Secondary Text</label>
-<input type="color" id="theme-text-secondary" value="#AAAAAA"/>
-</div>
-<div class="form-group">
-<label class="form-label">Border Color</label>
-<input type="color" id="theme-border" value="#3A3A3A"/>
-</div>
-<div class="form-group">
-<label class="form-label">Header Border Color</label>
-<input type="color" id="theme-header-border" value="#FFA500"/>
-</div>
-<div class="form-group">
-<label class="form-label">Nav Button Color (Inactive)</label>
-<input type="color" id="theme-nav-button" value="#3A3A3A"/>
-</div>
-<div class="form-group">
-<label class="form-label">Nav Button Color (Active)</label>
-<input type="color" id="theme-nav-active" value="#FFA500"/>
-</div>
-</div>
-</div>
-<div class="card">
-<div class="card-title">Border & Styling</div>
-<div class="grid grid-2">
-<div class="form-group">
-<label class="form-label">Button Corner Radius (px)</label>
-<input type="number" id="theme-radius" value="12" min="0" max="50"/>
-</div>
-<div class="form-group">
-<label class="form-label">Button Border Width (px)</label>
-<input type="number" id="theme-border-width" value="2" min="0" max="10"/>
-</div>
-<div class="form-group">
-<label class="form-label">Header Border Width (px)</label>
-<input type="number" id="theme-header-border-width" value="0" min="0" max="10"/>
-</div>
-</div>
-<div class="text-muted" style="margin-top:12px;font-size:0.9rem;"><small>💡 These are default values that can be overridden per page or per button. Changes apply after saving and restarting the device.</small></div>
-</div>
-</div>
-<div id="tab-pages" class="tab-content">
-<div class="card">
-<div class="card-title">Page Configuration</div>
-<div class="form-group mb-2">
-<label class="form-label">Select Page</label>
-<div style="display:flex;gap:8px;">
-<select id="page-selector" onchange="switchPage()" style="flex:1;background:#2a2a2a;color:#fff;padding:8px;border:1px solid #444;">
-</select>
-<button class="btn btn-primary" onclick="addNewPage()">+ Add Page</button>
-<button class="btn btn-danger" onclick="deletePage()">🗑️ Delete</button>
-</div>
-<small style="display:block;color:#888;margin-top:8px;">💡 Drag pages in the navigation preview below to reorder them</small>
-</div>
-<div class="form-group mb-2">
-<label class="form-label">Page Name</label>
-<input type="text" id="page-name" placeholder="Home" onchange="updatePageName()"/>
-</div>
-<div class="form-group mb-2">
-<label class="form-label">Header Title</label>
-<input type="text" id="header-title" placeholder="CAN Control" onchange="updatePagePreview()"/>
-</div>
-<div class="form-group mb-2">
-<label class="form-label">Header Subtitle</label>
-<input type="text" id="header-subtitle" placeholder="Configuration Interface" onchange="updatePagePreview()"/>
-</div>
-<div class="grid grid-2 mb-2">
-<div class="form-group">
-<label class="form-label">Grid Rows</label>
-<select id="grid-rows" onchange="updateGridPreview()">
-<option value="1">1 Row</option>
-<option value="2" selected>2 Rows</option>
-<option value="3">3 Rows</option>
-<option value="4">4 Rows</option>
-</select>
-</div>
-<div class="form-group">
-<label class="form-label">Grid Columns</label>
-<select id="grid-cols" onchange="updateGridPreview()">
-<option value="1">1 Column</option>
-<option value="2" selected>2 Columns</option>
-<option value="3">3 Columns</option>
-<option value="4">4 Columns</option>
-</select>
-</div>
-</div>
-<div class="checkbox-wrapper">
-<input type="checkbox" id="header-show-logo" checked onchange="updatePagePreview()"/>
-<label for="header-show-logo">Show Logo in Header</label>
-</div>
-<div class="form-group">
-<label class="form-label">Custom Logo Upload <small>(PNG/JPG, max 100KB)</small></label>
-<input type="file" id="logo-upload" accept="image/png,image/jpeg,image/jpg" style="margin-bottom:8px;"/>
-<button class="btn btn-secondary btn-small" onclick="clearCustomLogo()">Reset to Default Logo</button>
-<div id="logo-preview" style="margin-top:12px;display:none;">
-<img id="logo-preview-img" style="max-height:50px;border:1px solid var(--border);border-radius:4px;padding:4px;background:var(--surface);"/>
-</div>
-</div>
-<div class="form-group">
-<label class="form-label">Custom Sleep Icon Upload <small>(PNG/JPG, max 100KB)</small></label>
-<input type="file" id="sleep-icon-upload" accept="image/png,image/jpeg,image/jpg" style="margin-bottom:8px;"/>
-<button class="btn btn-secondary btn-small" onclick="clearSleepIcon()">Reset to Default Icon</button>
-<div id="sleep-icon-preview" style="margin-top:12px;display:none;">
-<img id="sleep-icon-preview-img" style="max-height:50px;border:1px solid var(--border);border-radius:4px;padding:4px;background:var(--surface);"/>
-</div>
-</div>
-</div>
-<div class="card">
-<div class="card-title">Page Preview</div>
-<div id="page-preview" style="padding:20px;background:#0F0F0F;border:2px solid var(--border);">
-<div id="page-preview-header" style="padding:12px;border-bottom:2px solid #00aaff;margin-bottom:12px;display:flex;align-items:center;gap:12px;">
-<img id="page-preview-logo" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40'%3E%3Crect width='40' height='40' fill='%2300aaff'/%3E%3C/svg%3E" style="height:32px;width:32px;"/>
-<div>
-<div id="page-preview-title" style="font-size:1.2rem;font-weight:700;color:#00aaff;">CAN Control</div>
-<div id="page-preview-subtitle" style="font-size:0.75rem;color:#888;">Configuration Interface</div>
-</div>
-</div>
-<div id="page-preview-nav" style="display:flex;gap:4px;margin-bottom:12px;flex-wrap:wrap;">
-</div>
-<div id="grid-preview" class="grid-preview"></div>
-</div>
-<div class="text-center text-muted mt-2">
-<small>Click grid cells to add/edit buttons</small>
-</div>
-</div>
-<div class="card">
-<div class="card-title">Visual Grid Editor</div>
-<div class="grid grid-2 mb-2">
-<div class="form-group">
-<label class="form-label">Grid Rows</label>
-<select id="grid-rows" onchange="updateGridPreview()">
-<option value="1">1 Row</option>
-<option value="2" selected>2 Rows</option>
-<option value="3">3 Rows</option>
-<option value="4">4 Rows</option>
-</select>
-</div>
-<div class="form-group">
-<label class="form-label">Grid Columns</label>
-<select id="grid-cols" onchange="updateGridPreview()">
-<option value="1">1 Column</option>
-<option value="2" selected>2 Columns</option>
-<option value="3">3 Columns</option>
-<option value="4">4 Columns</option>
-</select>
-</div>
-</div>
-<div id="grid-preview" class="grid-preview"></div>
-<div class="text-center text-muted mt-2">
-<small>Click cells to add/edit buttons. Changes saved when you click Save Configuration below.</small>
-</div>
-</div>
-<div class="card">
-<div class="card-title">Display & Sleep</div>
-<div class="form-group">
-<label class="form-label">Brightness</label>
-<input type="range" id="display-brightness" min="0" max="100" value="100" oninput="document.getElementById('display-brightness-value').textContent=this.value+'%';"/>
-<div class="text-muted"><small id="display-brightness-value">100%</small></div>
-</div>
-<div class="checkbox-wrapper">
-<input type="checkbox" id="sleep-enabled" />
-<label for="sleep-enabled">Enable Sleep Overlay</label>
-</div>
-<div class="form-group">
-<label class="form-label">Sleep Timeout (seconds)</label>
-<input type="number" id="sleep-timeout" min="5" max="3600" value="60" />
-</div>
-<div class="form-group">
-<label class="form-label">Sleep Icon Upload <small>(PNG/JPG, max 500KB)</small></label>
-<input type="file" id="sleep-icon-upload" accept="image/png,image/jpeg,image/jpg" style="margin-bottom:8px;"/>
-<button class="btn btn-secondary btn-small" onclick="clearSleepIcon()">Clear Sleep Icon</button>
-<div id="sleep-icon-preview" style="margin-top:12px;display:none;">
-<img id="sleep-icon-preview-img" style="max-height:120px;border:1px solid var(--border);border-radius:4px;padding:4px;background:var(--surface);"/>
-</div>
-</div>
-</div>
-</div>
-<div id="tab-can-library" class="tab-content">
-<div class="card">
-<div class="card-title">CAN Message Library</div>
-<p class="text-muted mb-2">Create reusable CAN messages for quick button configuration.</p>
-<button class="btn btn-primary mb-2" onclick="addCanMessage()">+ Add New Message</button>
-<div id="can-library-list"></div>
-</div>
-<div class="card">
-<div class="card-title">Quick Import Common Messages</div>
-<div class="grid grid-3">
-<button class="btn btn-secondary btn-small" onclick="importCanMessage('windows')">Windows</button>
-<button class="btn btn-secondary btn-small" onclick="importCanMessage('locks')">Locks</button>
-<button class="btn btn-secondary btn-small" onclick="importCanMessage('boards')">Running Boards</button>
-</div>
-</div>
-</div>
-<div class="card">
-<div class="flex flex-between flex-center">
-<div>
-<button class="btn btn-success" onclick="saveConfig()">💾 Save Configuration</button>
-<button class="btn btn-secondary" onclick="loadConfig()">🔄 Reload</button>
-</div>
-<div class="text-muted">
-<small>Last saved: <span id="last-saved">Never</span></small>
-</div>
-</div>
-</div>
-</div>
-<div id="button-modal" class="modal">
-<div class="modal-content">
-<div class="modal-header">
-<span class="modal-title">Edit Button</span>
-<button class="close-btn" onclick="closeModal()">&times;</button>
-</div>
-<div class="form-group">
-<label class="form-label">Button Label</label>
-<input type="text" id="btn-label" placeholder="My Button"/>
-</div>
-<div class="form-group">
-<label class="form-label">Button Color</label>
-<input type="color" id="btn-color" value="#FFA500"/>
-<button class="btn btn-secondary btn-small" onclick="useThemeColor('btn-color')" style="margin-top:4px;width:100%;">Use Theme Default</button>
-</div>
-<div class="form-group">
-<label class="form-label">Button Pressed Color</label>
-<input type="color" id="btn-pressed-color" value="#FF8800"/>
-<button class="btn btn-secondary btn-small" onclick="useThemeColor('btn-pressed-color')" style="margin-top:4px;width:100%;">Use Theme Default</button>
-</div>
-
-<div class="form-group">
-<label class="form-label">Font Size</label>
-<select id="btn-font-size" style="width:100%;padding:10px;background:#2a2a2a;border:1px solid #444;color:#fff;border-radius:0;font-family:monospace;">
-<option value="8">8px - Tiny (UNSCII only)</option>
-<option value="12">12px - Extra Small</option>
-<option value="14">14px - Small</option>
-<option value="16">16px - Medium Small</option>
-<option value="18">18px - Medium</option>
-<option value="20">20px - Medium Large</option>
-<option value="22">22px - Large</option>
-<option value="24" selected>24px - Extra Large</option>
-<option value="26">26px - Huge</option>
-<option value="28">28px - Huge+</option>
-<option value="30">30px - Massive</option>
-<option value="32">32px - Maximum</option>
-</select>
-</div>
-<div class="form-group">
-<label class="form-label">Text Alignment</label>
-<select id="btn-text-align" style="width:100%;padding:8px;background:#2a2a2a;border:1px solid #444;color:#fff;border-radius:6px;">
-<option value="top-left">Top Left</option>
-<option value="top-center">Top Center</option>
-<option value="top-right">Top Right</option>
-<option value="center" selected>Center</option>
-<option value="bottom-left">Bottom Left</option>
-<option value="bottom-center">Bottom Center</option>
-<option value="bottom-right">Bottom Right</option>
-</select>
-</div>
-<div class="form-group">
-<label class="form-label">Font Family</label>
-<select id="btn-font-family" onchange="updateFontPreview()" style="width:100%;padding:10px;background:#2a2a2a;border:1px solid #444;color:#fff;border-radius:0;">
-<option value="montserrat" style="font-family:'Montserrat',sans-serif;">Montserrat - Modern Sans-Serif</option>
-<option value="unscii" style="font-family:monospace;">UNSCII - Pixel/Monospace</option>
-</select>
-<div id="font-preview" style="margin-top:12px;padding:16px;background:#000;border:1px solid var(--border);text-align:center;font-size:24px;color:#00aaff;font-family:Montserrat,sans-serif;">The Quick Brown Fox</div>
-<small style="display:block;color:#888;margin-top:8px;">Note: Montserrat (12-32px) or UNSCII (8,16px) available. Device uses pre-rendered bitmap fonts.</small>
-</div>
-<div class="form-group">
-<label class="form-label">Button Corner Radius (px)</label>
-<input type="number" id="btn-corner-radius" value="12" min="0" max="50"/>
-</div>
-<div class="form-group">
-<label class="form-label">Button Border Width (px)</label>
-<input type="number" id="btn-border-width" value="0" min="0" max="10"/>
-</div>
-<div class="form-group">
-<label class="form-label">Button Border Color</label>
-<input type="color" id="btn-border-color" value="#FFFFFF"/>
-</div>
-<div class="checkbox-wrapper">
-<input type="checkbox" id="btn-momentary"/>
-<label for="btn-momentary">Momentary (auto-release)</label>
-</div>
-<hr style="margin:24px 0;border:none;border-top:1px solid #333;"/>
-<div style="margin-bottom:16px;">
-<div style="font-weight:600;color:#ddd;margin-bottom:8px;">CAN Configuration</div>
-<div class="checkbox-wrapper" style="margin-bottom:12px;">
-<input type="checkbox" id="btn-can-enabled" onchange="toggleCanFields()"/>
-<label for="btn-can-enabled">Send CAN Message on Press</label>
-</div>
-<div id="can-config-wrapper" style="display:none;">
-<div id="can-library-selector" style="margin-bottom:16px;">
-<div class="form-group">
-<label class="form-label">Load from CAN Library</label>
-<select id="btn-can-library-select" onchange="loadCanFromLibrary()">
-<option value="">-- Select a message --</option>
-</select>
-<small class="text-muted" style="display:block;margin-top:4px;">Or configure manually below</small>
-</div>
-</div>
-<div class="grid grid-2" style="gap:12px;">
-<div class="form-group">
-<label class="form-label">PGN (hex)</label>
-<input type="text" id="btn-can-pgn" placeholder="FEF9" maxlength="8"/>
-</div>
-<div class="form-group">
-<label class="form-label">Priority</label>
-<input type="number" id="btn-can-priority" value="6" min="0" max="7"/>
-</div>
-<div class="form-group">
-<label class="form-label">Source Address (hex)</label>
-<input type="text" id="btn-can-src" placeholder="F9" maxlength="2"/>
-</div>
-<div class="form-group">
-<label class="form-label">Dest Address (hex)</label>
-<input type="text" id="btn-can-dest" placeholder="FF" maxlength="2"/>
-</div>
-</div>
-<div class="form-group">
-<label class="form-label">Data Bytes (8 hex bytes, space-separated)</label>
-<input type="text" id="btn-can-data" placeholder="00 01 02 03 04 05 06 07" maxlength="23"/>
-</div>
-</div>
-</div>
-<div style="display:flex;gap:12px;margin-top:24px;">
-<button class="btn btn-primary" onclick="saveButton()" style="flex:1">💾 Save Button</button>
-<button class="btn btn-danger" onclick="deleteButton()" style="flex:1">🗑️ Delete</button>
-<button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
-</div>
-</div>
-</div>
 <script>
-let config={};
-let wifiNetworks=[];
-let selectedWiFi=null;
-let editingButton={row:-1,col:-1};
-function switchTab(tabId){
-document.querySelectorAll('.tab-btn').forEach(btn=>btn.classList.remove('active'));
-document.querySelectorAll('.tab-content').forEach(content=>content.classList.remove('active'));
-event.target.classList.add('active');
-document.getElementById('tab-'+tabId).classList.add('active');
-}
-function showAlert(message,type='success'){
-const alert=document.getElementById('status-alert');
-alert.className=`alert alert-${type}`;
-alert.innerHTML=`<span style="font-size:1.2rem;">${type==='success'?'✓':'⚠'}</span> ${message}`;
-alert.style.display='flex';
-setTimeout(()=>alert.style.display='none',4000);
-}
-async function scanWiFi(){
-const btn=event.target;
-const icon=document.getElementById('scan-icon');
-icon.innerHTML='<div class="spinner"></div>';
-btn.disabled=true;
-try{
-const response=await fetch('/api/wifi/scan');
-const data=await response.json();
-wifiNetworks=data.networks||[];
-displayWiFiList();
-showAlert('Found '+wifiNetworks.length+' networks','success');
-}catch(error){
-showAlert('Scan failed: '+error.message,'danger');
-}finally{
-icon.innerHTML='🔍';
-btn.disabled=false;
-}
-}
-function displayWiFiList(){
-const list=document.getElementById('wifi-list');
-if(wifiNetworks.length===0){
-list.style.display='none';
-return;
-}
-list.style.display='block';
-list.innerHTML=wifiNetworks.map((net,idx)=>`
-<div class="wifi-item" onclick="selectWiFi(${idx})">
-<div>
-<div class="wifi-name">${net.ssid}</div>
-<div class="wifi-signal">
-Channel ${net.channel||'?'}
-<span class="wifi-strength">${getSignalBars(net.rssi)}</span>
-</div>
-</div>
-<div>${net.secure?'🔒':'🔓'}</div>
-</div>
-`).join('');
-}
-function selectWiFi(index){
-selectedWiFi=wifiNetworks[index];
-document.getElementById('sta-ssid').value=selectedWiFi.ssid;
-document.getElementById('sta-password').focus();
-document.querySelectorAll('.wifi-item').forEach((item,idx)=>{
-item.classList.toggle('selected',idx===index);
-});
-}
-function getSignalBars(rssi){
-if(rssi>-50)return '▰▰▰▰';
-if(rssi>-60)return '▰▰▰▱';
-if(rssi>-70)return '▰▰▱▱';
-if(rssi>-80)return '▰▱▱▱';
-return '▱▱▱▱';
+let config = {};
+let activePageIndex = 0;
+let editingButton = { row: -1, col: -1 };
+let wifiNetworks = [];
+
+function firstDefined() {
+	for (let i = 0; i < arguments.length; i++) {
+		const v = arguments[i];
+		if (v !== undefined && v !== null) {
+			return v;
+		}
+	}
+	return undefined;
 }
 
-let activePageIndex=0;
-function updateGridPreview(){
-const rows=parseInt(document.getElementById('grid-rows').value);
-const cols=parseInt(document.getElementById('grid-cols').value);
-const preview=document.getElementById('grid-preview');
-preview.style.gridTemplateRows=`repeat(${rows},1fr)`;
-preview.style.gridTemplateColumns=`repeat(${cols},1fr)`;
-preview.innerHTML='';
-if(!config.pages||config.pages.length===0){
-config.pages=[{id:'page_0',name:'Home',rows:rows,cols:cols,buttons:[]}];
-activePageIndex=0;
-}
-if(activePageIndex>=config.pages.length)activePageIndex=0;
-const currentPage=config.pages[activePageIndex];
-currentPage.rows=rows;
-currentPage.cols=cols;
-for(let r=0;r<rows;r++){
-for(let c=0;c<cols;c++){
-const button=currentPage.buttons.find(b=>b.row===r&&b.col===c);
-if(button){
-const cell=document.createElement('div');
-cell.className='grid-preview-btn';
-cell.style.gridRow=`${r+1} / span ${button.row_span||1}`;
-cell.style.gridColumn=`${c+1} / span ${button.col_span||1}`;
-cell.style.background=button.color||'#00aaff';
-cell.style.color=getContrastColor(button.color||'#00aaff');
-cell.style.fontSize=(button.font_size||24)+'px';
-cell.style.fontWeight=button.font_weight||'400';
-cell.style.fontFamily=button.font_family||'monospace';
-cell.style.borderRadius=(button.corner_radius||2)+'px';
-if(button.border_width&&button.border_width>0){
-cell.style.border=`${button.border_width}px solid ${button.border_color||'#fff'}`;
-}
-cell.draggable=true;
-cell.dataset.row=r;
-cell.dataset.col=c;
-cell.innerHTML=`<div style="font-weight:${button.font_weight||'400'}">${button.label}</div>`;
-cell.onclick=()=>editButton(r,c);
-cell.ondragstart=(e)=>{
-e.dataTransfer.effectAllowed='move';
-e.dataTransfer.setData('text/plain',`${r},${c}`);
-cell.classList.add('dragging');
-};
-cell.ondragend=(e)=>{
-cell.classList.remove('dragging');
-document.querySelectorAll('.drag-over').forEach(el=>el.classList.remove('drag-over'));
-};
-preview.appendChild(cell);
-}else{
-const cell=document.createElement('div');
-cell.className='grid-preview-empty';
-cell.dataset.row=r;
-cell.dataset.col=c;
-cell.innerHTML='+';
-cell.onclick=()=>addButton(r,c);
-cell.ondragover=(e)=>{
-e.preventDefault();
-e.dataTransfer.dropEffect='move';
-cell.classList.add('drag-over');
-};
-cell.ondragleave=(e)=>{
-cell.classList.remove('drag-over');
-};
-cell.ondrop=(e)=>{
-e.preventDefault();
-cell.classList.remove('drag-over');
-const data=e.dataTransfer.getData('text/plain');
-const [fromRow,fromCol]=data.split(',').map(n=>parseInt(n));
-moveButton(fromRow,fromCol,r,c);
-};
-preview.appendChild(cell);
-}
-}
-}
-}
-function getIconSymbol(iconName){
-const icons={
-'home':'🏠','windows':'🪟','locks':'🔒','boards':'📋',
-'lights':'💡','aux':'⚡','settings':'⚙️','info':'ℹ️'
-};
-return icons[iconName]||'📱';
-}
-function getContrastColor(hexColor){
-const r=parseInt(hexColor.substr(1,2),16);
-const g=parseInt(hexColor.substr(3,2),16);
-const b=parseInt(hexColor.substr(5,2),16);
-const brightness=(r*299+g*587+b*114)/1000;
-return brightness>128?'#000000':'#FFFFFF';
-}
-function updateFontPreview(){
-const preview=document.getElementById('font-preview');
-if(!preview)return;
-const family=document.getElementById('btn-font-family').value;
-const fontMap={'montserrat':'Montserrat','unscii':'monospace'};
-preview.style.fontFamily=(fontMap[family]||'Montserrat')+',sans-serif';
-const size=document.getElementById('btn-font-size')?.value||'24';
-preview.style.fontSize=size+'px';
-}
-function showHeaderEditor(){
-document.getElementById('header-editor').style.display='block';
-document.getElementById('page-editor').style.display='none';
-document.getElementById('button-editor-defaults').style.display='none';
-}
-function showPageEditor(){
-document.getElementById('header-editor').style.display='none';
-document.getElementById('page-editor').style.display='block';
-document.getElementById('button-editor-defaults').style.display='none';
-}
-function showButtonEditor(){
-document.getElementById('header-editor').style.display='none';
-document.getElementById('page-editor').style.display='none';
-document.getElementById('button-editor-defaults').style.display='block';
-}
-function updateDefaultsPreview(){
-const headerBg=document.getElementById('theme-surface').value;
-const headerText=document.getElementById('theme-accent').value;
-const headerBorder=document.getElementById('theme-header-border').value;
-const headerBorderWidth=document.getElementById('theme-header-border-width').value;
-const pageBg=document.getElementById('theme-page-bg').value;
-const pageText=document.getElementById('theme-text-secondary').value;
-const btnColor=document.getElementById('theme-btn-color')?.value||document.getElementById('theme-accent').value;
-const btnPressed=document.getElementById('theme-btn-pressed')?.value||'#FF8800';
-const btnBorder=document.getElementById('theme-border').value;
-const btnBorderWidth=document.getElementById('theme-border-width').value;
-const btnRadius=document.getElementById('theme-radius').value;
-const defHeader=document.getElementById('defaults-header');
-defHeader.style.background=headerBg;
-defHeader.style.borderBottomWidth=headerBorderWidth+'px';
-defHeader.style.borderBottomColor=headerBorder;
-const titleEl=document.getElementById('defaults-header-title');
-titleEl.textContent=config.header?.title||'CAN Control';
-titleEl.style.color=headerText;
-const subtitleEl=document.getElementById('defaults-header-subtitle');
-subtitleEl.textContent=config.header?.subtitle||'';
-subtitleEl.style.color=pageText;
-const logoEl=document.getElementById('defaults-logo');
-if(config.header?.logo_base64){
-logoEl.src='data:image/png;base64,'+config.header.logo_base64;
-logoEl.style.display='block';
-}else{
-logoEl.style.display='none';
-}
-const navEl=document.getElementById('defaults-nav');
-navEl.innerHTML='';
-if(config.pages&&config.pages.length>0){
-config.pages.forEach((page,idx)=>{
-const navBtn=document.createElement('div');
-navBtn.textContent=page.name||'Page '+(idx+1);
-navBtn.style.flex='1';
-navBtn.style.padding='8px';
-navBtn.style.textAlign='center';
-navBtn.style.fontSize='0.85rem';
-navBtn.style.fontWeight='600';
-navBtn.style.cursor='pointer';
-navBtn.style.borderBottom='2px solid transparent';
-navBtn.style.color=idx===activePageIndex?headerText:pageText;
-if(idx===activePageIndex){
-navBtn.style.borderBottomColor=headerBorder;
-}
-navBtn.onclick=()=>{
-document.getElementById('page-selector').value=idx;
-switchPage();
-};
-navEl.appendChild(navBtn);
-});
-}
-const defPage=document.getElementById('defaults-page');
-defPage.style.background=pageBg;
-defPage.style.color=pageText;
-const btnGrid=document.getElementById('defaults-button-grid');
-btnGrid.innerHTML='';
-if(config.pages&&config.pages[activePageIndex]&&config.pages[activePageIndex].buttons){
-const buttons=config.pages[activePageIndex].buttons;
-buttons.slice(0,4).forEach(btn=>{
-const btnEl=document.createElement('div');
-btnEl.textContent=btn.label||'Button';
-btnEl.style.padding='24px 12px';
-btnEl.style.background=btn.color||btnColor;
-btnEl.style.color=getContrastColor(btn.color||btnColor);
-btnEl.style.textAlign=btn.text_align||'center';
-btnEl.style.fontWeight='700';
-btnEl.style.fontSize=(btn.font_size||24)+'px';
-btnEl.style.border=(btn.border_width||btnBorderWidth)+'px solid '+(btn.border_color||btnBorder);
-btnEl.style.borderRadius=(btn.corner_radius!=null?btn.corner_radius:btnRadius)+'px';
-btnEl.style.cursor='pointer';
-btnEl.onclick=(e)=>{e.stopPropagation();showButtonEditor();};
-btnGrid.appendChild(btnEl);
-});
-}else{
-for(let i=0;i<2;i++){
-const btnEl=document.createElement('div');
-btnEl.textContent='Button';
-btnEl.style.padding='24px 12px';
-btnEl.style.background=btnColor;
-btnEl.style.color=getContrastColor(btnColor);
-btnEl.style.textAlign='center';
-btnEl.style.fontWeight='700';
-btnEl.style.fontSize='24px';
-btnEl.style.border=btnBorderWidth+'px solid '+btnBorder;
-btnEl.style.borderRadius=btnRadius+'px';
-btnEl.style.cursor='pointer';
-btnEl.onclick=(e)=>{e.stopPropagation();showButtonEditor();};
-btnGrid.appendChild(btnEl);
-}
-}
-}
-function applyDefaults(){
-updateDefaultsPreview();
-}
-function addButton(row,col){
-editingButton={row:row,col:col};
-document.getElementById('btn-label').value='Button '+(row*10+col);
-document.getElementById('btn-color').value='#FFA500';
-document.getElementById('btn-pressed-color').value='#FF8800';
-document.getElementById('btn-font-size').value='24';
-document.getElementById('btn-font-family').value='montserrat';
-document.getElementById('btn-text-align').value='center';
-document.getElementById('btn-corner-radius').value='12';
-document.getElementById('btn-border-width').value='0';
-document.getElementById('btn-border-color').value='#FFFFFF';
-document.getElementById('btn-momentary').checked=false;
-updateFontPreview();
-document.getElementById('btn-can-enabled').checked=false;
-document.getElementById('btn-can-pgn').value='FEF9';
-document.getElementById('btn-can-priority').value='6';
-document.getElementById('btn-can-src').value='F9';
-document.getElementById('btn-can-dest').value='FF';
-document.getElementById('btn-can-data').value='00 00 00 00 00 00 00 00';
-toggleCanFields();
-populateCanLibraryDropdown();
-document.getElementById('button-modal').style.display='block';
-}
-function editButton(row,col){
-if(!config.pages||!config.pages[activePageIndex])return;
-const button=config.pages[activePageIndex].buttons.find(b=>b.row===row&&b.col===col);
-if(!button)return;
-editingButton={row:row,col:col};
-document.getElementById('btn-label').value=button.label||'';
-document.getElementById('btn-color').value=button.color||'#FFA500';
-document.getElementById('btn-pressed-color').value=button.pressed_color||'#FF8800';
-document.getElementById('btn-font-size').value=button.font_size||24;
-document.getElementById('btn-font-family').value=button.font_family||'montserrat';
-document.getElementById('btn-text-align').value=button.text_align||'center';
-document.getElementById('btn-corner-radius').value=button.corner_radius||12;
-document.getElementById('btn-border-width').value=button.border_width||0;
-document.getElementById('btn-border-color').value=button.border_color||'#FFFFFF';
-document.getElementById('btn-momentary').checked=button.momentary||false;
-updateFontPreview();
-const canEnabled=button.can&&button.can.enabled||false;
-document.getElementById('btn-can-enabled').checked=canEnabled;
-if(button.can){
-document.getElementById('btn-can-pgn').value=button.can.pgn.toString(16).toUpperCase();
-document.getElementById('btn-can-priority').value=button.can.priority||6;
-document.getElementById('btn-can-src').value=(button.can.source_address||0xF9).toString(16).toUpperCase();
-document.getElementById('btn-can-dest').value=(button.can.destination_address||0xFF).toString(16).toUpperCase();
-const dataStr=button.can.data.map(b=>b.toString(16).toUpperCase().padStart(2,'0')).join(' ');
-document.getElementById('btn-can-data').value=dataStr;
-}
-toggleCanFields();
-populateCanLibraryDropdown();
-document.getElementById('button-modal').style.display='block';
-}
-function saveButton(){
-if(!config.pages||config.pages.length===0){
-config.pages=[{id:'page_0',name:'Home',rows:2,cols:2,buttons:[]}];
-activePageIndex=0;
-}
-const page=config.pages[activePageIndex];
-const existingIdx=page.buttons.findIndex(b=>b.row===editingButton.row&&b.col===editingButton.col);
-const canEnabled=document.getElementById('btn-can-enabled').checked;
-const canConfig={
-enabled:canEnabled,
-pgn:canEnabled?parseInt(document.getElementById('btn-can-pgn').value,16):0,
-priority:canEnabled?parseInt(document.getElementById('btn-can-priority').value):6,
-source_address:canEnabled?parseInt(document.getElementById('btn-can-src').value,16):0xF9,
-destination_address:canEnabled?parseInt(document.getElementById('btn-can-dest').value,16):0xFF,
-data:canEnabled?document.getElementById('btn-can-data').value.split(' ').map(b=>parseInt(b,16)||0):[0,0,0,0,0,0,0,0]
-};
-const buttonData={
-id:'btn_'+editingButton.row+'_'+editingButton.col,
-label:document.getElementById('btn-label').value,
-color:document.getElementById('btn-color').value,
-pressed_color:document.getElementById('btn-pressed-color').value,
-icon:'',
-font_size:parseInt(document.getElementById('btn-font-size').value)||24,
-font_family:document.getElementById('btn-font-family').value||'montserrat',
-font_weight:'400',
-font_name:document.getElementById('btn-font-family').value||'montserrat',
-text_align:document.getElementById('btn-text-align').value||'center',
-corner_radius:parseInt(document.getElementById('btn-corner-radius').value)||12,
-border_width:parseInt(document.getElementById('btn-border-width').value)||0,
-border_color:document.getElementById('btn-border-color').value||'#FFFFFF',
-row:editingButton.row,
-col:editingButton.col,
-row_span:1,
-col_span:1,
-momentary:document.getElementById('btn-momentary').checked,
-can:canConfig
-};
-if(existingIdx>=0){
-page.buttons[existingIdx]=buttonData;
-}else{
-page.buttons.push(buttonData);
-}
-closeModal();
-updateGridPreview();
-updateDefaultsPreview();
-showAlert('Button updated! Click Save Configuration to persist.','success');
-}
-function deleteButton(){
-if(!config.pages||!config.pages[activePageIndex])return;
-const page=config.pages[activePageIndex];
-const idx=page.buttons.findIndex(b=>b.row===editingButton.row&&b.col===editingButton.col);
-if(idx>=0){
-page.buttons.splice(idx,1);
-closeModal();
-updateGridPreview();
-updateDefaultsPreview();
-showAlert('Button deleted! Click Save Configuration to persist.','success');
-}
-}
-function moveButton(fromRow,fromCol,toRow,toCol){
-if(!config.pages||!config.pages[activePageIndex])return;
-const page=config.pages[activePageIndex];
-const buttonIdx=page.buttons.findIndex(b=>b.row===fromRow&&b.col===fromCol);
-if(buttonIdx>=0){
-page.buttons[buttonIdx].row=toRow;
-page.buttons[buttonIdx].col=toCol;
-page.buttons[buttonIdx].id='btn_'+toRow+'_'+toCol;
-updateGridPreview();
-updateDefaultsPreview();
-showAlert('Button moved! Click Save Configuration to persist.','success');
-}
-}
-function closeModal(){
-document.getElementById('button-modal').style.display='none';
-}
-function displayCanLibrary(){
-const list=document.getElementById('can-library-list');
-const messages=config.can_library||[];
-if(messages.length===0){
-list.innerHTML='<div class="text-center text-muted">No messages in library. Add one to get started!</div>';
-return;
-}
-list.innerHTML=messages.map((msg,idx)=>`
-<div class="can-message-item">
-<div class="can-message-header">
-<div>
-<div class="can-message-name">${msg.name}</div>
-<div class="can-message-pgn">PGN: 0x${msg.pgn.toString(16).toUpperCase().padStart(5,'0')}</div>
-</div>
-<div style="display:flex;gap:8px;">
-<button class="btn btn-secondary btn-small" onclick="editCanMessage(${idx})">Edit</button>
-<button class="btn btn-danger btn-small" onclick="deleteCanMessage(${idx})">Delete</button>
-</div>
-</div>
-${msg.description?`<div class="text-muted" style="font-size:.85rem;">${msg.description}</div>`:''}
-<div class="can-message-data">
-<div class="can-data-bytes">
-${msg.data.map((b,i)=>`<span class="can-data-byte">${b.toString(16).toUpperCase().padStart(2,'0')}</span>`).join('')}
-</div>
-</div>
-</div>
-`).join('');
-}
-function addCanMessage(){
-const name=prompt('Message Name:','New Message');
-if(!name)return;
-const pgn=parseInt(prompt('PGN (hex, e.g. FEF6):','FEF6'),16);
-if(isNaN(pgn))return;
-if(!config.can_library)config.can_library=[];
-config.can_library.push({
-id:'msg_'+Date.now(),
-name:name,
-pgn:pgn,
-priority:6,
-source_address:0xF9,
-destination_address:0xFF,
-data:[0,0,0,0,0,0,0,0],
-description:''
-});
-displayCanLibrary();
-showAlert('Message added! Click Save Configuration to persist.','success');
-}
-function editCanMessage(index){
-const msg=config.can_library[index];
-if(!msg)return;
-const name=prompt('Message Name:',msg.name);
-if(!name)return;
-const pgnHex=prompt('PGN (hex, e.g. FEF6):',msg.pgn.toString(16).toUpperCase());
-if(!pgnHex)return;
-const pgn=parseInt(pgnHex,16);
-if(isNaN(pgn))return;
-const dataStr=prompt('Data Bytes (8 hex bytes, space-separated):',msg.data.map(b=>b.toString(16).toUpperCase().padStart(2,'0')).join(' '));
-if(!dataStr)return;
-const dataBytes=dataStr.split(' ').map(b=>parseInt(b,16)||0);
-if(dataBytes.length!==8){
-showAlert('Data must be exactly 8 bytes!','danger');
-return;
-}
-config.can_library[index].name=name;
-config.can_library[index].pgn=pgn;
-config.can_library[index].data=dataBytes;
-displayCanLibrary();
-showAlert('Message updated! Click Save Configuration to persist.','success');
-}
-function deleteCanMessage(index){
-if(confirm('Delete this message from library?')){
-config.can_library.splice(index,1);
-displayCanLibrary();
-showAlert('Message deleted! Click Save Configuration to persist.','success');
-}
-}
-function importCanMessage(type){
-const templates={
-'windows':{name:'Window Control',pgn:0xFEF6,data:[0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF]},
-'locks':{name:'Door Locks',pgn:0xFECA,data:[0x00,0x00,0x00,0x00,0xFF,0xFF,0xFF,0xFF]},
-'boards':{name:'Running Boards',pgn:0xFE00,data:[0x01,0x00,0x00,0x00,0xFF,0xFF,0xFF,0xFF]}
-};
-const template=templates[type];
-if(!template)return;
-if(!config.can_library)config.can_library=[];
-config.can_library.push({
-id:'msg_'+Date.now(),
-name:template.name,
-pgn:template.pgn,
-priority:6,
-source_address:0xF9,
-destination_address:0xFF,
-data:template.data,
-description:'Pre-configured message'
-});
-displayCanLibrary();
-showAlert(`Imported ${template.name}! Click Save Configuration to persist.`,'success');
-}
-async function loadConfig(){
-try{
-const response=await fetch('/api/config');
-config=await response.json();
-document.getElementById('ap-ssid').value=config.wifi?.ap?.ssid||'CAN-Control';
-document.getElementById('ap-password').value=config.wifi?.ap?.password||'';
-document.getElementById('ap-enabled').checked=config.wifi?.ap?.enabled!==false;
-document.getElementById('sta-ssid').value=config.wifi?.sta?.ssid||'';
-document.getElementById('sta-password').value=config.wifi?.sta?.password||'';
-document.getElementById('sta-enabled').checked=config.wifi?.sta?.enabled||false;
-const theme=config.theme||{};
-if(document.getElementById('theme-bg'))document.getElementById('theme-bg').value=theme.bg_color||'#1A1A1A';
-document.getElementById('theme-surface').value=theme.surface_color||'#2A2A2A';
-document.getElementById('theme-page-bg').value=theme.page_bg_color||'#0F0F0F';
-document.getElementById('theme-accent').value=theme.accent_color||'#00aaff';
-if(document.getElementById('theme-text-primary'))document.getElementById('theme-text-primary').value=theme.text_primary||'#FFFFFF';
-document.getElementById('theme-text-secondary').value=theme.text_secondary||'#888888';
-document.getElementById('theme-border').value=theme.border_color||'#FFFFFF';
-document.getElementById('theme-header-border').value=theme.header_border_color||'#00aaff';
-if(document.getElementById('theme-nav-button'))document.getElementById('theme-nav-button').value=theme.nav_button_color||'#3A3A3A';
-if(document.getElementById('theme-nav-active'))document.getElementById('theme-nav-active').value=theme.nav_button_active_color||theme.accent_color||'#00aaff';
-if(document.getElementById('theme-btn-color'))document.getElementById('theme-btn-color').value=theme.button_color||theme.accent_color||'#00aaff';
-if(document.getElementById('theme-btn-pressed'))document.getElementById('theme-btn-pressed').value=theme.button_pressed_color||'#FF8800';
-document.getElementById('theme-radius').value=theme.button_radius||12;
-document.getElementById('theme-border-width').value=theme.border_width||2;
-document.getElementById('theme-header-border-width').value=theme.header_border_width||2;
-const display=config.display||{};
-document.getElementById('display-brightness').value=display.brightness??100;
-document.getElementById('display-brightness-value').textContent=(display.brightness??100)+'%';
-document.getElementById('sleep-enabled').checked=display.sleep_enabled===true;
-document.getElementById('sleep-timeout').value=display.sleep_timeout_seconds??60;
-document.getElementById('header-title').value=config.header?.title||'CAN Control';
-document.getElementById('header-subtitle').value=config.header?.subtitle||'Web Configurator';
-document.getElementById('header-show-logo').checked=config.header?.show_logo!==false;
-if(config.header?.logo_base64){
-document.getElementById('logo-preview').style.display='block';
-document.getElementById('logo-preview-img').src=config.header.logo_base64;
-}else{
-document.getElementById('logo-preview').style.display='none';
-}
-if(display.sleep_icon_base64){
-document.getElementById('sleep-icon-preview').style.display='block';
-document.getElementById('sleep-icon-preview-img').src=display.sleep_icon_base64;
-}else{
-document.getElementById('sleep-icon-preview').style.display='none';
-}
-populatePageSelector();
-if(config.pages&&config.pages[activePageIndex]){
-document.getElementById('grid-rows').value=config.pages[activePageIndex].rows||2;
-document.getElementById('grid-cols').value=config.pages[activePageIndex].cols||2;
-}
-updateGridPreview();
-displayCanLibrary();
-showAlert('Configuration loaded','success');
-updateDefaultsPreview();
-updatePagePreview();
-}catch(error){
-showAlert('Failed to load: '+error.message,'danger');
-}
-}
-function useThemeColor(fieldId){
-const themeBtnColor=document.getElementById('theme-btn-color')?.value||document.getElementById('theme-accent').value;
-const themeBtnPressed=document.getElementById('theme-btn-pressed')?.value||'#FF8800';
-if(fieldId==='btn-color'){
-document.getElementById(fieldId).value=themeBtnColor;
-}else if(fieldId==='btn-pressed-color'){
-document.getElementById(fieldId).value=themeBtnPressed;
-}
-showAlert('Applied default color','success');
-}
-async function saveConfig(){
-if(!config.version)config.version='1.0.0';
-config.wifi={
-ap:{
-enabled:document.getElementById('ap-enabled').checked,
-ssid:document.getElementById('ap-ssid').value,
-password:document.getElementById('ap-password').value
-},
-sta:{
-enabled:document.getElementById('sta-enabled').checked,
-ssid:document.getElementById('sta-ssid').value,
-password:document.getElementById('sta-password').value
-}
-};
-config.theme={
-bg_color:document.getElementById('theme-bg')?.value||'#1A1A1A',
-surface_color:document.getElementById('theme-surface').value,
-page_bg_color:document.getElementById('theme-page-bg').value,
-accent_color:document.getElementById('theme-accent').value,
-text_primary:document.getElementById('theme-text-primary')?.value||'#FFFFFF',
-text_secondary:document.getElementById('theme-text-secondary').value,
-border_color:document.getElementById('theme-border').value,
-header_border_color:document.getElementById('theme-header-border').value,
-nav_button_color:document.getElementById('theme-nav-button')?.value||'#3A3A3A',
-nav_button_active_color:document.getElementById('theme-nav-active')?.value||document.getElementById('theme-accent').value,
-button_color:document.getElementById('theme-btn-color')?.value||document.getElementById('theme-accent').value,
-button_pressed_color:document.getElementById('theme-btn-pressed')?.value||'#FF8800',
-button_radius:parseInt(document.getElementById('theme-radius').value),
-border_width:parseInt(document.getElementById('theme-border-width').value),
-header_border_width:parseInt(document.getElementById('theme-header-border-width').value)
-};
-config.header={
-title:document.getElementById('header-title').value,
-subtitle:document.getElementById('header-subtitle').value,
-show_logo:document.getElementById('header-show-logo').checked,
-logo_variant:'bronco',
-logo_base64:config.header?.logo_base64||'',
-title_font:config.header?.title_font||'montserrat_24',
-subtitle_font:config.header?.subtitle_font||'montserrat_12'
-};
-config.display={
-brightness:parseInt(document.getElementById('display-brightness').value),
-sleep_enabled:document.getElementById('sleep-enabled').checked,
-sleep_timeout_seconds:parseInt(document.getElementById('sleep-timeout').value)||60,
-sleep_icon_base64:config.display?.sleep_icon_base64||''
-};
-if(!config.pages||config.pages.length===0){
-config.pages=[{
-id:'page_0',
-name:'Home',
-rows:parseInt(document.getElementById('grid-rows').value),
-cols:parseInt(document.getElementById('grid-cols').value),
-buttons:[]
-}];
-activePageIndex=0;
-}else if(activePageIndex<config.pages.length){
-config.pages[activePageIndex].rows=parseInt(document.getElementById('grid-rows').value);
-config.pages[activePageIndex].cols=parseInt(document.getElementById('grid-cols').value);
-}
-try{
-const response=await fetch('/api/config',{
-method:'POST',
-headers:{'Content-Type':'application/json'},
-body:JSON.stringify(config)
-});
-if(response.ok){
-showAlert('✓ Configuration saved! Restart ESP32 device to see theme changes on display.','success');
-document.getElementById('last-saved').textContent=new Date().toLocaleTimeString();
-}else{
-const text=await response.text();
-throw new Error('Server error: '+text);
-}
-}catch(error){
-showAlert('Failed to save: '+error.message,'danger');
-}
-}
-window.addEventListener('DOMContentLoaded',()=>{
-loadConfig();
-document.getElementById('btn-can-enabled').addEventListener('change',function(){
-const isEnabled=this.checked;
-document.getElementById('can-config-fields').style.display=isEnabled?'block':'none';
-document.getElementById('can-library-selector').style.display=isEnabled?'block':'none';
-});
-document.getElementById('logo-upload').addEventListener('change',handleLogoUpload);
-document.getElementById('sleep-icon-upload').addEventListener('change',handleSleepIconUpload);
-if(document.getElementById('btn-font-size')){
-document.getElementById('btn-font-size').addEventListener('change',updateFontPreview);
-}
-['theme-bg','theme-surface','theme-page-bg','theme-accent','theme-text-primary','theme-text-secondary','theme-border','theme-header-border','theme-nav-button','theme-nav-active','theme-radius','theme-border-width','theme-header-border-width'].forEach(id=>{
-const el=document.getElementById(id);
-if(el){
-el.addEventListener('change',updateThemePreview);
-el.addEventListener('input',updateThemePreview);
-}
-});
-});
-function handleLogoUpload(event){
-const file=event.target.files[0];
-if(!file)return;
-if(file.size>512000){
-showAlert('Logo file too large! Max 500KB','danger');
-event.target.value='';
-return;
-}
-if(!file.type.match('image/(png|jpeg|jpg)')){
-showAlert('Only PNG and JPG files are supported','danger');
-event.target.value='';
-return;
-}
-const reader=new FileReader();
-reader.onload=function(e){
-const img=new Image();
-img.onload=function(){
-const tempCanvas=document.createElement('canvas');
-let width=img.width;
-let height=img.height;
-const maxWidth=48;
-const maxHeight=36;
-if(width>maxWidth||height>maxHeight){
-const ratio=Math.min(maxWidth/width,maxHeight/height);
-width=Math.floor(width*ratio);
-height=Math.floor(height*ratio);
-}
-tempCanvas.width=width;
-tempCanvas.height=height;
-const tempCtx=tempCanvas.getContext('2d');
-tempCtx.imageSmoothingEnabled=true;
-tempCtx.imageSmoothingQuality='high';
-tempCtx.drawImage(img,0,0,width,height);
-const imgData=tempCtx.getImageData(0,0,width,height);
-const data=imgData.data;
-const tolerance=30;
-for(let i=0;i<data.length;i+=4){
-const r=data[i];
-const g=data[i+1];
-const b=data[i+2];
-if(r>255-tolerance&&g>255-tolerance&&b>255-tolerance){
-data[i+3]=0;
-}
-}
-tempCtx.putImageData(imgData,0,0);
-const canvas=document.createElement('canvas');
-canvas.width=width;
-canvas.height=height;
-const ctx=canvas.getContext('2d');
-const headerBg=config.theme?.bg_header||'#2A2A2A';
-ctx.fillStyle=headerBg;
-ctx.fillRect(0,0,width,height);
-ctx.drawImage(tempCanvas,0,0);
-let quality=0.8;
-let base64=canvas.toDataURL('image/png',quality);
-while(base64.length>10000&&quality>0.3){
-quality-=0.1;
-base64=canvas.toDataURL('image/png',quality);
-}
-if(base64.length>10000){
-showAlert('Logo too large ('+Math.round(base64.length/1024)+'KB). Try a simpler image.','danger');
-event.target.value='';
-return;
-}
-if(!config.header)config.header={};
-config.header.logo_base64=base64;
-document.getElementById('logo-preview').style.display='block';
-document.getElementById('logo-preview-img').src=base64;
-updateDefaultsPreview();
-showAlert('Logo uploaded ('+Math.round(base64.length/1024)+'KB)! Save to apply.','success');
-};
-img.src=e.target.result;
-};
-reader.readAsDataURL(file);
-}
-function handleSleepIconUpload(event){
-const file=event.target.files[0];
-if(!file)return;
-if(file.size>512000){
-showAlert('Sleep icon too large! Max 500KB','danger');
-event.target.value='';
-return;
-}
-if(!file.type.match('image/(png|jpeg|jpg)')){
-showAlert('Only PNG and JPG files are supported','danger');
-event.target.value='';
-return;
-}
-const reader=new FileReader();
-reader.onload=function(e){
-const img=new Image();
-img.onload=function(){
-const tempCanvas=document.createElement('canvas');
-let width=img.width;
-let height=img.height;
-const maxDim=256;
-if(width>maxDim||height>maxDim){
-const ratio=Math.min(maxDim/width,maxDim/height);
-width=Math.floor(width*ratio);
-height=Math.floor(height*ratio);
-}
-tempCanvas.width=width;
-tempCanvas.height=height;
-const ctx=tempCanvas.getContext('2d');
-ctx.imageSmoothingEnabled=true;
-ctx.imageSmoothingQuality='high';
-ctx.drawImage(img,0,0,width,height);
-const compressed=tempCanvas.toDataURL('image/png');
-if(!config.display)config.display={};
-config.display.sleep_icon_base64=compressed;
-document.getElementById('sleep-icon-preview').style.display='block';
-document.getElementById('sleep-icon-preview-img').src=compressed;
-showAlert('Sleep icon loaded. Click Save Configuration to persist.','success');
-};
-img.src=e.target.result;
-};
-reader.readAsDataURL(file);
-}
-function clearCustomLogo(){
-if(!config.header)config.header={};
-config.header.logo_base64='';
-document.getElementById('logo-upload').value='';
-document.getElementById('logo-preview').style.display='none';
-updateDefaultsPreview();
-showAlert('Reset to default logo. Save configuration to apply.','success');
-}
-function clearSleepIcon(){
-if(!config.display)config.display={};
-config.display.sleep_icon_base64='';
-document.getElementById('sleep-icon-upload').value='';
-document.getElementById('sleep-icon-preview').style.display='none';
-document.getElementById('sleep-icon-preview-img').src='';
-showAlert('Sleep icon cleared. Click Save Configuration to persist.','info');
-}
-function populateCanLibraryDropdown(){
-const select=document.getElementById('btn-can-library-select');
-select.innerHTML='<option value="">-- Select a message --</option>';
-const messages=config.can_library||[];
-messages.forEach((msg,idx)=>{
-const option=document.createElement('option');
-option.value=idx;
-option.textContent=msg.name+' (PGN: 0x'+msg.pgn.toString(16).toUpperCase()+')';
-select.appendChild(option);
-});
-}
-function loadCanFromLibrary(){
-const select=document.getElementById('btn-can-library-select');
-const idx=select.value;
-if(idx==='')return;
-const msg=config.can_library[parseInt(idx)];
-if(!msg)return;
-document.getElementById('btn-can-pgn').value=msg.pgn.toString(16).toUpperCase();
-document.getElementById('btn-can-priority').value=msg.priority;
-document.getElementById('btn-can-src').value=msg.source_address.toString(16).toUpperCase();
-document.getElementById('btn-can-dest').value=msg.destination_address.toString(16).toUpperCase();
-const dataStr=msg.data.map(b=>b.toString(16).toUpperCase().padStart(2,'0')).join(' ');
-document.getElementById('btn-can-data').value=dataStr;
-showAlert('Loaded CAN message: '+msg.name,'success');
-}
-function populatePageSelector(){
-const selector=document.getElementById('page-selector');
-selector.innerHTML='';
-if(!config.pages||config.pages.length===0){
-config.pages=[{id:'page_0',name:'Home',rows:2,cols:2,buttons:[]}];
-}
-config.pages.forEach((page,idx)=>{
-const option=document.createElement('option');
-option.value=idx;
-option.textContent=page.name||'Page '+(idx+1);
-if(idx===activePageIndex)option.selected=true;
-selector.appendChild(option);
-});
-}
-function updatePageName(){
-if(!config.pages||!config.pages[activePageIndex])return;
-const newName=document.getElementById('page-name').value;
-if(newName&&newName.trim()!==''){
-config.pages[activePageIndex].name=newName.trim();
-populatePageSelector();
-updatePagePreview();
-updateDefaultsPreview();
-showAlert('Page name updated! Remember to save configuration.','success');
-}
-}
-function updatePagePreview(){
-const title=document.getElementById('header-title').value||'CAN Control';
-const subtitle=document.getElementById('header-subtitle').value||'Configuration Interface';
-const showLogo=document.getElementById('header-show-logo').checked;
-document.getElementById('page-preview-title').textContent=title;
-document.getElementById('page-preview-subtitle').textContent=subtitle;
-document.getElementById('page-preview-logo').style.display=showLogo?'block':'none';
-updatePageNavPreview();
-updateDefaultsPreview();
-}
-function updatePageNavPreview(){
-const navContainer=document.getElementById('page-preview-nav');
-if(!config.pages||config.pages.length===0)return;
-navContainer.innerHTML=config.pages.map((page,idx)=>`
-<div class="page-nav-item${idx===activePageIndex?' active':''}" draggable="true" ondragstart="dragPageStart(event,${idx})" ondragover="allowDrop(event)" ondrop="dropPage(event,${idx})" style="padding:8px 12px;background:${idx===activePageIndex?'#00aaff':'#333'};color:${idx===activePageIndex?'#000':'#888'};text-align:center;font-size:0.75rem;cursor:move;${idx===activePageIndex?'font-weight:700':''};user-select:none;">
-${page.name||'Page '+(idx+1)}
-</div>
-`).join('');
-}
-let draggedPageIdx=-1;
-function dragPageStart(event,idx){
-draggedPageIdx=idx;
-event.dataTransfer.effectAllowed='move';
-}
-function allowDrop(event){
-event.preventDefault();
-}
-function dropPage(event,targetIdx){
-event.preventDefault();
-if(draggedPageIdx===targetIdx||draggedPageIdx===-1)return;
-const pages=config.pages;
-const movedPage=pages.splice(draggedPageIdx,1)[0];
-pages.splice(targetIdx,0,movedPage);
-if(activePageIndex===draggedPageIdx){
-activePageIndex=targetIdx;
-}else if(draggedPageIdx<activePageIndex&&targetIdx>=activePageIndex){
-activePageIndex--;
-}else if(draggedPageIdx>activePageIndex&&targetIdx<=activePageIndex){
-activePageIndex++;
-}
-populatePageSelector();
-updatePageNavPreview();
-showAlert('Page order changed! Remember to save configuration.','success');
-draggedPageIdx=-1;
-}
-function toggleCanFields(){
-const enabled=document.getElementById('btn-can-enabled').checked;
-document.getElementById('can-config-wrapper').style.display=enabled?'block':'none';
-}
-function switchPage(){
-const selector=document.getElementById('page-selector');
-activePageIndex=parseInt(selector.value)||0;
-if(config.pages&&config.pages[activePageIndex]){
-document.getElementById('page-name').value=config.pages[activePageIndex].name||'Home';
-document.getElementById('grid-rows').value=config.pages[activePageIndex].rows||2;
-document.getElementById('grid-cols').value=config.pages[activePageIndex].cols||2;
-}
-updateGridPreview();
-updatePageNavPreview();
-updateDefaultsPreview();
-}
-function addNewPage(){
-if(!config.pages)config.pages=[];
-const newId='page_'+config.pages.length;
-const newName=prompt('Enter page name:','Page '+(config.pages.length+1));
-if(!newName)return;
-config.pages.push({id:newId,name:newName,rows:2,cols:2,buttons:[]});
-activePageIndex=config.pages.length-1;
-populatePageSelector();
-switchPage();
-showAlert('Page added! Remember to save configuration.','success');
-}
+function switchTab(tabId){
+	document.querySelectorAll('.tab-btn').forEach(btn=>btn.classList.remove('active'));
+	document.querySelectorAll('.tab').forEach(tab=>tab.classList.remove('active'));
+	document.querySelector(`[data-tab="${tabId}"]`).classList.add('active');
+	document.getElementById(`tab-${tabId}`).classList.add('active');
+}
+
+function showBanner(msg,type='success'){
+	const el = document.getElementById('status-banner');
+	el.className = `status-banner ${type==='success'?'status-success':'status-error'}`;
+	el.textContent = msg;
+	el.style.display = 'block';
+	setTimeout(()=>{ el.style.display='none'; }, 3500);
+}
+
+function ensurePages(){
+	if(!config.pages || config.pages.length===0){
+		config.pages = [{ id:'page_0', name:'Home', rows:2, cols:2, buttons:[] }];
+		activePageIndex = 0;
+	}
+}
+
+function renderPageSelect(){
+	const sel = document.getElementById('quick-page-select');
+	if(!sel) return;
+	sel.innerHTML = '';
+	config.pages.forEach((page, idx)=>{
+		const opt = document.createElement('option');
+		opt.value = `${idx}`;
+		opt.textContent = page.name || `Window ${idx+1}`;
+		sel.appendChild(opt);
+	});
+	sel.value = `${activePageIndex}`;
+}
+
+function renderPageList(){
+	ensurePages();
+	renderPageSelect();
+	const list = document.getElementById('page-list');
+	if(!list) return;
+	list.innerHTML = '';
+	config.pages.forEach((page,idx)=>{
+		const item = document.createElement('div');
+		item.className = 'page-chip'+(idx===activePageIndex?' active':'');
+		item.draggable = true;
+		item.dataset.index = idx;
+		item.innerHTML = `<span class="name">${page.name||'Page '+(idx+1)}</span><span class="muted">${page.rows}x${page.cols}</span>`;
+		item.onclick = ()=>setActivePage(idx);
+		item.ondragstart = (e)=>{ e.dataTransfer.setData('text/plain', idx); };
+		item.ondragover = (e)=>{ e.preventDefault(); };
+		item.ondrop = (e)=>{
+			e.preventDefault();
+			const from = parseInt(e.dataTransfer.getData('text/plain'));
+			if(isNaN(from) || from===idx) return;
+			const moved = config.pages.splice(from,1)[0];
+			config.pages.splice(idx,0,moved);
+			activePageIndex = idx;
+			renderPageList();
+			renderNav();
+			renderGrid();
+			renderPreview();
+		};
+		list.appendChild(item);
+	});
+}
+
+function quickPageSelectChanged(){
+	const sel = document.getElementById('quick-page-select');
+	if(!sel) return;
+	const idx = parseInt(sel.value);
+	if(!isNaN(idx)) setActivePage(idx);
+}
+
+function setActivePage(idx){
+	activePageIndex = idx;
+	hydratePageFields();
+	renderPageList();
+	renderGrid();
+	renderPreview();
+}
+
+function addPage(){
+	ensurePages();
+	const id = 'page_'+config.pages.length;
+	config.pages.push({ id, name:'Page '+(config.pages.length+1), rows:2, cols:2, buttons:[] });
+	activePageIndex = config.pages.length-1;
+	renderPageList();
+	hydratePageFields();
+	renderGrid();
+	renderPreview();
+}
+
 function deletePage(){
-if(!config.pages||config.pages.length<=1){
-showAlert('Cannot delete the last page!','danger');
-return;
+	ensurePages();
+	if(config.pages.length<=1){ showBanner('At least one page is required','error'); return; }
+	config.pages.splice(activePageIndex,1);
+	if(activePageIndex>=config.pages.length) activePageIndex = config.pages.length-1;
+	renderPageList();
+	hydratePageFields();
+	renderGrid();
+	renderPreview();
 }
-if(!confirm('Delete page "'+config.pages[activePageIndex].name+'"?'))return;
-config.pages.splice(activePageIndex,1);
-if(activePageIndex>=config.pages.length)activePageIndex=config.pages.length-1;
-populatePageSelector();
-switchPage();
-showAlert('Page deleted! Remember to save configuration.','success');
+
+function hydratePageFields(){
+	ensurePages();
+	const page = config.pages[activePageIndex];
+	const theme = config.theme || {};
+	const nameInput = document.getElementById('page-name-input');
+	if(nameInput) nameInput.value = page.name || '';
+	document.getElementById('page-nav-color').value = page.nav_color || '#3a3a3a';
+	document.getElementById('page-bg-color').value = page.bg_color || theme.page_bg_color || '#0f0f0f';
+	document.getElementById('page-text-color').value = page.text_color || theme.text_primary || '#ffffff';
+	document.getElementById('page-btn-color').value = page.button_color || theme.button_color || theme.accent_color || '#ff9d2e';
+	document.getElementById('page-btn-pressed').value = page.button_pressed_color || theme.button_pressed_color || '#ff7a1a';
+	document.getElementById('page-btn-border').value = page.button_border_color || theme.border_color || '#3a3a3a';
+	document.getElementById('page-btn-border-width').value = page.button_border_width || 0;
+	document.getElementById('page-btn-radius').value = page.button_radius || theme.button_radius || 12;
+	document.getElementById('page-rows').value = page.rows || 2;
+	document.getElementById('page-cols').value = page.cols || 2;
+	const sel = document.getElementById('quick-page-select');
+	if(sel) sel.value = `${activePageIndex}`;
 }
+
+function updatePageMeta(){
+	ensurePages();
+	const page = config.pages[activePageIndex];
+	page.name = document.getElementById('page-name-input').value || page.name;
+	page.nav_color = document.getElementById('page-nav-color').value;
+	renderPageList();
+	renderNav();
+	renderPreview();
+}
+
+function updatePageStyle(){
+	ensurePages();
+	const page = config.pages[activePageIndex];
+	page.bg_color = document.getElementById('page-bg-color').value;
+	page.text_color = document.getElementById('page-text-color').value;
+	page.button_color = document.getElementById('page-btn-color').value;
+	page.button_pressed_color = document.getElementById('page-btn-pressed').value;
+	page.button_border_color = document.getElementById('page-btn-border').value;
+	page.button_border_width = parseInt(document.getElementById('page-btn-border-width').value)||0;
+	page.button_radius = parseInt(document.getElementById('page-btn-radius').value)||0;
+	renderGrid();
+	renderPreview();
+}
+
+function applyPageStyleToButtons(){
+	ensurePages();
+	const page = config.pages[activePageIndex];
+	page.buttons = (page.buttons||[]).map(btn=>({
+		...btn,
+		color: page.button_color || btn.color,
+		pressed_color: page.button_pressed_color || btn.pressed_color,
+		border_color: page.button_border_color || btn.border_color,
+		border_width: page.button_border_width || btn.border_width,
+		corner_radius: page.button_radius || btn.corner_radius
+	}));
+	renderGrid();
+	renderPreview();
+	showBanner('Applied page styling to all buttons','success');
+}
+
+function capturePageAsBaseline(){
+	ensurePages();
+	const page = config.pages[activePageIndex];
+	const theme = config.theme || {};
+	config.theme = {
+		...theme,
+		page_bg_color: page.bg_color || theme.page_bg_color || '#0f0f0f',
+		text_primary: page.text_color || theme.text_primary || '#f2f4f8',
+		accent_color: page.button_color || theme.accent_color || '#ff9d2e',
+		border_color: page.button_border_color || theme.border_color || '#20232f',
+		border_width: page.button_border_width || theme.border_width || 0,
+		button_radius: page.button_radius || theme.button_radius || 12
+	};
+	hydrateThemeFields();
+	renderPreview();
+	showBanner('Saved this page as the baseline theme','success');
+}
+
+function applyBaselineToPage(){
+	ensurePages();
+	const theme = config.theme || {};
+	const page = config.pages[activePageIndex];
+	page.bg_color = theme.page_bg_color || page.bg_color || '#0f0f0f';
+	page.text_color = theme.text_primary || page.text_color || '#f2f4f8';
+	page.button_color = theme.accent_color || page.button_color || '#ff9d2e';
+	page.button_pressed_color = page.button_pressed_color || theme.accent_color || '#ff7a1a';
+	page.button_border_color = theme.border_color || page.button_border_color || '#20232f';
+	page.button_border_width = theme.border_width !== undefined ? theme.border_width : (page.button_border_width || 0);
+	page.button_radius = theme.button_radius !== undefined ? theme.button_radius : (page.button_radius || 12);
+	hydratePageFields();
+	renderGrid();
+	renderPreview();
+	showBanner('Applied baseline to this page','success');
+}
+
+function updateGrid(){
+	ensurePages();
+	const page = config.pages[activePageIndex];
+	page.rows = parseInt(document.getElementById('page-rows').value)||2;
+	page.cols = parseInt(document.getElementById('page-cols').value)||2;
+	renderGrid();
+	renderPreview();
+}
+
+function renderGrid(){
+	ensurePages();
+	const grid = document.getElementById('layout-grid');
+	if(!grid) return;
+	const page = config.pages[activePageIndex];
+	const theme = config.theme || {};
+	grid.style.gridTemplateColumns = `repeat(${page.cols}, minmax(120px, 1fr))`;
+	grid.innerHTML = '';
+	for(let r=0;r<page.rows;r++){
+		for(let c=0;c<page.cols;c++){
+			const btn = (page.buttons||[]).find(b=>b.row===r && b.col===c);
+			if(btn){
+				const cell = document.createElement('div');
+				cell.className = 'grid-cell';
+				const inner = document.createElement('div');
+				inner.className = 'grid-btn';
+				inner.style.background = btn.color || page.button_color || theme.button_color || theme.accent_color || '#ff9d2e';
+				inner.style.color = '#000';
+				inner.textContent = btn.label || 'Button';
+				inner.draggable = true;
+				inner.ondragstart = (e)=>{ e.dataTransfer.setData('text/plain', `${r},${c}`); };
+				inner.ondrop = (e)=>{
+					e.preventDefault();
+					const [fr,fc] = e.dataTransfer.getData('text/plain').split(',').map(n=>parseInt(n));
+					moveButton(fr,fc,r,c);
+				};
+				inner.ondragover = (e)=>e.preventDefault();
+				inner.onclick = ()=>openButtonModal(r,c);
+				cell.appendChild(inner);
+				grid.appendChild(cell);
+			} else {
+				const empty = document.createElement('div');
+				empty.className = 'grid-cell';
+				empty.textContent = '+';
+				empty.onclick = ()=>openButtonModal(r,c);
+				grid.appendChild(empty);
+			}
+		}
+	}
+}
+
+function moveButton(fr,fc,tr,tc){
+	const page = config.pages[activePageIndex];
+	const idx = (page.buttons||[]).findIndex(b=>b.row===fr && b.col===fc);
+	if(idx<0) return;
+	page.buttons[idx].row = tr;
+	page.buttons[idx].col = tc;
+	page.buttons[idx].id = `btn_${tr}_${tc}`;
+	renderGrid();
+	renderPreview();
+}
+
+function openButtonModal(row,col){
+	ensurePages();
+	editingButton = {row,col};
+	const page = config.pages[activePageIndex];
+	const theme = config.theme || {};
+	const btn = (page.buttons||[]).find(b=>b.row===row && b.col===col);
+	const defaults = {
+		label:`Button ${row}${col}`,
+		color: page.button_color || theme.button_color || theme.accent_color || '#ff9d2e',
+		pressed_color: page.button_pressed_color || '#ff7a1a',
+		border_color: page.button_border_color || theme.border_color || '#3a3a3a',
+		border_width: page.button_border_width || 0,
+		corner_radius: page.button_radius || theme.button_radius || 12,
+		font_size: 24,
+		font_family: 'montserrat',
+		text_align: 'center',
+		momentary: false,
+		can:{enabled:false,pgn:0,priority:6,source_address:0xF9,destination_address:0xFF,data:[0,0,0,0,0,0,0,0]}
+	};
+	const data = btn || defaults;
+	document.getElementById('btn-label').value = data.label || '';
+	document.getElementById('btn-color').value = data.color;
+	document.getElementById('btn-pressed-color').value = firstDefined(data.pressed_color, defaults.pressed_color);
+	document.getElementById('btn-border-color').value = firstDefined(data.border_color, defaults.border_color);
+	document.getElementById('btn-border-width').value = firstDefined(data.border_width, defaults.border_width);
+	document.getElementById('btn-corner-radius').value = firstDefined(data.corner_radius, defaults.corner_radius);
+	document.getElementById('btn-font-size').value = data.font_size || 24;
+	document.getElementById('btn-font-family').value = data.font_family || 'montserrat';
+	document.getElementById('btn-text-align').value = data.text_align || 'center';
+	document.getElementById('btn-momentary').checked = data.momentary || false;
+	const canCfg = data.can || {};
+	document.getElementById('btn-can-enabled').checked = canCfg.enabled || false;
+	document.getElementById('btn-can-pgn').value = (canCfg.pgn || 0).toString(16).toUpperCase();
+	document.getElementById('btn-can-priority').value = firstDefined(canCfg.priority, 6);
+	document.getElementById('btn-can-src').value = (firstDefined(canCfg.source_address, 0xF9)).toString(16).toUpperCase();
+	document.getElementById('btn-can-dest').value = (firstDefined(canCfg.destination_address, 0xFF)).toString(16).toUpperCase();
+	const canData = (canCfg.data && canCfg.data.length) ? canCfg.data : defaults.can.data;
+	document.getElementById('btn-can-data').value = canData.map(b=>b.toString(16).toUpperCase().padStart(2,'0')).join(' ');
+	populateCanLibraryDropdown();
+	toggleCanFields();
+	document.getElementById('button-modal').classList.add('open');
+}
+
+function closeModal(){ document.getElementById('button-modal').classList.remove('open'); }
+
+function saveButtonFromModal(){
+	ensurePages();
+	const page = config.pages[activePageIndex];
+	if(!page.buttons) page.buttons = [];
+	const idx = page.buttons.findIndex(b=>b.row===editingButton.row && b.col===editingButton.col);
+	const canEnabled = document.getElementById('btn-can-enabled').checked;
+	const canData = (document.getElementById('btn-can-data').value||'').split(' ').map(v=>parseInt(v,16)||0).slice(0,8);
+	while(canData.length<8) canData.push(0);
+	const button = {
+		id:`btn_${editingButton.row}_${editingButton.col}`,
+		row: editingButton.row,
+		col: editingButton.col,
+		row_span: 1,
+		col_span: 1,
+		label: document.getElementById('btn-label').value || 'Button',
+		color: document.getElementById('btn-color').value,
+		pressed_color: document.getElementById('btn-pressed-color').value,
+		border_color: document.getElementById('btn-border-color').value,
+		border_width: parseInt(document.getElementById('btn-border-width').value)||0,
+		corner_radius: parseInt(document.getElementById('btn-corner-radius').value)||0,
+		font_size: parseInt(document.getElementById('btn-font-size').value)||24,
+		font_family: document.getElementById('btn-font-family').value,
+		font_weight: '400',
+		font_name: document.getElementById('btn-font-family').value+'_16',
+		text_align: document.getElementById('btn-text-align').value,
+		momentary: document.getElementById('btn-momentary').checked,
+		can: {
+			enabled: canEnabled,
+			pgn: canEnabled ? parseInt(document.getElementById('btn-can-pgn').value,16)||0 : 0,
+			priority: canEnabled ? parseInt(document.getElementById('btn-can-priority').value)||6 : 6,
+			source_address: canEnabled ? parseInt(document.getElementById('btn-can-src').value,16)||0xF9 : 0xF9,
+			destination_address: canEnabled ? parseInt(document.getElementById('btn-can-dest').value,16)||0xFF : 0xFF,
+			data: canData
+		}
+	};
+	if(idx>=0) page.buttons[idx] = button; else page.buttons.push(button);
+	closeModal();
+	renderGrid();
+	renderPreview();
+}
+
+function deleteButtonFromModal(){
+	ensurePages();
+	const page = config.pages[activePageIndex];
+	page.buttons = (page.buttons||[]).filter(b=>!(b.row===editingButton.row && b.col===editingButton.col));
+	closeModal();
+	renderGrid();
+	renderPreview();
+}
+
+function toggleCanFields(){
+	const show = document.getElementById('btn-can-enabled').checked;
+	document.getElementById('can-config-wrapper').style.display = show ? 'grid' : 'none';
+}
+
+function renderPreview(){
+	ensurePages();
+	const page = config.pages[activePageIndex];
+	const theme = config.theme || {};
+	const headerCfg = config.header || {};
+	const header = document.getElementById('preview-header');
+	header.style.background = theme.surface_color || '#12141c';
+	header.style.borderBottom = `${firstDefined(theme.header_border_width, 0)}px solid ${firstDefined(theme.header_border_color, theme.accent_color, '#ff9d2e')}`;
+	document.getElementById('preview-logo').style.display = headerCfg.show_logo === false ? 'none' : 'block';
+	document.getElementById('preview-title').textContent = headerCfg.title || 'CAN Control';
+	document.getElementById('preview-subtitle').textContent = headerCfg.subtitle || '';
+	document.getElementById('preview-title').style.color = theme.text_primary || '#fff';
+	document.getElementById('preview-subtitle').style.color = theme.text_secondary || '#8d92a3';
+
+	renderNav();
+
+	const body = document.getElementById('preview-body');
+	body.style.background = page.bg_color || theme.page_bg_color || '#0f0f0f';
+	body.innerHTML = '';
+	const grid = document.createElement('div');
+	grid.className = 'preview-grid';
+	grid.style.gridTemplateColumns = `repeat(${page.cols||2}, minmax(80px,1fr))`;
+	for(let r=0;r<page.rows;r++){
+		for(let c=0;c<page.cols;c++){
+			const btn = (page.buttons||[]).find(b=>b.row===r && b.col===c);
+			const el = document.createElement('div');
+			el.className = 'preview-btn'+(btn ? '' : ' empty');
+			const fill = firstDefined(btn && btn.color, page.button_color, theme.button_color, theme.accent_color, '#ff9d2e');
+			el.style.background = fill;
+			el.style.borderColor = firstDefined(btn && btn.border_color, page.button_border_color, theme.border_color, 'transparent');
+			el.style.borderWidth = `${firstDefined(btn && btn.border_width, page.button_border_width, theme.border_width, 0)}px`;
+			el.style.color = '#000';
+			el.style.borderRadius = `${firstDefined(btn && btn.corner_radius, page.button_radius, theme.button_radius, 12)}px`;
+			el.textContent = (btn && btn.label) || '+';
+			el.dataset.row = r;
+			el.dataset.col = c;
+			el.draggable = !!btn;
+			el.ondragstart = (e)=>{ e.dataTransfer.setData('text/plain', `${r},${c}`); };
+			el.ondragover = (e)=>e.preventDefault();
+			el.ondrop = (e)=>{
+				e.preventDefault();
+				const data = e.dataTransfer.getData('text/plain');
+				if(!data) return;
+				const [fr,fc] = data.split(',').map(n=>parseInt(n));
+				if(isNaN(fr) || isNaN(fc)) return;
+				moveButton(fr,fc,r,c);
+			};
+			el.onclick = ()=>openButtonModal(r,c);
+			grid.appendChild(el);
+		}
+	}
+	body.appendChild(grid);
+}
+
+function renderNav(){
+	ensurePages();
+	const nav = document.getElementById('preview-nav');
+	const theme = config.theme || {};
+	nav.innerHTML = '';
+	config.pages.forEach((p,idx)=>{
+		const chip = document.createElement('div');
+		chip.className = 'pill';
+		chip.textContent = p.name || 'Page '+(idx+1);
+		const active = idx===activePageIndex;
+		chip.style.background = active ? (theme.nav_button_active_color || theme.accent_color || '#ff9d2e') : (p.nav_color || theme.nav_button_color || '#2a2a2a');
+		chip.style.color = active ? '#16110a' : '#f2f4f8';
+		chip.draggable = true;
+		chip.ondragstart = (e)=>{ e.dataTransfer.setData('text/plain', idx); };
+		chip.ondragover = (e)=>e.preventDefault();
+		chip.ondrop = (e)=>{
+			e.preventDefault();
+			const from = parseInt(e.dataTransfer.getData('text/plain'));
+			if(isNaN(from)||from===idx) return;
+			const moved = config.pages.splice(from,1)[0];
+			config.pages.splice(idx,0,moved);
+			activePageIndex = idx;
+			renderNav();
+			renderPageList();
+			renderPreview();
+		};
+		chip.onclick = ()=>setActivePage(idx);
+		nav.appendChild(chip);
+	});
+}
+
+function updateHeaderFromInputs(){
+	config.header = config.header || {};
+	config.header.title = document.getElementById('header-title-input').value || 'CAN Control';
+	config.header.subtitle = document.getElementById('header-subtitle-input').value || '';
+	config.header.title_font = document.getElementById('header-title-font').value || 'montserrat_24';
+	config.header.subtitle_font = document.getElementById('header-subtitle-font').value || 'montserrat_12';
+	config.header.show_logo = document.getElementById('header-show-logo').checked;
+	renderPreview();
+}
+
+function hydrateThemeFields(){
+	const theme = config.theme || {};
+	document.getElementById('theme-bg').value = theme.bg_color || '#0b0c10';
+	document.getElementById('theme-surface').value = theme.surface_color || '#12141c';
+	document.getElementById('theme-page-bg').value = theme.page_bg_color || '#0f0f0f';
+	document.getElementById('theme-accent').value = theme.accent_color || '#ff9d2e';
+	document.getElementById('theme-text-primary').value = theme.text_primary || '#f2f4f8';
+	document.getElementById('theme-text-secondary').value = theme.text_secondary || '#8d92a3';
+	document.getElementById('theme-border').value = theme.border_color || '#20232f';
+	document.getElementById('theme-nav-button').value = theme.nav_button_color || '#2a2a2a';
+	document.getElementById('theme-nav-active').value = theme.nav_button_active_color || theme.accent_color || '#ff9d2e';
+	document.getElementById('theme-radius').value = theme.button_radius || 12;
+	document.getElementById('theme-border-width').value = theme.border_width || 0;
+	document.getElementById('theme-header-border').value = theme.header_border_color || theme.accent_color || '#ff9d2e';
+	document.getElementById('theme-header-border-width').value = theme.header_border_width || 0;
+}
+
+function collectTheme(){
+	config.theme = {
+		bg_color: document.getElementById('theme-bg').value,
+		surface_color: document.getElementById('theme-surface').value,
+		page_bg_color: document.getElementById('theme-page-bg').value,
+		accent_color: document.getElementById('theme-accent').value,
+		text_primary: document.getElementById('theme-text-primary').value,
+		text_secondary: document.getElementById('theme-text-secondary').value,
+		border_color: document.getElementById('theme-border').value,
+		nav_button_color: document.getElementById('theme-nav-button').value,
+		nav_button_active_color: document.getElementById('theme-nav-active').value,
+		button_radius: parseInt(document.getElementById('theme-radius').value)||12,
+		border_width: parseInt(document.getElementById('theme-border-width').value)||0,
+		header_border_color: document.getElementById('theme-header-border').value,
+		header_border_width: parseInt(document.getElementById('theme-header-border-width').value)||0
+	};
+}
+
+function wireThemeInputs(){
+	['theme-bg','theme-surface','theme-page-bg','theme-accent','theme-text-primary','theme-text-secondary','theme-border','theme-nav-button','theme-nav-active','theme-radius','theme-border-width','theme-header-border','theme-header-border-width'].forEach(id=>{
+		const el = document.getElementById(id);
+		if(!el) return;
+		el.addEventListener('input', ()=>{ collectTheme(); renderPreview(); });
+		el.addEventListener('change', ()=>{ collectTheme(); renderPreview(); });
+	});
+}
+
+function hydrateHeaderFields(){
+	const header = config.header || {};
+	document.getElementById('header-title-input').value = header.title || 'CAN Control';
+	document.getElementById('header-subtitle-input').value = header.subtitle || '';
+	document.getElementById('header-show-logo').checked = header.show_logo !== false;
+}
+
+function populateFontSelects(){
+	const fonts = config.available_fonts || [];
+	const titleSel = document.getElementById('header-title-font');
+	const subSel = document.getElementById('header-subtitle-font');
+	[titleSel, subSel].forEach(sel=>{ sel.innerHTML=''; });
+	fonts.forEach(f=>{
+		const opt = document.createElement('option');
+		opt.value = f.name;
+		opt.textContent = f.display_name || f.name;
+		titleSel.appendChild(opt.cloneNode(true));
+		subSel.appendChild(opt);
+	});
+	const headerCfg = config.header || {};
+	titleSel.value = headerCfg.title_font || 'montserrat_24';
+	subSel.value = headerCfg.subtitle_font || 'montserrat_12';
+}
+
+function renderCanLibrary(){
+	const list = document.getElementById('can-library-list');
+	const items = config.can_library || [];
+	if(items.length===0){ list.innerHTML = '<div class="muted">No messages yet.</div>'; return; }
+	list.innerHTML = '';
+	items.forEach((msg,idx)=>{
+		const card = document.createElement('div');
+		card.className = 'can-card';
+		card.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;">
+			<div><strong>${msg.name}</strong><div class="muted">PGN 0x${msg.pgn.toString(16).toUpperCase()}</div></div>
+			<div class="row" style="flex:0 0 auto;">
+				<button class="btn small" onclick="editCanMessage(${idx})">Edit</button>
+				<button class="btn small danger" onclick="deleteCanMessage(${idx})">Delete</button>
+			</div>
+		</div>
+		<div class="muted" style="margin-top:6px;">${msg.data.map(b=>b.toString(16).toUpperCase().padStart(2,'0')).join(' ')}</div>`;
+		list.appendChild(card);
+	});
+}
+
+function addCanMessage(){
+	const name = prompt('Message name','New Message');
+	if(!name) return;
+	const pgn = parseInt(prompt('PGN (hex)','FEF6'),16);
+	if(isNaN(pgn)) return;
+	if(!config.can_library) config.can_library = [];
+	config.can_library.push({ id:'msg_'+Date.now(), name, pgn, priority:6, source_address:0xF9, destination_address:0xFF, data:[0,0,0,0,0,0,0,0], description:'' });
+	renderCanLibrary();
+}
+
+function editCanMessage(idx){
+	const msg = config.can_library[idx];
+	if(!msg) return;
+	const name = prompt('Message name', msg.name);
+	if(!name) return;
+	const pgn = parseInt(prompt('PGN (hex)', msg.pgn.toString(16)),16);
+	if(isNaN(pgn)) return;
+	const dataStr = prompt('8 bytes (space separated)', msg.data.map(b=>b.toString(16).toUpperCase().padStart(2,'0')).join(' '));
+	const data = dataStr.split(' ').map(b=>parseInt(b,16)||0).slice(0,8);
+	while(data.length<8) data.push(0);
+	config.can_library[idx] = {...msg, name, pgn, data};
+	renderCanLibrary();
+}
+
+function deleteCanMessage(idx){
+	if(!confirm('Delete this message?')) return;
+	config.can_library.splice(idx,1);
+	renderCanLibrary();
+}
+
+function importCanMessage(type){
+	const templates = {
+		windows:{name:'Windows',pgn:0xFEF6,data:[255,255,255,255,255,255,255,255]},
+		locks:{name:'Locks',pgn:0xFECA,data:[0,0,0,0,255,255,255,255]},
+		boards:{name:'Running Boards',pgn:0xFE00,data:[1,0,0,0,255,255,255,255]}
+	};
+	const t = templates[type];
+	if(!t) return;
+	if(!config.can_library) config.can_library = [];
+	config.can_library.push({ id:'msg_'+Date.now(), name:t.name, pgn:t.pgn, priority:6, source_address:0xF9, destination_address:0xFF, data:t.data, description:'Quick import' });
+	renderCanLibrary();
+}
+
+function populateCanLibraryDropdown(){
+	const sel = document.getElementById('btn-can-library-select');
+	if(!sel) return;
+	sel.innerHTML = '<option value="">-- Select --</option>';
+	(config.can_library||[]).forEach((msg,idx)=>{
+		const opt = document.createElement('option');
+		opt.value = idx;
+		opt.textContent = `${msg.name} (PGN 0x${msg.pgn.toString(16).toUpperCase()})`;
+		sel.appendChild(opt);
+	});
+}
+
+function loadCanFromLibrary(){
+	const sel = document.getElementById('btn-can-library-select');
+	const idx = parseInt(sel.value);
+	if(isNaN(idx)) return;
+	const msg = config.can_library[idx];
+	if(!msg) return;
+	document.getElementById('btn-can-enabled').checked = true;
+	document.getElementById('btn-can-pgn').value = msg.pgn.toString(16).toUpperCase();
+	document.getElementById('btn-can-priority').value = msg.priority;
+	document.getElementById('btn-can-src').value = msg.source_address.toString(16).toUpperCase();
+	document.getElementById('btn-can-dest').value = msg.destination_address.toString(16).toUpperCase();
+	document.getElementById('btn-can-data').value = msg.data.map(b=>b.toString(16).toUpperCase().padStart(2,'0')).join(' ');
+	toggleCanFields();
+}
+
+async function scanWiFi(){
+	const btn = document.getElementById('scan-btn');
+	btn.textContent = 'Scanning...';
+	btn.disabled = true;
+	try{
+		const res = await fetch('/api/wifi/scan');
+		const data = await res.json();
+		wifiNetworks = data.networks || [];
+		renderWifiList();
+		showBanner(`Found ${wifiNetworks.length} networks`,`success`);
+	}catch(err){ showBanner('Scan failed: '+err.message,'error'); }
+	btn.textContent = 'Scan';
+	btn.disabled = false;
+}
+
+function renderWifiList(){
+	const list = document.getElementById('wifi-results');
+	if(!wifiNetworks.length){ list.innerHTML = '<div class="muted">No networks yet.</div>'; return; }
+	list.innerHTML = '';
+	wifiNetworks.forEach((net,idx)=>{
+		const item = document.createElement('div');
+		item.className = 'wifi-item';
+		item.innerHTML = `<div><strong>${net.ssid}</strong><div class="muted">Channel ${net.channel||'?'} · RSSI ${net.rssi||''}</div></div><div>${net.secure?'Locked':'Open'}</div>`;
+		item.onclick = ()=>{
+			document.getElementById('sta-ssid').value = net.ssid;
+			document.getElementById('sta-password').focus();
+			document.querySelectorAll('.wifi-item').forEach(el=>el.classList.remove('active'));
+			item.classList.add('active');
+		};
+		list.appendChild(item);
+	});
+}
+
+function handleLogoUpload(evt){
+	const file = evt.target.files[0];
+	if(!file) return;
+	if(file.size>512000){ showBanner('Logo too large (500KB max)','error'); evt.target.value=''; return; }
+	const reader = new FileReader();
+	reader.onload = (e)=>{
+		if(!config.header) config.header={};
+		config.header.logo_base64 = e.target.result;
+		document.getElementById('logo-preview-img').src = e.target.result;
+		document.getElementById('logo-preview').style.display='block';
+		renderPreview();
+	};
+	reader.readAsDataURL(file);
+}
+
+function handleSleepIconUpload(evt){
+	const file = evt.target.files[0];
+	if(!file) return;
+	if(file.size>512000){ showBanner('Sleep icon too large (500KB)','error'); evt.target.value=''; return; }
+	const reader = new FileReader();
+	reader.onload = (e)=>{
+		if(!config.display) config.display={};
+		config.display.sleep_icon_base64 = e.target.result;
+		document.getElementById('sleep-icon-preview-img').src = e.target.result;
+		document.getElementById('sleep-icon-preview').style.display='block';
+	};
+	reader.readAsDataURL(file);
+}
+
+function clearCustomLogo(){ if(!config.header) config.header={}; config.header.logo_base64=''; document.getElementById('logo-preview').style.display='none'; renderPreview(); }
+function clearSleepIcon(){ if(!config.display) config.display={}; config.display.sleep_icon_base64=''; document.getElementById('sleep-icon-preview').style.display='none'; }
+
+function hydrateDisplay(){
+	const display = config.display || {};
+	document.getElementById('display-brightness').value = display.brightness ?? 100;
+	document.getElementById('brightness-value').textContent = `${display.brightness ?? 100}%`;
+	document.getElementById('sleep-enabled').checked = display.sleep_enabled || false;
+	document.getElementById('sleep-timeout').value = display.sleep_timeout_seconds ?? 60;
+	if(display.sleep_icon_base64){
+		document.getElementById('sleep-icon-preview').style.display='block';
+		document.getElementById('sleep-icon-preview-img').src = display.sleep_icon_base64;
+	}
+}
+
+async function loadConfig(){
+	try{
+		const res = await fetch('/api/config');
+		config = await res.json();
+		ensurePages();
+		hydrateThemeFields();
+		hydrateHeaderFields();
+		populateFontSelects();
+		hydratePageFields();
+		hydrateDisplay();
+		const wifiCfg = config.wifi || {};
+		const apCfg = wifiCfg.ap || {};
+		const staCfg = wifiCfg.sta || {};
+		document.getElementById('ap-ssid').value = apCfg.ssid || 'CAN-Control';
+		document.getElementById('ap-password').value = apCfg.password || '';
+		document.getElementById('ap-enabled').checked = apCfg.enabled !== false;
+		document.getElementById('sta-ssid').value = staCfg.ssid || '';
+		document.getElementById('sta-password').value = staCfg.password || '';
+		document.getElementById('sta-enabled').checked = staCfg.enabled || false;
+		renderPageList();
+		renderGrid();
+		renderPreview();
+		renderCanLibrary();
+		showBanner('Config loaded','success');
+	}catch(err){ showBanner('Load failed: '+err.message,'error'); }
+}
+
+async function saveConfig(){
+	ensurePages();
+	collectTheme();
+	config.header = config.header || {};
+	config.header.title = document.getElementById('header-title-input').value || 'CAN Control';
+	config.header.subtitle = document.getElementById('header-subtitle-input').value || '';
+	config.header.title_font = document.getElementById('header-title-font').value;
+	config.header.subtitle_font = document.getElementById('header-subtitle-font').value;
+	config.header.show_logo = document.getElementById('header-show-logo').checked;
+
+	config.wifi = {
+		ap:{ enabled: document.getElementById('ap-enabled').checked, ssid: document.getElementById('ap-ssid').value, password: document.getElementById('ap-password').value },
+		sta:{ enabled: document.getElementById('sta-enabled').checked, ssid: document.getElementById('sta-ssid').value, password: document.getElementById('sta-password').value }
+	};
+
+	const existingDisplay = config.display || {};
+	config.display = {
+		brightness: parseInt(document.getElementById('display-brightness').value)||100,
+		sleep_enabled: document.getElementById('sleep-enabled').checked,
+		sleep_timeout_seconds: parseInt(document.getElementById('sleep-timeout').value)||60,
+		sleep_icon_base64: existingDisplay.sleep_icon_base64 || ''
+	};
+
+	try{
+		const res = await fetch('/api/config',{ method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(config) });
+		if(!res.ok){ const text = await res.text(); throw new Error(text); }
+		showBanner('Configuration saved. Reboot device to apply display changes.','success');
+	}catch(err){ showBanner('Save failed: '+err.message,'error'); }
+}
+
+document.addEventListener('DOMContentLoaded',()=>{
+	loadConfig();
+	document.getElementById('logo-upload').addEventListener('change', handleLogoUpload);
+	document.getElementById('sleep-icon-upload').addEventListener('change', handleSleepIconUpload);
+	wireThemeInputs();
+});
 </script>
 </body>
 </html>

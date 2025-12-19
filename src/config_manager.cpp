@@ -458,6 +458,38 @@ bool ConfigManager::decodeConfig(JsonVariantConst json, DeviceConfig& target, st
                     if (!can_obj.isNull()) {
                         button.can.enabled = can_obj["enabled"] | false;
                         button.can.pgn = can_obj["pgn"] | button.can.pgn;
+                        button.can.priority = clampValue<std::uint8_t>(can_obj["priority"] | button.can.priority, 0u, 7u);
+                        button.can.source_address = can_obj["source_address"] | button.can.source_address;
+                        button.can.destination_address = can_obj["destination_address"] | button.can.destination_address;
+
+                        JsonArrayConst data_arr = can_obj["data"].as<JsonArrayConst>();
+                        if (!data_arr.isNull()) {
+                            std::size_t i = 0;
+                            for (JsonVariantConst byte_val : data_arr) {
+                                if (i >= button.can.data.size()) {
+                                    break;
+                                }
+                                button.can.data[i] = clampValue<std::uint8_t>(byte_val | 0, 0u, 255u);
+                                ++i;
+                            }
+                        }
+                    }
+
+                    page.buttons.push_back(std::move(button));
+                    ++button_index;
+                }
+            }
+
+            target.pages.push_back(std::move(page));
+            ++page_index;
+        }
+    }
+
+    if (target.pages.empty()) {
+        target.pages = buildDefaultConfig().pages;
+    }
+
+    // Decode CAN library
     target.can_library.clear();
     JsonArrayConst can_library = json["can_library"].as<JsonArrayConst>();
     if (!can_library.isNull()) {
@@ -491,37 +523,6 @@ bool ConfigManager::decodeConfig(JsonVariantConst json, DeviceConfig& target, st
             target.can_library.push_back(std::move(msg));
             ++msg_index;
         }
-    }
-
-                        button.can.priority = clampValue<std::uint8_t>(can_obj["priority"] | button.can.priority, 0u, 7u);
-                        button.can.source_address = can_obj["source_address"] | button.can.source_address;
-                        button.can.destination_address = can_obj["destination_address"] | button.can.destination_address;
-
-                        JsonArrayConst data_arr = can_obj["data"].as<JsonArrayConst>();
-                        if (!data_arr.isNull()) {
-                            std::size_t i = 0;
-                            for (JsonVariantConst byte_val : data_arr) {
-                                if (i >= button.can.data.size()) {
-                                    break;
-                                }
-                                button.can.data[i] = clampValue<std::uint8_t>(byte_val | 0, 0u, 255u);
-                                ++i;
-                            }
-                        }
-                    }
-
-                    page.buttons.push_back(std::move(button));
-                    ++button_index;
-                }
-            }
-
-            target.pages.push_back(std::move(page));
-            ++page_index;
-        }
-    }
-
-    if (target.pages.empty()) {
-        target.pages = buildDefaultConfig().pages;
     }
 
     // Decode available fonts
