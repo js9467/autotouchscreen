@@ -2,6 +2,7 @@
 
 #include <ESPAsyncWebServer.h>
 #include <WiFi.h>
+#include <DNSServer.h>
 
 struct WifiStatusSnapshot {
     IPAddress ap_ip;
@@ -26,6 +27,7 @@ private:
     void configureWifi();
 
     AsyncWebServer server_;
+    DNSServer dns_server_;
     bool sta_connected_ = false;
     bool events_registered_ = false;
     IPAddress ap_ip_{0, 0, 0, 0};

@@ -32,8 +32,12 @@ struct ButtonConfig {
     bool momentary = false;
     std::uint8_t font_size = 24;
     std::string font_family = "montserrat";  // montserrat or unscii
+    std::string font_weight = "400";  // 300, 400, 500, 600, 700, 800
     std::string font_name = "montserrat_16";  // Specific font identifier
     std::string text_align = "center";  // top-left, top-center, top-right, center, bottom-left, bottom-center, bottom-right
+    std::uint8_t corner_radius = 12;  // Button corner radius in pixels
+    std::uint8_t border_width = 0;  // Button border width in pixels
+    std::string border_color = "#FFFFFF";  // Button border color
     CanFrameConfig can;
 };
 
@@ -41,6 +45,13 @@ struct PageConfig {
     std::string id = "page_0";
     std::string name = "Home";
     std::string nav_color = "";
+    std::string bg_color = "";              // Optional per-page background
+    std::string text_color = "";            // Optional per-page text color
+    std::string button_color = "";          // Optional per-page button fill
+    std::string button_pressed_color = "";  // Optional per-page pressed fill
+    std::string button_border_color = "";   // Optional per-page button border color
+    std::uint8_t button_border_width = 0;    // Optional per-page border width (0 means inherit)
+    std::uint8_t button_radius = 0;          // Optional per-page radius (0 means inherit)
     std::uint8_t rows = 2;
     std::uint8_t cols = 2;
     std::vector<ButtonConfig> buttons;
@@ -54,8 +65,8 @@ struct FontConfig {
 
 struct WifiCredentials {
     bool enabled = true;
-    std::string ssid = "BroncoControls";
-    std::string password = "bronco123";
+    std::string ssid = "CAN-Control";
+    std::string password = "canbus123";
 };
 
 struct WifiConfig {
@@ -70,14 +81,20 @@ struct WifiConfig {
 };
 
 struct HeaderConfig {
-    std::string title = "Bronco Controls";
-    std::string subtitle = "Web Configurator";
+    std::string title = "CAN Control";
+    std::string subtitle = "Configuration Interface";
     bool show_logo = true;
-    std::string logo_variant = "bronco";  // Matches icon registry ids
+    std::string logo_variant = "default";  // Matches icon registry ids
     std::string logo_base64 = "";  // Custom uploaded logo (base64 encoded image)
-    bool show_clock = true;
     std::string title_font = "montserrat_24";
     std::string subtitle_font = "montserrat_12";
+};
+
+struct DisplayConfig {
+    std::uint8_t brightness = 100;  // 0-100 percent
+    bool sleep_enabled = false;
+    std::uint16_t sleep_timeout_seconds = 60;  // idle timeout before sleep overlay
+    std::string sleep_icon_base64 = "";  // Custom sleep image (PNG/JPG base64)
 };
 
 struct ThemeConfig {
@@ -112,6 +129,7 @@ struct DeviceConfig {
     WifiConfig wifi{};
     HeaderConfig header{};
     ThemeConfig theme{};
+    DisplayConfig display{};
     std::vector<PageConfig> pages;
     std::vector<CanMessage> can_library;
     std::vector<FontConfig> available_fonts;  // List of available fonts for UI

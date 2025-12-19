@@ -13,7 +13,7 @@ namespace {
 const IPAddress kApIp(192, 168, 4, 250);
 const IPAddress kApGateway(192, 168, 4, 250);
 const IPAddress kApMask(255, 255, 255, 0);
-constexpr std::size_t kConfigJsonLimit = 32768;  // 32KB for config with small logos
+constexpr std::size_t kConfigJsonLimit = 65536;  // 64KB for config with larger images
 constexpr std::size_t kWifiConnectJsonLimit = 1024;
 
 const char* AuthModeToString(wifi_auth_mode_t mode) {
@@ -59,11 +59,17 @@ void WebServerManager::begin() {
     configureWifi();
     setupRoutes();
     server_.begin();
+    
+    // Start DNS server for captive portal
+    dns_server_.start(53, "*", kApIp);
+    
     Serial.println("[WebServer] HTTP server started on port 80");
+    Serial.println("[WebServer] Captive portal DNS active");
 }
 
 void WebServerManager::loop() {
-    // AsyncWebServer handles everything internally
+    // Process DNS requests for captive portal
+    dns_server_.processNextRequest();
 }
 
 void WebServerManager::notifyConfigChanged() {
@@ -105,6 +111,25 @@ void WebServerManager::configureWifi() {
 }
 
 void WebServerManager::setupRoutes() {
+    // Captive portal detection endpoints
+    // iOS and macOS
+    server_.on("/hotspot-detect.html", HTTP_GET, [](AsyncWebServerRequest* request) {
+        request->redirect("/");
+    });
+    // Android
+    server_.on("/generate_204", HTTP_GET, [](AsyncWebServerRequest* request) {
+        request->redirect("/");
+    });
+    // Windows
+    server_.on("/connecttest.txt", HTTP_GET, [](AsyncWebServerRequest* request) {
+        request->redirect("/");
+    });
+    // Generic captive portal detection
+    server_.on("/ncsi.txt", HTTP_GET, [](AsyncWebServerRequest* request) {
+        request->redirect("/");
+    });
+    
+    // Main configuration page
     server_.on("/", HTTP_GET, [](AsyncWebServerRequest* request) {
         request->send_P(200, "text/html", WEB_INTERFACE_HTML);
     });
@@ -238,6 +263,7 @@ WifiStatusSnapshot WebServerManager::getStatusSnapshot() const {
 
 void WebServerManager::disableAP() {
     Serial.println("[WebServer] Disabling Access Point");
+    dns_server_.stop();
     WiFi.softAPdisconnect(true);
     ap_ip_ = IPAddress(0, 0, 0, 0);
 }

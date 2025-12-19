@@ -1,99 +1,64 @@
+// Reconstructed after clock removal; this implementation focuses on building
+// the navigation UI, header branding, and device info modal without time/clock logic.
+
 #include "ui_builder.h"
 
 #include <Arduino.h>
-#include <time.h>
-
-#include <algorithm>
-#include <cctype>
-#include <cstdio>
 #include <cstdlib>
-#include <cstdint>
+#include <algorithm>
 
-#include "assets/images.h"
+#include <ESP_Panel_Library.h>
+
 #include "can_manager.h"
-#include "ui_theme.h"
+#include "config_manager.h"
 #include "icon_library.h"
+#include "ui_theme.h"
+#include "assets/images.h"
 
-namespace {
-struct IconEntry {
-    const char* id;
-    const lv_img_dsc_t* img;
-};
-
-constexpr IconEntry kIconEntries[] = {
-    {"bronco", &img_bronco_logo},
-};
-}
+extern ESP_Panel* panel;
 
 UIBuilder& UIBuilder::instance() {
-    static UIBuilder builder;
-    return builder;
+    static UIBuilder inst;
+    return inst;
 }
 
 void UIBuilder::begin() {
-    if (base_screen_) {
-        return;
-    }
+    config_ = &ConfigManager::instance().getConfig();
+
+    // Apply display settings before constructing UI
+    loadSleepIcon();
+    setBrightness(config_->display.brightness);
     createBaseScreen();
-    lv_scr_load(base_screen_);
+    createInfoModal();
+
+    if (config_ && !config_->pages.empty()) {
+        buildNavigation();
+        buildPage(0);
+    } else {
+        buildNavigation();
+        buildEmptyState();
+    }
+
+    updateHeaderBranding();
 }
 
 void UIBuilder::applyConfig(const DeviceConfig& config) {
     config_ = &config;
-    if (!base_screen_) {
-        begin();
-    }
 
-    // Apply theme colors to base screen, header, and text
-    if (base_screen_) {
-        lv_color_t bg = colorFromHex(config_->theme.bg_color, UITheme::COLOR_BG);
-        lv_obj_set_style_bg_color(base_screen_, bg, 0);
-    }
-    if (header_bar_) {
-        lv_color_t surface = colorFromHex(config_->theme.surface_color, UITheme::COLOR_SURFACE);
-        lv_obj_set_style_bg_color(header_bar_, surface, 0);
-        uint8_t header_border_width = config_->theme.header_border_width;
-        lv_obj_set_style_border_width(header_bar_, header_border_width, 0);
-        if (header_border_width > 0) {
-            lv_color_t header_border_color = colorFromHex(config_->theme.header_border_color, UITheme::COLOR_ACCENT);
-            lv_obj_set_style_border_color(header_bar_, header_border_color, 0);
-        }
-    }
-    if (page_container_) {
-        lv_color_t page_bg = colorFromHex(config_->theme.page_bg_color, UITheme::COLOR_BG);
-        lv_obj_set_style_bg_color(page_container_, page_bg, 0);
-    }
-    if (header_title_label_) {
-        lv_color_t text_primary = colorFromHex(config_->theme.text_primary, UITheme::COLOR_TEXT_PRIMARY);
-        lv_obj_set_style_text_color(header_title_label_, text_primary, 0);
-    }
-    if (header_subtitle_label_) {
-        lv_color_t text_secondary = colorFromHex(config_->theme.text_secondary, UITheme::COLOR_TEXT_SECONDARY);
-        lv_obj_set_style_text_color(header_subtitle_label_, text_secondary, 0);
-    }
-    if (status_ap_label_) {
-        lv_color_t text_primary = colorFromHex(config_->theme.text_primary, UITheme::COLOR_TEXT_PRIMARY);
-        lv_obj_set_style_text_color(status_ap_label_, text_primary, 0);
-    }
-    if (status_sta_label_) {
-        lv_color_t text_primary = colorFromHex(config_->theme.text_primary, UITheme::COLOR_TEXT_PRIMARY);
-        lv_obj_set_style_text_color(status_sta_label_, text_primary, 0);
-    }
-
-    if (!config_->pages.empty() && active_page_ >= config_->pages.size()) {
-        active_page_ = 0;
-    }
+    loadSleepIcon();
+    setBrightness(config.display.brightness);
 
     buildNavigation();
-    updateHeaderBranding();
-
     if (config_->pages.empty()) {
         buildEmptyState();
     } else {
+        if (active_page_ >= config_->pages.size()) {
+            active_page_ = 0;
+        }
         buildPage(active_page_);
     }
 
-    dirty_ = false;
+    updateHeaderBranding();
 }
 
 void UIBuilder::markDirty() {
@@ -101,133 +66,116 @@ void UIBuilder::markDirty() {
 }
 
 bool UIBuilder::consumeDirtyFlag() {
-    if (dirty_) {
-        dirty_ = false;
-        return true;
-    }
-    return false;
+    const bool was_dirty = dirty_;
+    dirty_ = false;
+    return was_dirty;
+}
+
+void UIBuilder::updateNetworkStatus(const std::string& ap_ip, const std::string& sta_ip, bool sta_connected) {
+    last_ap_ip_ = ap_ip;
+    last_sta_ip_ = sta_ip;
+    last_sta_connected_ = sta_connected;
 }
 
 void UIBuilder::createBaseScreen() {
+    // Root screen
     base_screen_ = lv_obj_create(nullptr);
-    
-    // Apply theme background color from config
-    lv_color_t bg = config_ ? colorFromHex(config_->theme.bg_color, UITheme::COLOR_BG) : UITheme::COLOR_BG;
-    lv_obj_set_style_bg_color(base_screen_, bg, 0);
-    lv_obj_set_style_bg_opa(base_screen_, LV_OPA_COVER, 0);
-    lv_obj_set_style_border_width(base_screen_, 0, 0);
+    lv_obj_set_size(base_screen_, 800, 480);
+    lv_obj_clear_flag(base_screen_, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_set_style_pad_all(base_screen_, 0, 0);
 
-    // Create FIXED header bar (not scrollable, always visible)
+    // Apply theme colors if available
+    lv_color_t bg_color = config_ ? colorFromHex(config_->theme.bg_color, UITheme::COLOR_BG) : UITheme::COLOR_BG;
+    lv_obj_set_style_bg_color(base_screen_, bg_color, 0);
+    lv_obj_set_style_bg_opa(base_screen_, LV_OPA_COVER, 0);
+
+    lv_scr_load(base_screen_);
+
+    // Header bar
     header_bar_ = lv_obj_create(base_screen_);
-    lv_obj_set_size(header_bar_, 800, 70);
-    lv_obj_set_pos(header_bar_, 0, 0);
-    lv_obj_clear_flag(header_bar_, LV_OBJ_FLAG_SCROLLABLE);  // Fixed, not scrollable
-    
-    // Apply theme surface color if available
-    lv_color_t surface_color = config_ ? colorFromHex(config_->theme.surface_color, UITheme::COLOR_SURFACE) : UITheme::COLOR_SURFACE;
-    lv_obj_set_style_bg_color(header_bar_, surface_color, 0);
+    lv_obj_set_size(header_bar_, 800, 80);
+    lv_obj_set_style_bg_color(header_bar_, colorFromHex(config_ ? config_->theme.surface_color : "#2A2A2A", UITheme::COLOR_SURFACE), 0);
     lv_obj_set_style_bg_opa(header_bar_, LV_OPA_COVER, 0);
-    uint8_t header_border_width = config_ ? config_->theme.header_border_width : 0;
-    lv_obj_set_style_border_width(header_bar_, header_border_width, 0);
-    if (header_border_width > 0) {
-        lv_color_t header_border_color = config_ ? colorFromHex(config_->theme.header_border_color, UITheme::COLOR_ACCENT) : UITheme::COLOR_ACCENT;
-        lv_obj_set_style_border_color(header_bar_, header_border_color, 0);
-        lv_obj_set_style_border_side(header_bar_, LV_BORDER_SIDE_BOTTOM, 0);
-    }
+    lv_obj_set_style_border_width(header_bar_, config_ ? config_->theme.header_border_width : 0, 0);
+    lv_obj_set_style_border_color(header_bar_, colorFromHex(config_ ? config_->theme.header_border_color : "#FFA500", UITheme::COLOR_ACCENT), 0);
+    lv_obj_set_style_border_side(header_bar_, LV_BORDER_SIDE_BOTTOM, 0);
+    lv_obj_set_style_border_opa(header_bar_, LV_OPA_COVER, 0);
     lv_obj_set_style_radius(header_bar_, 0, 0);
-    lv_obj_set_style_pad_all(header_bar_, UITheme::SPACE_SM, 0);
+    lv_obj_set_style_pad_all(header_bar_, UITheme::SPACE_MD, 0);
+    lv_obj_set_flex_flow(header_bar_, LV_FLEX_FLOW_ROW);
+    lv_obj_set_flex_align(header_bar_, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_clear_flag(header_bar_, LV_OBJ_FLAG_SCROLLABLE);
 
-    // Logo (left side, scaled down to fit)
+    // Header logo
     header_logo_img_ = lv_img_create(header_bar_);
-    lv_obj_set_pos(header_logo_img_, UITheme::SPACE_SM, 12);
-    lv_img_set_zoom(header_logo_img_, 180);  // Scale to 70% of original size
-    lv_obj_set_style_img_opa(header_logo_img_, LV_OPA_COVER, 0);
+    lv_obj_set_style_pad_right(header_logo_img_, UITheme::SPACE_MD, 0);
+    lv_obj_set_style_border_width(header_logo_img_, 0, 0);
 
-    // Text container (to the right of logo, more space)
+    // Text column
     lv_obj_t* header_text_column = lv_obj_create(header_bar_);
     lv_obj_remove_style_all(header_text_column);
-    lv_obj_set_pos(header_text_column, 100, 10);
-    lv_obj_set_size(header_text_column, 550, 50);
     lv_obj_set_flex_flow(header_text_column, LV_FLEX_FLOW_COLUMN);
-    lv_obj_set_flex_align(header_text_column, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
-    lv_obj_set_style_pad_gap(header_text_column, 2, 0);
+    lv_obj_set_style_pad_all(header_text_column, 0, 0);
+    lv_obj_set_style_pad_gap(header_text_column, UITheme::SPACE_XS, 0);
+    lv_obj_clear_flag(header_text_column, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_flex_grow(header_text_column, 1);
 
     header_title_label_ = lv_label_create(header_text_column);
     lv_obj_set_style_text_font(header_title_label_, UITheme::FONT_HEADING, 0);
     lv_obj_set_style_text_color(header_title_label_, config_ ? colorFromHex(config_->theme.text_primary, UITheme::COLOR_TEXT_PRIMARY) : UITheme::COLOR_TEXT_PRIMARY, 0);
-    lv_label_set_text(header_title_label_, "Bronco Controls");
-    lv_label_set_long_mode(header_title_label_, LV_LABEL_LONG_DOT);
-    lv_obj_set_width(header_title_label_, 550);
 
     header_subtitle_label_ = lv_label_create(header_text_column);
     lv_obj_set_style_text_font(header_subtitle_label_, UITheme::FONT_CAPTION, 0);
     lv_obj_set_style_text_color(header_subtitle_label_, config_ ? colorFromHex(config_->theme.text_secondary, UITheme::COLOR_TEXT_SECONDARY) : UITheme::COLOR_TEXT_SECONDARY, 0);
-    lv_label_set_text(header_subtitle_label_, "Web Configurator");
-    lv_label_set_long_mode(header_subtitle_label_, LV_LABEL_LONG_DOT);
-    lv_obj_set_width(header_subtitle_label_, 550);
 
-    // Clock label (top-right corner)
-    header_clock_label_ = lv_label_create(header_bar_);
-    lv_obj_set_pos(header_clock_label_, 720, 25);
-    lv_obj_set_style_text_font(header_clock_label_, &lv_font_montserrat_16, 0);
-    updateClock();  // Set initial time
+    // Settings/info button on the right
+    lv_obj_t* header_spacer = lv_obj_create(header_bar_);
+    lv_obj_remove_style_all(header_spacer);
+    lv_obj_set_size(header_spacer, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+    lv_obj_set_flex_grow(header_spacer, 1);
 
-    // Create info modal (hidden by default)
-    createInfoModal();
-    
-    // Floating settings button (bottom-right corner, always on top)
-    settings_fab_ = lv_btn_create(base_screen_);
-    lv_obj_set_size(settings_fab_, 50, 50);
-    lv_obj_align(settings_fab_, LV_ALIGN_BOTTOM_RIGHT, -10, -10);
-    lv_obj_set_style_radius(settings_fab_, 25, 0);  // Circular button
-    lv_obj_set_style_bg_color(settings_fab_, lv_color_hex(0x505050), 0);
-    lv_obj_set_style_bg_opa(settings_fab_, LV_OPA_80, 0);
-    lv_obj_set_style_border_width(settings_fab_, 0, 0);
-    lv_obj_set_style_shadow_width(settings_fab_, 10, 0);
-    lv_obj_set_style_shadow_color(settings_fab_, lv_color_hex(0x000000), 0);
-    lv_obj_add_event_cb(settings_fab_, settingsButtonEvent, LV_EVENT_CLICKED, nullptr);
-    lv_obj_move_foreground(settings_fab_);  // Ensure it's always on top
-    
-    lv_obj_t* settings_icon = lv_label_create(settings_fab_);
-    lv_label_set_text(settings_icon, LV_SYMBOL_SETTINGS);
-    lv_obj_set_style_text_font(settings_icon, &lv_font_montserrat_20, 0);
-    lv_obj_set_style_text_color(settings_icon, lv_color_hex(0xFFFFFF), 0);
-    lv_obj_center(settings_icon);
+    lv_obj_t* settings_btn = lv_btn_create(header_bar_);
+    lv_obj_remove_style_all(settings_btn);
+    lv_obj_set_size(settings_btn, 44, 44);
+    lv_obj_set_style_bg_opa(settings_btn, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_border_width(settings_btn, 0, 0);
+    lv_obj_set_style_radius(settings_btn, 0, 0);
+    lv_obj_add_event_cb(settings_btn, settingsButtonEvent, LV_EVENT_CLICKED, nullptr);
 
+    // Content root (below header)
     content_root_ = lv_obj_create(base_screen_);
-    lv_obj_set_size(content_root_, 800, 410);
-    lv_obj_set_pos(content_root_, 0, 70);
-    lv_obj_set_style_bg_opa(content_root_, LV_OPA_TRANSP, 0);
-    lv_obj_set_style_border_width(content_root_, 0, 0);
+    lv_obj_set_size(content_root_, 800, 400);
+    lv_obj_set_style_bg_color(content_root_, bg_color, 0);
+    lv_obj_set_style_bg_opa(content_root_, LV_OPA_COVER, 0);
     lv_obj_set_style_pad_all(content_root_, UITheme::SPACE_MD, 0);
     lv_obj_set_flex_flow(content_root_, LV_FLEX_FLOW_COLUMN);
-    lv_obj_set_flex_align(content_root_, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_set_style_pad_gap(content_root_, UITheme::SPACE_MD, 0);
+    lv_obj_set_pos(content_root_, 0, 80);
     lv_obj_clear_flag(content_root_, LV_OBJ_FLAG_SCROLLABLE);
 
+    // Navigation bar
     nav_bar_ = lv_obj_create(content_root_);
-    lv_obj_set_size(nav_bar_, 760, 60);
+    lv_obj_set_width(nav_bar_, 800);
+    lv_obj_set_height(nav_bar_, LV_SIZE_CONTENT);
     lv_obj_set_style_bg_opa(nav_bar_, LV_OPA_TRANSP, 0);
     lv_obj_set_style_border_width(nav_bar_, 0, 0);
+    lv_obj_set_style_pad_all(nav_bar_, UITheme::SPACE_XS, 0);
     lv_obj_set_style_pad_gap(nav_bar_, UITheme::SPACE_SM, 0);
-    lv_obj_set_style_pad_all(nav_bar_, 0, 0);
     lv_obj_set_flex_flow(nav_bar_, LV_FLEX_FLOW_ROW);
-    lv_obj_set_flex_align(nav_bar_, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_clear_flag(nav_bar_, LV_OBJ_FLAG_SCROLLABLE);
 
+    // Status panel (kept hidden but retained for future use)
     status_panel_ = lv_obj_create(content_root_);
-    lv_obj_set_size(status_panel_, 760, 56);
-    lv_obj_set_style_bg_opa(status_panel_, LV_OPA_TRANSP, 0);
-    lv_obj_set_style_border_width(status_panel_, 0, 0);
-    lv_obj_set_style_pad_all(status_panel_, 0, 0);
-    lv_obj_set_style_pad_gap(status_panel_, UITheme::SPACE_SM, 0);
-    lv_obj_set_flex_flow(status_panel_, LV_FLEX_FLOW_ROW);
-    lv_obj_set_flex_align(status_panel_, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
-    lv_obj_add_flag(status_panel_, LV_OBJ_FLAG_HIDDEN);  // Always hidden, use info button instead
+    lv_obj_remove_style_all(status_panel_);
+    lv_obj_set_width(status_panel_, 800);
+    lv_obj_set_height(status_panel_, LV_SIZE_CONTENT);
+    lv_obj_add_flag(status_panel_, LV_OBJ_FLAG_HIDDEN);
 
-    auto create_chip = [](lv_obj_t* parent, lv_color_t bg_color) {
+    // Helper for chip creation (used only if status panel is shown later)
+    auto create_chip = [&](lv_obj_t* parent, lv_color_t bg) {
         lv_obj_t* chip = lv_obj_create(parent);
-        lv_obj_set_style_bg_color(chip, bg_color, 0);
-        lv_obj_set_style_bg_opa(chip, LV_OPA_50, 0);
+        lv_obj_set_style_bg_color(chip, bg, 0);
+        lv_obj_set_style_bg_opa(chip, LV_OPA_COVER, 0);
         lv_obj_set_style_border_width(chip, 0, 0);
         lv_obj_set_style_radius(chip, UITheme::RADIUS_LG, 0);
         lv_obj_set_style_pad_all(chip, UITheme::SPACE_MD, 0);
@@ -249,8 +197,9 @@ void UIBuilder::createBaseScreen() {
     lv_obj_set_style_text_color(status_sta_label_, config_ ? colorFromHex(config_->theme.text_primary, UITheme::COLOR_TEXT_PRIMARY) : UITheme::COLOR_TEXT_PRIMARY, 0);
     lv_label_set_text(status_sta_label_, "LAN waiting...");
 
+    // Page container
     page_container_ = lv_obj_create(content_root_);
-    lv_obj_set_size(page_container_, 760, 330);
+    lv_obj_set_size(page_container_, 760, 300);
     lv_color_t page_bg = config_ ? colorFromHex(config_->theme.page_bg_color, UITheme::COLOR_BG) : UITheme::COLOR_BG;
     lv_obj_set_style_bg_color(page_container_, page_bg, 0);
     lv_obj_set_style_bg_opa(page_container_, LV_OPA_COVER, 0);
@@ -272,27 +221,27 @@ void UIBuilder::buildNavigation() {
 
     for (const auto& page : config_->pages) {
         lv_obj_t* btn = lv_btn_create(nav_bar_);
-        
+
         // Use page-specific color or fall back to theme default
-        lv_color_t nav_color = page.nav_color.empty() ? 
+        lv_color_t nav_color = page.nav_color.empty() ?
             colorFromHex(config_->theme.nav_button_color, UITheme::COLOR_SURFACE) :
             colorFromHex(page.nav_color, UITheme::COLOR_SURFACE);
-        
+
         lv_obj_set_style_bg_color(btn, nav_color, 0);
         lv_obj_set_style_bg_opa(btn, LV_OPA_COVER, 0);
-        
+
         // Set active state color
         lv_color_t active_color = colorFromHex(config_->theme.nav_button_active_color, UITheme::COLOR_ACCENT);
         lv_obj_set_style_bg_color(btn, active_color, LV_STATE_CHECKED);
         lv_obj_set_style_bg_opa(btn, LV_OPA_COVER, LV_STATE_CHECKED);
-        
+
         lv_obj_set_style_border_width(btn, config_->theme.border_width, 0);
         lv_obj_set_style_border_color(btn, colorFromHex(config_->theme.border_color, UITheme::COLOR_BORDER), 0);
         lv_obj_set_style_radius(btn, config_->theme.button_radius, 0);
         lv_obj_set_size(btn, LV_SIZE_CONTENT, 50);
         lv_obj_add_flag(btn, LV_OBJ_FLAG_CHECKABLE);
         lv_obj_add_event_cb(btn, navButtonEvent, LV_EVENT_CLICKED,
-                    reinterpret_cast<void*>(static_cast<uintptr_t>(index)));
+                            reinterpret_cast<void*>(static_cast<uintptr_t>(index)));
 
         lv_obj_t* label = lv_label_create(btn);
         lv_label_set_text(label, page.name.c_str());
@@ -325,6 +274,16 @@ void UIBuilder::buildPage(std::size_t index) {
     active_page_ = index;
     const PageConfig& page = config_->pages[index];
 
+    const bool page_style_active = !page.bg_color.empty() || !page.text_color.empty() ||
+                                   !page.button_color.empty() || !page.button_pressed_color.empty() ||
+                                   !page.button_border_color.empty() ||
+                                   page.button_border_width > 0 || page.button_radius > 0;
+
+    const std::string page_bg_hex = !page.bg_color.empty()
+        ? page.bg_color
+        : (config_ ? config_->theme.page_bg_color : "#0F0F0F");
+    lv_obj_set_style_bg_color(page_container_, colorFromHex(page_bg_hex, UITheme::COLOR_BG), 0);
+
     lv_obj_clean(page_container_);
 
     grid_cols_.assign(page.cols + 1, LV_GRID_TEMPLATE_LAST);
@@ -339,7 +298,7 @@ void UIBuilder::buildPage(std::size_t index) {
     grid_rows_.back() = LV_GRID_TEMPLATE_LAST;
 
     lv_obj_set_layout(page_container_, LV_LAYOUT_GRID);
-    lv_obj_set_style_pad_gap(page_container_, UITheme::SPACE_XS, 0);  // Tighter spacing
+    lv_obj_set_style_pad_gap(page_container_, UITheme::SPACE_XS, 0);
     lv_obj_set_grid_dsc_array(page_container_, grid_cols_.data(), grid_rows_.data());
 
     if (page.buttons.empty()) {
@@ -355,28 +314,40 @@ void UIBuilder::buildPage(std::size_t index) {
     for (const auto& button : page.buttons) {
         lv_obj_t* btn = lv_btn_create(page_container_);
         lv_obj_remove_style_all(btn);
-        
-        // Apply theme radius and border from config
-        uint8_t radius = config_ ? config_->theme.button_radius : UITheme::RADIUS_LG;
-        uint8_t border_width = config_ ? config_->theme.border_width : 0;
-        lv_color_t border_color = config_ ? colorFromHex(config_->theme.border_color, UITheme::COLOR_BORDER) : UITheme::COLOR_BORDER;
+
+        // Apply per-page overrides when provided
+        const uint8_t radius = page_style_active
+            ? (page.button_radius > 0 ? page.button_radius : (config_ ? config_->theme.button_radius : UITheme::RADIUS_LG))
+            : (config_ ? config_->theme.button_radius : UITheme::RADIUS_LG);
+        const uint8_t border_width = page_style_active
+            ? page.button_border_width
+            : (config_ ? config_->theme.border_width : 0);
+        const lv_color_t border_color = page_style_active && !page.button_border_color.empty()
+            ? colorFromHex(page.button_border_color, UITheme::COLOR_BORDER)
+            : (config_ ? colorFromHex(config_->theme.border_color, UITheme::COLOR_BORDER) : UITheme::COLOR_BORDER);
         lv_obj_set_style_radius(btn, radius, 0);
         lv_obj_set_style_border_width(btn, border_width, 0);
         lv_obj_set_style_border_color(btn, border_color, 0);
         lv_obj_set_style_border_opa(btn, border_width > 0 ? LV_OPA_COVER : LV_OPA_TRANSP, 0);
-        
+
         // Normal state color
-        lv_color_t btn_color = colorFromHex(button.color, UITheme::COLOR_ACCENT);
+        const std::string button_color_hex = page_style_active && !page.button_color.empty()
+            ? page.button_color
+            : button.color;
+        lv_color_t btn_color = colorFromHex(button_color_hex, UITheme::COLOR_ACCENT);
         lv_obj_set_style_bg_color(btn, btn_color, 0);
         lv_obj_set_style_bg_opa(btn, LV_OPA_COVER, 0);
-        
+
         // Pressed state color - use custom if set, otherwise darken
-        lv_color_t pressed_color = button.pressed_color.empty() ? 
-            lv_color_darken(btn_color, LV_OPA_40) : 
-            colorFromHex(button.pressed_color, lv_color_darken(btn_color, LV_OPA_40));
+        const std::string pressed_hex = page_style_active && !page.button_pressed_color.empty()
+            ? page.button_pressed_color
+            : button.pressed_color;
+        lv_color_t pressed_color = pressed_hex.empty()
+            ? lv_color_darken(btn_color, LV_OPA_40)
+            : colorFromHex(pressed_hex, lv_color_darken(btn_color, LV_OPA_40));
         lv_obj_set_style_bg_color(btn, pressed_color, LV_STATE_PRESSED);
         lv_obj_set_style_bg_opa(btn, LV_OPA_COVER, LV_STATE_PRESSED);
-        
+
         lv_obj_set_style_pad_all(btn, UITheme::SPACE_MD, 0);
         lv_obj_set_grid_cell(btn,
                              LV_GRID_ALIGN_STRETCH, button.col, button.col_span,
@@ -396,36 +367,35 @@ void UIBuilder::buildPage(std::size_t index) {
 
         lv_obj_t* title = lv_label_create(btn);
         lv_label_set_text(title, button.label.c_str());
-        lv_obj_set_style_text_color(title, config_ ? colorFromHex(config_->theme.text_primary, UITheme::COLOR_TEXT_PRIMARY) : UITheme::COLOR_TEXT_PRIMARY, 0);
-        
-        // Use font_name if specified, otherwise fall back to font_size selection
+        const std::string text_hex = page_style_active && !page.text_color.empty()
+            ? page.text_color
+            : (config_ ? config_->theme.text_primary : "#FFFFFF");
+        lv_obj_set_style_text_color(title, colorFromHex(text_hex, UITheme::COLOR_TEXT_PRIMARY), 0);
+
+        // Use font_name if specified, otherwise use font_family + font_size
         const lv_font_t* font;
         if (!button.font_name.empty() && button.font_name != "montserrat_16") {
             font = fontFromName(button.font_name);
+        } else if (!button.font_family.empty() && button.font_family != "montserrat") {
+            // Use font family with size
+            std::string fontKey = button.font_family + "_" + std::to_string(button.font_size);
+            font = fontFromName(fontKey);
         } else {
-            // Select closest available font size for backward compatibility
-            if (button.font_size <= 13) {
-                font = &lv_font_montserrat_12;
-            } else if (button.font_size <= 15) {
-                font = &lv_font_montserrat_14;
-            } else if (button.font_size <= 17) {
-                font = &lv_font_montserrat_16;
-            } else if (button.font_size <= 19) {
-                font = &lv_font_montserrat_18;
-            } else if (button.font_size <= 21) {
-                font = &lv_font_montserrat_20;
-            } else if (button.font_size <= 23) {
-                font = &lv_font_montserrat_22;
-            } else if (button.font_size <= 26) {
-                font = &lv_font_montserrat_24;
-            } else if (button.font_size <= 30) {
-                font = &lv_font_montserrat_28;
-            } else {
-                font = &lv_font_montserrat_32;
-            }
+            // Default montserrat with size mapping
+            if (button.font_size <= 13) font = &lv_font_montserrat_12;
+            else if (button.font_size <= 15) font = &lv_font_montserrat_14;
+            else if (button.font_size <= 17) font = &lv_font_montserrat_16;
+            else if (button.font_size <= 19) font = &lv_font_montserrat_18;
+            else if (button.font_size <= 21) font = &lv_font_montserrat_20;
+            else if (button.font_size <= 23) font = &lv_font_montserrat_22;
+            else if (button.font_size <= 25) font = &lv_font_montserrat_24;
+            else if (button.font_size <= 27) font = &lv_font_montserrat_26;
+            else if (button.font_size <= 29) font = &lv_font_montserrat_28;
+            else if (button.font_size <= 31) font = &lv_font_montserrat_30;
+            else font = &lv_font_montserrat_32;
         }
         lv_obj_set_style_text_font(title, font, 0);
-        
+
         // Apply text alignment
         lv_align_t align = LV_ALIGN_CENTER;
         if (button.text_align == "top-left") align = LV_ALIGN_TOP_LEFT;
@@ -449,10 +419,6 @@ void UIBuilder::updateNavSelection() {
         }
         if (i == active_page_) {
             lv_obj_add_state(btn, LV_STATE_CHECKED);
-            // Apply active color
-            lv_color_t active_color = colorFromHex(config_->theme.nav_button_active_color, UITheme::COLOR_ACCENT);
-            lv_obj_set_style_bg_color(btn, active_color, LV_STATE_CHECKED);
-            lv_obj_set_style_bg_opa(btn, LV_OPA_COVER, LV_STATE_CHECKED);
         } else {
             lv_obj_clear_state(btn, LV_STATE_CHECKED);
         }
@@ -564,13 +530,6 @@ void UIBuilder::updateHeaderBranding() {
         }
     }
 
-    // Update clock visibility and color
-    if (header_clock_label_) {
-        lv_obj_clear_flag(header_clock_label_, LV_OBJ_FLAG_HIDDEN);
-        lv_obj_set_style_text_color(header_clock_label_, colorFromHex(config_->theme.text_primary, UITheme::COLOR_TEXT_PRIMARY), 0);
-        updateClock();
-    }
-
     if (!header_logo_img_) {
         return;
     }
@@ -597,28 +556,11 @@ void UIBuilder::updateHeaderBranding() {
 }
 
 const lv_img_dsc_t* UIBuilder::iconForId(const std::string& id) const {
-    Serial.printf("[UI] iconForId called with id: '%s'\n", id.c_str());
-    if (id.empty() || id == "none") {
-        Serial.println("[UI] ID is empty or 'none', returning nullptr");
-        return nullptr;
+    // Map known logo IDs to compiled image descriptors; default to Bronco logo
+    if (id == "bronco" || id.empty()) {
+        return &img_bronco_logo;
     }
-    for (const auto& entry : kIconEntries) {
-        if (id == entry.id) {
-            Serial.printf("[UI] Found matching icon entry for: %s\n", id.c_str());
-            return entry.img;
-        }
-    }
-    Serial.printf("[UI] No matching icon found for: %s\n", id.c_str());
     return nullptr;
-}
-
-void UIBuilder::updateNetworkStatus(const std::string& ap_ip, const std::string& sta_ip, bool sta_connected) {
-    last_ap_ip_ = ap_ip;
-    last_sta_ip_ = sta_ip;
-    last_sta_connected_ = sta_connected;
-
-    // Network status is now only shown via the info button modal
-    // Status panel remains hidden, saving screen space
 }
 
 void UIBuilder::createInfoModal() {
@@ -636,7 +578,7 @@ void UIBuilder::createInfoModal() {
 
     // Modal content box - larger to fit time controls
     info_modal_ = lv_obj_create(info_modal_bg_);
-    lv_obj_set_size(info_modal_, 550, 400);
+    lv_obj_set_size(info_modal_, 550, 480);  // Increased height for AM/PM button
     lv_obj_center(info_modal_);
     lv_obj_set_style_bg_color(info_modal_, lv_color_hex(0x2A2A2A), 0);
     lv_obj_set_style_bg_opa(info_modal_, LV_OPA_COVER, 0);
@@ -648,7 +590,8 @@ void UIBuilder::createInfoModal() {
     lv_obj_set_flex_flow(info_modal_, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_flex_align(info_modal_, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
     lv_obj_set_style_pad_gap(info_modal_, UITheme::SPACE_MD, 0);
-    lv_obj_clear_flag(info_modal_, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_add_flag(info_modal_, LV_OBJ_FLAG_CLICKABLE);  // Block clicks from reaching background
+    lv_obj_clear_flag(info_modal_, LV_OBJ_FLAG_SCROLLABLE);  // Modal content shouldn't close on click
 
     // Title
     lv_obj_t* title = lv_label_create(info_modal_);
@@ -667,77 +610,32 @@ void UIBuilder::createInfoModal() {
     lv_obj_set_width(ip_label, 500);
     lv_obj_set_user_data(info_modal_, ip_label);
 
-    // Time adjustment section
-    lv_obj_t* time_section_label = lv_label_create(info_modal_);
-    lv_label_set_text(time_section_label, "Manual Time Adjustment:");
-    lv_obj_set_style_text_font(time_section_label, &lv_font_montserrat_16, 0);
-    lv_obj_set_style_text_color(time_section_label, lv_color_hex(0xCCCCCC), 0);
-    lv_obj_set_style_pad_top(time_section_label, UITheme::SPACE_SM, 0);
+    // Brightness controls
+    lv_obj_t* brightness_row = lv_obj_create(info_modal_);
+    lv_obj_remove_style_all(brightness_row);
+    lv_obj_set_flex_flow(brightness_row, LV_FLEX_FLOW_ROW);
+    lv_obj_set_style_pad_gap(brightness_row, UITheme::SPACE_SM, 0);
+    lv_obj_set_style_pad_all(brightness_row, 0, 0);
+    lv_obj_set_width(brightness_row, 500);
 
-    // Current time display
-    info_modal_time_label_ = lv_label_create(info_modal_);
-    lv_label_set_text(info_modal_time_label_, "12:00 AM");
-    lv_obj_set_style_text_font(info_modal_time_label_, &lv_font_montserrat_32, 0);
-    lv_obj_set_style_text_color(info_modal_time_label_, lv_color_hex(0xFFFFFF), 0);
-    lv_obj_set_style_text_opa(info_modal_time_label_, LV_OPA_COVER, 0);
+    lv_obj_t* brightness_label = lv_label_create(brightness_row);
+    lv_label_set_text(brightness_label, "Brightness");
+    lv_obj_set_style_text_font(brightness_label, UITheme::FONT_BODY, 0);
 
-    // Hour adjustment row
-    lv_obj_t* hour_label = lv_label_create(info_modal_);
-    lv_label_set_text(hour_label, "Hours:");
-    lv_obj_set_style_text_font(hour_label, &lv_font_montserrat_14, 0);
-    lv_obj_set_style_text_color(hour_label, lv_color_hex(0xAAAAAA), 0);
+    brightness_slider_ = lv_slider_create(brightness_row);
+    lv_slider_set_range(brightness_slider_, 0, 100);
+    lv_slider_set_value(brightness_slider_, config_ ? config_->display.brightness : 100, LV_ANIM_OFF);
+    lv_obj_set_width(brightness_slider_, 260);
+    lv_obj_add_event_cb(brightness_slider_, brightnessSliderEvent, LV_EVENT_VALUE_CHANGED, nullptr);
+    lv_obj_add_event_cb(brightness_slider_, brightnessSliderEvent, LV_EVENT_RELEASED, nullptr);
 
-    lv_obj_t* hour_btns = lv_obj_create(info_modal_);
-    lv_obj_remove_style_all(hour_btns);
-    lv_obj_set_size(hour_btns, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
-    lv_obj_set_flex_flow(hour_btns, LV_FLEX_FLOW_ROW);
-    lv_obj_set_flex_align(hour_btns, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
-    lv_obj_set_style_pad_gap(hour_btns, UITheme::SPACE_SM, 0);
+    brightness_value_label_ = lv_label_create(brightness_row);
+    char pct_buf[8];
+    snprintf(pct_buf, sizeof(pct_buf), "%u%%", static_cast<unsigned>(config_ ? config_->display.brightness : 100));
+    lv_label_set_text(brightness_value_label_, pct_buf);
+    lv_obj_set_style_text_font(brightness_value_label_, UITheme::FONT_BODY, 0);
 
-    lv_obj_t* hour_down = lv_btn_create(hour_btns);
-    lv_obj_set_size(hour_down, 100, 50);
-    lv_obj_set_style_bg_color(hour_down, lv_color_hex(0x555555), 0);
-    lv_obj_add_event_cb(hour_down, timeDownEvent, LV_EVENT_CLICKED, nullptr);
-    lv_obj_t* hour_down_lbl = lv_label_create(hour_down);
-    lv_label_set_text(hour_down_lbl, "- 1h");
-    lv_obj_center(hour_down_lbl);
-
-    lv_obj_t* hour_up = lv_btn_create(hour_btns);
-    lv_obj_set_size(hour_up, 100, 50);
-    lv_obj_set_style_bg_color(hour_up, lv_color_hex(0x555555), 0);
-    lv_obj_add_event_cb(hour_up, timeUpEvent, LV_EVENT_CLICKED, nullptr);
-    lv_obj_t* hour_up_lbl = lv_label_create(hour_up);
-    lv_label_set_text(hour_up_lbl, "+ 1h");
-    lv_obj_center(hour_up_lbl);
-
-    // Minute adjustment row
-    lv_obj_t* minute_label = lv_label_create(info_modal_);
-    lv_label_set_text(minute_label, "Minutes:");
-    lv_obj_set_style_text_font(minute_label, &lv_font_montserrat_14, 0);
-    lv_obj_set_style_text_color(minute_label, lv_color_hex(0xAAAAAA), 0);
-
-    lv_obj_t* minute_btns = lv_obj_create(info_modal_);
-    lv_obj_remove_style_all(minute_btns);
-    lv_obj_set_size(minute_btns, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
-    lv_obj_set_flex_flow(minute_btns, LV_FLEX_FLOW_ROW);
-    lv_obj_set_flex_align(minute_btns, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
-    lv_obj_set_style_pad_gap(minute_btns, UITheme::SPACE_SM, 0);
-
-    lv_obj_t* minute_down = lv_btn_create(minute_btns);
-    lv_obj_set_size(minute_down, 100, 50);
-    lv_obj_set_style_bg_color(minute_down, lv_color_hex(0x555555), 0);
-    lv_obj_add_event_cb(minute_down, timeDownMinuteEvent, LV_EVENT_CLICKED, nullptr);
-    lv_obj_t* minute_down_lbl = lv_label_create(minute_down);
-    lv_label_set_text(minute_down_lbl, "- 1m");
-    lv_obj_center(minute_down_lbl);
-
-    lv_obj_t* minute_up = lv_btn_create(minute_btns);
-    lv_obj_set_size(minute_up, 100, 50);
-    lv_obj_set_style_bg_color(minute_up, lv_color_hex(0x555555), 0);
-    lv_obj_add_event_cb(minute_up, timeUpMinuteEvent, LV_EVENT_CLICKED, nullptr);
-    lv_obj_t* minute_up_lbl = lv_label_create(minute_up);
-    lv_label_set_text(minute_up_lbl, "+ 1m");
-    lv_obj_center(minute_up_lbl);
+    // Time controls removed; this modal now only shows device info.
 
     // Close button
     lv_obj_t* close_btn = lv_btn_create(info_modal_);
@@ -750,6 +648,22 @@ void UIBuilder::createInfoModal() {
     lv_label_set_text(close_label, "Close");
     lv_obj_set_style_text_font(close_label, UITheme::FONT_BODY, 0);
     lv_obj_center(close_label);
+
+    // Sleep overlay (hidden until timeout)
+    sleep_overlay_ = lv_obj_create(info_modal_bg_);
+    lv_obj_set_size(sleep_overlay_, 800, 480);
+    lv_obj_set_pos(sleep_overlay_, 0, 0);
+    lv_obj_set_style_bg_color(sleep_overlay_, lv_color_hex(0x000000), 0);
+    lv_obj_set_style_bg_opa(sleep_overlay_, LV_OPA_90, 0);
+    lv_obj_set_style_border_width(sleep_overlay_, 0, 0);
+    lv_obj_add_flag(sleep_overlay_, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_event_cb(sleep_overlay_, modalActivityEvent, LV_EVENT_CLICKED, nullptr);
+
+    sleep_image_ = lv_img_create(sleep_overlay_);
+    lv_obj_center(sleep_image_);
+
+    // Reset sleep timer on any interaction within modal
+    lv_obj_add_event_cb(info_modal_, modalActivityEvent, LV_EVENT_ALL, nullptr);
 }
 
 void UIBuilder::showInfoModal() {
@@ -773,60 +687,20 @@ void UIBuilder::showInfoModal() {
 
     lv_obj_move_foreground(info_modal_bg_);  // Ensure modal is on top layer
     lv_obj_clear_flag(info_modal_bg_, LV_OBJ_FLAG_HIDDEN);
-    
-    // Update time display in modal
-    updateInfoModalTime();
+
+    resetSleepTimer();
+    armSleepTimer();
 }
 
 void UIBuilder::hideInfoModal() {
     if (info_modal_bg_) {
         lv_obj_add_flag(info_modal_bg_, LV_OBJ_FLAG_HIDDEN);
     }
-}
-
-void UIBuilder::updateClock() {
-    if (!header_clock_label_) {
-        return;
+    if (sleep_timer_) {
+        lv_timer_del(sleep_timer_);
+        sleep_timer_ = nullptr;
     }
-
-    // Use system time with manual offset
-    time_t now;
-    struct tm timeinfo;
-    time(&now);
-    now += time_offset_seconds_;  // Apply manual adjustment
-    localtime_r(&now, &timeinfo);
-    
-    char time_str[16];
-    if (timeinfo.tm_year > (2020 - 1900)) {
-        // Valid time - convert to 12-hour format
-        Serial.printf("[UI] Using NTP time: year=%d, hour=%d, min=%d, offset=%d\n", 
-                      timeinfo.tm_year + 1900, timeinfo.tm_hour, timeinfo.tm_min, time_offset_seconds_);
-        int hour = timeinfo.tm_hour;
-        const char* ampm = "AM";
-        if (hour == 0) {
-            hour = 12;
-        } else if (hour == 12) {
-            ampm = "PM";
-        } else if (hour > 12) {
-            hour -= 12;
-            ampm = "PM";
-        }
-        snprintf(time_str, sizeof(time_str), "%d:%02d %s", hour, timeinfo.tm_min, ampm);
-    } else {
-        // Fallback: show uptime + offset in 12-hour format
-        unsigned long total_seconds = (millis() / 1000) + time_offset_seconds_;
-        unsigned long minutes = (total_seconds / 60) % 60;
-        unsigned long hours = (total_seconds / 3600) % 24;
-        Serial.printf("[UI] Using uptime fallback: millis=%lu, offset=%d, total_sec=%lu, hour=%lu\n", 
-                      millis()/1000, time_offset_seconds_, total_seconds, hours);
-        const char* ampm = (hours < 12) ? "AM" : "PM";
-        int hour12 = (hours % 12);
-        if (hour12 == 0) hour12 = 12;
-        snprintf(time_str, sizeof(time_str), "%d:%02lu %s", hour12, minutes, ampm);
-    }
-    Serial.printf("[UI] Clock display: %s\n", time_str);
-    lv_label_set_text(header_clock_label_, time_str);
-    lv_obj_invalidate(header_clock_label_);  // Force redraw
+    hideSleepOverlay();
 }
 
 void UIBuilder::settingsButtonEvent(lv_event_t* e) {
@@ -836,93 +710,6 @@ void UIBuilder::settingsButtonEvent(lv_event_t* e) {
     Serial.println("[UI] Settings button clicked - showing settings modal");
     UIBuilder::instance().showInfoModal();
 }
-
-void UIBuilder::updateInfoModalTime() {
-    if (!info_modal_time_label_) {
-        return;
-    }
-    
-    // Get current time with offset
-    time_t now;
-    time(&now);
-    now += time_offset_seconds_;
-    struct tm timeinfo;
-    localtime_r(&now, &timeinfo);
-    
-    char time_str[16];
-    if (timeinfo.tm_year > (2020 - 1900)) {
-        // Valid time - convert to 12-hour format
-        int hour = timeinfo.tm_hour;
-        const char* ampm = "AM";
-        if (hour == 0) {
-            hour = 12;
-        } else if (hour == 12) {
-            ampm = "PM";
-        } else if (hour > 12) {
-            hour -= 12;
-            ampm = "PM";
-        }
-        snprintf(time_str, sizeof(time_str), "%d:%02d %s", hour, timeinfo.tm_min, ampm);
-    } else {
-        // Fallback: show uptime + offset
-        unsigned long total_seconds = (millis() / 1000) + time_offset_seconds_;
-        unsigned long minutes = (total_seconds / 60) % 60;
-        unsigned long hours = (total_seconds / 3600) % 24;
-        const char* ampm = (hours < 12) ? "AM" : "PM";
-        int hour12 = (hours % 12);
-        if (hour12 == 0) hour12 = 12;
-        snprintf(time_str, sizeof(time_str), "%d:%02lu %s", hour12, minutes, ampm);
-    }
-    
-    lv_label_set_text(info_modal_time_label_, time_str);
-}
-
-void UIBuilder::timeUpEvent(lv_event_t* e) {
-    if (lv_event_get_code(e) != LV_EVENT_CLICKED) {
-        return;
-    }
-    UIBuilder::instance().time_offset_seconds_ += 3600;  // +1 hour
-    Serial.printf("[UI] Time offset increased to %d seconds (%d hours)\n", 
-                  UIBuilder::instance().time_offset_seconds_, 
-                  UIBuilder::instance().time_offset_seconds_ / 3600);
-    UIBuilder::instance().updateClock();
-    UIBuilder::instance().updateInfoModalTime();
-}
-
-void UIBuilder::timeDownEvent(lv_event_t* e) {
-    if (lv_event_get_code(e) != LV_EVENT_CLICKED) {
-        return;
-    }
-    UIBuilder::instance().time_offset_seconds_ -= 3600;  // -1 hour
-    Serial.printf("[UI] Time offset decreased to %d seconds (%d hours)\n", 
-                  UIBuilder::instance().time_offset_seconds_, 
-                  UIBuilder::instance().time_offset_seconds_ / 3600);
-    UIBuilder::instance().updateClock();
-    UIBuilder::instance().updateInfoModalTime();
-}
-
-void UIBuilder::timeUpMinuteEvent(lv_event_t* e) {
-    if (lv_event_get_code(e) != LV_EVENT_CLICKED) {
-        return;
-    }
-    UIBuilder::instance().time_offset_seconds_ += 60;  // +1 minute
-    Serial.printf("[UI] Time offset increased by 1 minute to %d seconds\n", 
-                  UIBuilder::instance().time_offset_seconds_);
-    UIBuilder::instance().updateClock();
-    UIBuilder::instance().updateInfoModalTime();
-}
-
-void UIBuilder::timeDownMinuteEvent(lv_event_t* e) {
-    if (lv_event_get_code(e) != LV_EVENT_CLICKED) {
-        return;
-    }
-    UIBuilder::instance().time_offset_seconds_ -= 60;  // -1 minute
-    Serial.printf("[UI] Time offset decreased by 1 minute to %d seconds\n", 
-                  UIBuilder::instance().time_offset_seconds_);
-    UIBuilder::instance().updateClock();
-    UIBuilder::instance().updateInfoModalTime();
-}
-
 void UIBuilder::infoModalCloseEvent(lv_event_t* e) {
     if (lv_event_get_code(e) != LV_EVENT_CLICKED) {
         return;
@@ -930,8 +717,101 @@ void UIBuilder::infoModalCloseEvent(lv_event_t* e) {
     UIBuilder::instance().hideInfoModal();
 }
 
+void UIBuilder::brightnessSliderEvent(lv_event_t* e) {
+    if (lv_event_get_code(e) != LV_EVENT_VALUE_CHANGED && lv_event_get_code(e) != LV_EVENT_RELEASED) {
+        return;
+    }
+    lv_obj_t* slider = lv_event_get_target(e);
+    uint8_t value = static_cast<uint8_t>(lv_slider_get_value(slider));
+    UIBuilder::instance().setBrightness(value);
+    UIBuilder::instance().resetSleepTimer();
+}
+
+void UIBuilder::modalActivityEvent(lv_event_t* e) {
+    UIBuilder::instance().resetSleepTimer();
+    if (UIBuilder::instance().sleep_overlay_) {
+        lv_obj_add_flag(UIBuilder::instance().sleep_overlay_, LV_OBJ_FLAG_HIDDEN);
+    }
+}
+
+void UIBuilder::setBrightness(uint8_t percent) {
+    percent = std::min<uint8_t>(100, percent);
+    DeviceConfig& cfg = ConfigManager::instance().getConfig();
+    const bool changed = cfg.display.brightness != percent;
+    cfg.display.brightness = percent;
+
+    if (panel && panel->getBacklight()) {
+        panel->getBacklight()->setBrightness(percent);
+    }
+
+    if (brightness_slider_ && lv_slider_get_value(brightness_slider_) != percent) {
+        lv_slider_set_value(brightness_slider_, percent, LV_ANIM_OFF);
+    }
+    if (brightness_value_label_) {
+        char pct_buf[8];
+        snprintf(pct_buf, sizeof(pct_buf), "%u%%", static_cast<unsigned>(percent));
+        lv_label_set_text(brightness_value_label_, pct_buf);
+    }
+
+    if (changed) {
+        ConfigManager::instance().save();
+    }
+}
+
+void UIBuilder::loadSleepIcon() {
+    sleep_icon_buffer_.clear();
+
+    if (!config_ || config_->display.sleep_icon_base64.empty()) {
+        return;
+    }
+
+    sleep_icon_buffer_ = decodeBase64Logo(config_->display.sleep_icon_base64);
+}
+
+void UIBuilder::armSleepTimer() {
+    if (!config_ || !config_->display.sleep_enabled) {
+        return;
+    }
+    if (sleep_timer_) {
+        lv_timer_del(sleep_timer_);
+        sleep_timer_ = nullptr;
+    }
+    uint32_t period_ms = static_cast<uint32_t>(config_->display.sleep_timeout_seconds) * 1000U;
+    sleep_timer_ = lv_timer_create([](lv_timer_t*) {
+        UIBuilder::instance().showSleepOverlay();
+    }, period_ms, nullptr);
+}
+
+void UIBuilder::resetSleepTimer() {
+    if (sleep_timer_) {
+        lv_timer_reset(sleep_timer_);
+    } else if (config_ && config_->display.sleep_enabled) {
+        armSleepTimer();
+    }
+    hideSleepOverlay();
+}
+
+void UIBuilder::showSleepOverlay() {
+    if (!sleep_overlay_) {
+        return;
+    }
+    if (!sleep_icon_buffer_.empty()) {
+        lv_img_set_src(sleep_image_, sleep_icon_buffer_.data());
+    } else {
+        lv_img_set_src(sleep_image_, &img_bronco_logo);
+    }
+    lv_obj_center(sleep_image_);
+    lv_obj_clear_flag(sleep_overlay_, LV_OBJ_FLAG_HIDDEN);
+}
+
+void UIBuilder::hideSleepOverlay() {
+    if (sleep_overlay_) {
+        lv_obj_add_flag(sleep_overlay_, LV_OBJ_FLAG_HIDDEN);
+    }
+}
+
 const lv_font_t* UIBuilder::fontFromName(const std::string& name) const {
-    // Map font names to actual LVGL fonts
+    // Map font names to actual LVGL fonts - Montserrat
     if (name == "montserrat_12") return &lv_font_montserrat_12;
     if (name == "montserrat_14") return &lv_font_montserrat_14;
     if (name == "montserrat_16") return &lv_font_montserrat_16;
@@ -939,8 +819,14 @@ const lv_font_t* UIBuilder::fontFromName(const std::string& name) const {
     if (name == "montserrat_20") return &lv_font_montserrat_20;
     if (name == "montserrat_22") return &lv_font_montserrat_22;
     if (name == "montserrat_24") return &lv_font_montserrat_24;
+    if (name == "montserrat_26") return &lv_font_montserrat_26;
     if (name == "montserrat_28") return &lv_font_montserrat_28;
+    if (name == "montserrat_30") return &lv_font_montserrat_30;
     if (name == "montserrat_32") return &lv_font_montserrat_32;
+    
+    // UNSCII monospace fonts
+    if (name == "unscii_8") return &lv_font_unscii_8;
+    if (name == "unscii_16") return &lv_font_unscii_16;
     
     // Default fallback
     return &lv_font_montserrat_16;

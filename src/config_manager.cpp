@@ -38,6 +38,13 @@ std::string sanitizeColor(const std::string& hex) {
     return "#FFA500";
 }
 
+std::string sanitizeColorOptional(const std::string& hex, const std::string& fallback = "") {
+    if (hex.empty()) {
+        return fallback;
+    }
+    return sanitizeColor(hex);
+}
+
 std::string fallbackId(const char* prefix, std::size_t index) {
     std::ostringstream oss;
     oss << prefix << '_' << index;
@@ -139,13 +146,16 @@ bool ConfigManager::writeToStorage(const std::string& json) const {
 DeviceConfig ConfigManager::buildDefaultConfig() const {
     DeviceConfig cfg;
     cfg.version = "1.0.0";
-    cfg.header.title = "Bronco Controls";
-    cfg.header.subtitle = "Web Configurator";
+    cfg.header.title = "CAN Control";
+    cfg.header.subtitle = "Configuration Interface";
     cfg.header.show_logo = true;
-    cfg.header.logo_variant = "bronco";
-    cfg.header.show_clock = true;
+    cfg.header.logo_variant = "default";
     cfg.header.title_font = "montserrat_24";
     cfg.header.subtitle_font = "montserrat_12";
+
+    cfg.display.brightness = 100;
+    cfg.display.sleep_enabled = false;
+    cfg.display.sleep_timeout_seconds = 60;
 
     // Initialize available fonts
     cfg.available_fonts.clear();
@@ -218,9 +228,14 @@ void ConfigManager::encodeConfig(const DeviceConfig& source, DynamicJsonDocument
     header["show_logo"] = source.header.show_logo;
     header["logo_variant"] = source.header.logo_variant.c_str();
     header["logo_base64"] = source.header.logo_base64.c_str();
-    header["show_clock"] = source.header.show_clock;
     header["title_font"] = source.header.title_font.c_str();
     header["subtitle_font"] = source.header.subtitle_font.c_str();
+
+    JsonObject display = doc["display"].to<JsonObject>();
+    display["brightness"] = source.display.brightness;
+    display["sleep_enabled"] = source.display.sleep_enabled;
+    display["sleep_timeout_seconds"] = source.display.sleep_timeout_seconds;
+    display["sleep_icon_base64"] = source.display.sleep_icon_base64.c_str();
 
     JsonObject theme = doc["theme"].to<JsonObject>();
     theme["bg_color"] = source.theme.bg_color.c_str();
@@ -254,6 +269,13 @@ void ConfigManager::encodeConfig(const DeviceConfig& source, DynamicJsonDocument
         page_obj["id"] = page.id.c_str();
         page_obj["name"] = page.name.c_str();
         page_obj["nav_color"] = page.nav_color.c_str();
+        page_obj["bg_color"] = page.bg_color.c_str();
+        page_obj["text_color"] = page.text_color.c_str();
+        page_obj["button_color"] = page.button_color.c_str();
+        page_obj["button_pressed_color"] = page.button_pressed_color.c_str();
+        page_obj["button_border_color"] = page.button_border_color.c_str();
+        page_obj["button_border_width"] = page.button_border_width;
+        page_obj["button_radius"] = page.button_radius;
         page_obj["rows"] = page.rows;
         page_obj["cols"] = page.cols;
 
@@ -272,8 +294,12 @@ void ConfigManager::encodeConfig(const DeviceConfig& source, DynamicJsonDocument
             btn_obj["momentary"] = button.momentary;
             btn_obj["font_size"] = button.font_size;
             btn_obj["font_family"] = button.font_family.c_str();
+            btn_obj["font_weight"] = button.font_weight.c_str();
             btn_obj["font_name"] = button.font_name.c_str();
             btn_obj["text_align"] = button.text_align.c_str();
+            btn_obj["corner_radius"] = button.corner_radius;
+            btn_obj["border_width"] = button.border_width;
+            btn_obj["border_color"] = button.border_color.c_str();
 
             JsonObject can_obj = btn_obj["can"].to<JsonObject>();
             can_obj["enabled"] = button.can.enabled;
@@ -331,9 +357,16 @@ bool ConfigManager::decodeConfig(JsonVariantConst json, DeviceConfig& target, st
         target.header.show_logo = header["show_logo"] | target.header.show_logo;
         target.header.logo_variant = safeString(header["logo_variant"], target.header.logo_variant);
         target.header.logo_base64 = safeString(header["logo_base64"], target.header.logo_base64);
-        target.header.show_clock = header["show_clock"] | target.header.show_clock;
         target.header.title_font = safeString(header["title_font"], target.header.title_font);
         target.header.subtitle_font = safeString(header["subtitle_font"], target.header.subtitle_font);
+    }
+
+    JsonObjectConst display = json["display"];
+    if (!display.isNull()) {
+        target.display.brightness = clampValue<std::uint8_t>(display["brightness"] | target.display.brightness, 0u, 100u);
+        target.display.sleep_enabled = display["sleep_enabled"] | target.display.sleep_enabled;
+        target.display.sleep_timeout_seconds = clampValue<std::uint16_t>(display["sleep_timeout_seconds"] | target.display.sleep_timeout_seconds, 5u, 3600u);
+        target.display.sleep_icon_base64 = safeString(display["sleep_icon_base64"], target.display.sleep_icon_base64);
     }
 
     JsonObjectConst theme = json["theme"];
@@ -382,7 +415,14 @@ bool ConfigManager::decodeConfig(JsonVariantConst json, DeviceConfig& target, st
             PageConfig page;
             page.id = safeString(page_obj["id"], fallbackId("page", page_index));
             page.name = safeString(page_obj["name"], page.id);
-            page.nav_color = sanitizeColor(safeString(page_obj["nav_color"], ""));
+            page.nav_color = sanitizeColorOptional(safeString(page_obj["nav_color"], ""));
+            page.bg_color = sanitizeColorOptional(safeString(page_obj["bg_color"], ""));
+            page.text_color = sanitizeColorOptional(safeString(page_obj["text_color"], ""));
+            page.button_color = sanitizeColorOptional(safeString(page_obj["button_color"], ""));
+            page.button_pressed_color = sanitizeColorOptional(safeString(page_obj["button_pressed_color"], ""));
+            page.button_border_color = sanitizeColorOptional(safeString(page_obj["button_border_color"], ""));
+            page.button_border_width = clampValue<std::uint8_t>(page_obj["button_border_width"] | page.button_border_width, 0u, 10u);
+            page.button_radius = clampValue<std::uint8_t>(page_obj["button_radius"] | page.button_radius, 0u, 50u);
             page.rows = clampValue<std::uint8_t>(page_obj["rows"] | 2, 1, 4);
             page.cols = clampValue<std::uint8_t>(page_obj["cols"] | 2, 1, 4);
 
@@ -407,8 +447,12 @@ bool ConfigManager::decodeConfig(JsonVariantConst json, DeviceConfig& target, st
                     button.momentary = btn_obj["momentary"] | false;
                     button.font_size = clampValue<std::uint8_t>(btn_obj["font_size"] | 24, 8, 72);
                     button.font_family = safeString(btn_obj["font_family"], "montserrat");
+                    button.font_weight = safeString(btn_obj["font_weight"], "400");
                     button.font_name = safeString(btn_obj["font_name"], "montserrat_16");
                     button.text_align = safeString(btn_obj["text_align"], "center");
+                    button.corner_radius = clampValue<std::uint8_t>(btn_obj["corner_radius"] | 12, 0, 50);
+                    button.border_width = clampValue<std::uint8_t>(btn_obj["border_width"] | 0, 0, 10);
+                    button.border_color = sanitizeColor(safeString(btn_obj["border_color"], "#FFFFFF"));
 
                     JsonObjectConst can_obj = btn_obj["can"];
                     if (!can_obj.isNull()) {
@@ -500,3 +544,5 @@ bool ConfigManager::decodeConfig(JsonVariantConst json, DeviceConfig& target, st
 
     return true;
 }
+
+// Clock persistence removed
