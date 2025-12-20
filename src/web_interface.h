@@ -295,8 +295,8 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); bo
 					<div class="field"><label>Text</label><input id="page-text-color" type="color" onchange="updatePageStyle()" /></div>
 					<div class="field"><label>Nav Active</label><input id="page-nav-color" type="color" onchange="updatePageMeta()" /></div>
 					<div class="field"><label>Nav Inactive</label><input id="page-nav-inactive-color" type="color" onchange="updatePageMeta()" /></div>
-					<div class="field"><label>Nav Text</label><input id="nav-text-color" type="color" onchange="updateNavStyle()" /></div>
-					<div class="field"><label>Nav Radius</label><input id="nav-radius" type="number" min="0" max="50" onchange="updateNavStyle()" /></div>
+					<div class="field"><label>Nav Text</label><input id="nav-text-color" type="color" onchange="updatePageNavStyle()" /></div>
+					<div class="field"><label>Nav Radius</label><input id="nav-radius" type="number" min="0" max="50" onchange="updatePageNavStyle()" /></div>
 					<div class="field"><label>Button Fill</label><input id="page-btn-color" type="color" onchange="updatePageStyle()" /></div>
 					<div class="field"><label>Pressed</label><input id="page-btn-pressed" type="color" onchange="updatePageStyle()" /></div>
 					<div class="field"><label>Border</label><input id="page-btn-border" type="color" onchange="updatePageStyle()" /></div>
@@ -591,11 +591,15 @@ function hydratePageFields(){
 	const pageNavInactive = document.getElementById('page-nav-inactive-color');
 	if (pageNavInactive) pageNavInactive.value = page.nav_inactive_color || theme.nav_button_color || '#3a3a3a';
 	const navTextInput = document.getElementById('nav-text-color');
-	if (navTextInput) navTextInput.value = theme.nav_button_text_color || theme.text_primary || '#f2f4f8';
+	if (navTextInput) navTextInput.value = page.nav_text_color || theme.nav_button_text_color || theme.text_primary || '#f2f4f8';
 	const navRadiusInput = document.getElementById('nav-radius');
-	if (navRadiusInput) navRadiusInput.value = (typeof theme.nav_button_radius === 'number')
-		? theme.nav_button_radius
-		: ((typeof theme.button_radius === 'number') ? theme.button_radius : 20);
+	if (navRadiusInput) {
+		const fallbackRadius = (typeof theme.nav_button_radius === 'number')
+			? theme.nav_button_radius
+			: ((typeof theme.button_radius === 'number') ? theme.button_radius : 20);
+		const hasPageRadius = typeof page.nav_button_radius === 'number' && !Number.isNaN(page.nav_button_radius);
+		navRadiusInput.value = hasPageRadius ? page.nav_button_radius : fallbackRadius;
+	}
 	const pageBgColor = document.getElementById('page-bg-color');
 	if (pageBgColor) pageBgColor.value = page.bg_color || theme.page_bg_color || '#0f0f0f';
 	const pageTextColor = document.getElementById('page-text-color');
@@ -629,28 +633,28 @@ function updatePageMeta(){
 	renderPreview();
 }
 
-function updateNavStyle(){
+function updatePageNavStyle(){
 	ensurePages();
-	config.theme = config.theme || {};
-	const theme = config.theme;
+	const page = config.pages[activePageIndex];
+	const theme = config.theme || {};
 	const navTextInput = document.getElementById('nav-text-color');
-	const baselineNavText = document.getElementById('theme-nav-text');
-	const baselineNavRadius = document.getElementById('theme-nav-radius');
 	if (navTextInput) {
-		const textColor = navTextInput.value || theme.nav_button_text_color || '#f2f4f8';
-		theme.nav_button_text_color = textColor;
-		navTextInput.value = textColor;
-		if (baselineNavText) baselineNavText.value = textColor;
+		page.nav_text_color = navTextInput.value || '';
 	}
+	const navRadiusInput = document.getElementById('nav-radius');
 	if (navRadiusInput) {
 		let radius = parseInt(navRadiusInput.value);
+		const fallbackRadius = (typeof theme.nav_button_radius === 'number')
+			? theme.nav_button_radius
+			: ((typeof theme.button_radius === 'number') ? theme.button_radius : 20);
 		if (Number.isNaN(radius)) {
-			radius = (typeof theme.nav_button_radius === 'number') ? theme.nav_button_radius : ((typeof theme.button_radius === 'number') ? theme.button_radius : 20);
+			delete page.nav_button_radius;
+			navRadiusInput.value = fallbackRadius;
+		} else {
+			radius = Math.max(0, Math.min(50, radius));
+			page.nav_button_radius = radius;
+			navRadiusInput.value = radius;
 		}
-		radius = Math.max(0, Math.min(50, radius));
-		navRadiusInput.value = radius;
-		theme.nav_button_radius = radius;
-		if (baselineNavRadius) baselineNavRadius.value = radius;
 	}
 	renderNav();
 	renderPreview();
@@ -718,17 +722,19 @@ function capturePageAsBaseline(){
 	const buttonFontSize = firstDefined(firstBtn.font_size, theme.button_font_size, 24);
 	const navTextInput = document.getElementById('nav-text-color');
 	const navRadiusInput = document.getElementById('nav-radius');
-	let navTextColor = theme.nav_button_text_color || theme.text_primary || '#f2f4f8';
+	let navTextColor = page.nav_text_color || theme.nav_button_text_color || theme.text_primary || '#f2f4f8';
 	if (navTextInput && navTextInput.value) {
 		navTextColor = navTextInput.value;
 	}
-	let navRadius = typeof theme.nav_button_radius === 'number' ? theme.nav_button_radius : undefined;
+	let navRadius = (typeof page.nav_button_radius === 'number' && !Number.isNaN(page.nav_button_radius)) ? page.nav_button_radius : undefined;
 	if (navRadiusInput) {
 		const parsedRadius = parseInt(navRadiusInput.value);
 		if (!Number.isNaN(parsedRadius)) navRadius = parsedRadius;
 	}
 	if (!Number.isFinite(navRadius)) {
-		navRadius = (typeof theme.button_radius === 'number' && !Number.isNaN(theme.button_radius)) ? theme.button_radius : 20;
+		navRadius = (typeof theme.nav_button_radius === 'number' && !Number.isNaN(theme.nav_button_radius))
+			? theme.nav_button_radius
+			: ((typeof theme.button_radius === 'number' && !Number.isNaN(theme.button_radius)) ? theme.button_radius : 20);
 	}
 	
 	config.theme = {
@@ -761,11 +767,17 @@ function applyBaselineToPage(){
 	page.text_color = theme.text_primary || page.text_color || '#f2f4f8';
 	page.nav_color = theme.nav_button_active_color || page.nav_color || '#ff9d2e';
 	page.nav_inactive_color = theme.nav_button_color || page.nav_inactive_color || '#3a3a3a';
+	page.nav_text_color = theme.nav_button_text_color || page.nav_text_color || '';
 	page.button_color = theme.accent_color || page.button_color || '#ff9d2e';
 	page.button_pressed_color = firstDefined(theme.button_pressed_color, page.button_pressed_color, '#ff7a1a');
 	page.button_border_color = theme.border_color || page.button_border_color || '#20232f';
 	page.button_border_width = theme.border_width !== undefined ? theme.border_width : (page.button_border_width || 0);
 	page.button_radius = theme.button_radius !== undefined ? theme.button_radius : (page.button_radius || 12);
+	if (typeof theme.nav_button_radius === 'number' && !Number.isNaN(theme.nav_button_radius)) {
+		page.nav_button_radius = theme.nav_button_radius;
+	} else {
+		delete page.nav_button_radius;
+	}
 	
 	// push updated fills/borders into existing buttons
 	page.buttons = (page.buttons||[]).map(btn=>({
@@ -1058,8 +1070,7 @@ function renderNav(){
 	nav.innerHTML = '';
 	nav.style.background = firstDefined(theme.surface_color, '#12141c');
 	nav.style.borderBottom = `1px solid ${firstDefined(theme.border_color, '#20232f')}`;
-	const navTextColor = theme.nav_button_text_color || theme.text_primary || '#f2f4f8';
-	const navRadius = (typeof theme.nav_button_radius === 'number' && !Number.isNaN(theme.nav_button_radius))
+	const fallbackNavRadius = (typeof theme.nav_button_radius === 'number' && !Number.isNaN(theme.nav_button_radius))
 		? theme.nav_button_radius
 		: ((typeof theme.button_radius === 'number' && !Number.isNaN(theme.button_radius)) ? theme.button_radius : 20);
 	config.pages.forEach((p,idx)=>{
@@ -1070,9 +1081,13 @@ function renderNav(){
 		chip.style.background = active 
 			? (p.nav_color || theme.nav_button_active_color || theme.accent_color || '#ff9d2e') 
 			: (p.nav_inactive_color || theme.nav_button_color || '#2a2a2a');
+		const navTextColor = p.nav_text_color || theme.nav_button_text_color || theme.text_primary || '#f2f4f8';
 		chip.style.color = navTextColor;
 		chip.style.opacity = active ? 1 : 0.75;
-		chip.style.borderRadius = `${navRadius}px`;
+		const chipRadius = (typeof p.nav_button_radius === 'number' && !Number.isNaN(p.nav_button_radius))
+			? p.nav_button_radius
+			: fallbackNavRadius;
+		chip.style.borderRadius = `${chipRadius}px`;
 		chip.draggable = true;
 		chip.ondragstart = (e)=>{ e.dataTransfer.setData('text/plain', idx); };
 		chip.ondragover = (e)=>e.preventDefault();
@@ -1171,12 +1186,17 @@ function collectTheme(){
 		button_font_size: existing.button_font_size || 24
 		};
 
+		const activePage = (config.pages || [])[activePageIndex];
 		const quickNavText = document.getElementById('nav-text-color');
-		if (quickNavText) quickNavText.value = config.theme.nav_button_text_color || config.theme.text_primary || '#f2f4f8';
+		if (quickNavText && (!activePage || !activePage.nav_text_color)) {
+			quickNavText.value = config.theme.nav_button_text_color || config.theme.text_primary || '#f2f4f8';
+		}
 		const quickNavRadius = document.getElementById('nav-radius');
-		if (quickNavRadius) quickNavRadius.value = (typeof config.theme.nav_button_radius === 'number')
-			? config.theme.nav_button_radius
-			: (config.theme.button_radius || 20);
+		if (quickNavRadius && (!activePage || typeof activePage.nav_button_radius !== 'number')) {
+			quickNavRadius.value = (typeof config.theme.nav_button_radius === 'number')
+				? config.theme.nav_button_radius
+				: (config.theme.button_radius || 20);
+		}
 }
 
 function wireThemeInputs(){

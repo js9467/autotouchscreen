@@ -324,6 +324,10 @@ void ConfigManager::encodeConfig(const DeviceConfig& source, DynamicJsonDocument
         page_obj["name"] = page.name.c_str();
         page_obj["nav_color"] = page.nav_color.c_str();
         page_obj["nav_inactive_color"] = page.nav_inactive_color.c_str();
+        page_obj["nav_text_color"] = page.nav_text_color.c_str();
+        if (page.nav_button_radius >= 0) {
+            page_obj["nav_button_radius"] = page.nav_button_radius;
+        }
         page_obj["bg_color"] = page.bg_color.c_str();
         page_obj["text_color"] = page.text_color.c_str();
         page_obj["button_color"] = page.button_color.c_str();
@@ -484,6 +488,15 @@ bool ConfigManager::decodeConfig(JsonVariantConst json, DeviceConfig& target, st
             page.name = safeString(page_obj["name"], page.id);
             page.nav_color = sanitizeColorOptional(safeString(page_obj["nav_color"], ""));
             page.nav_inactive_color = sanitizeColorOptional(safeString(page_obj["nav_inactive_color"], ""));
+            page.nav_text_color = sanitizeColorOptional(safeString(page_obj["nav_text_color"], ""));
+            JsonVariantConst nav_radius_variant = page_obj["nav_button_radius"];
+            if (!nav_radius_variant.isNull()) {
+                int radius_value = nav_radius_variant | -1;
+                radius_value = std::max(-1, std::min(50, radius_value));
+                page.nav_button_radius = radius_value;
+            } else {
+                page.nav_button_radius = -1;
+            }
             page.bg_color = sanitizeColorOptional(safeString(page_obj["bg_color"], ""));
             page.text_color = sanitizeColorOptional(safeString(page_obj["text_color"], ""));
             page.button_color = sanitizeColorOptional(safeString(page_obj["button_color"], ""));

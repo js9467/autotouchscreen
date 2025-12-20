@@ -47,6 +47,8 @@ struct PageConfig {
     std::string name = "Home";
     std::string nav_color = "";             // Active nav button color
     std::string nav_inactive_color = "";    // Inactive nav button color
+    std::string nav_text_color = "";        // Optional nav text color override
+    std::int16_t nav_button_radius = -1;     // Optional nav button radius (-1 inherits theme)
     std::string bg_color = "";              // Optional per-page background
     std::string text_color = "";            // Optional per-page text color
     std::string button_color = "";          // Optional per-page button fill

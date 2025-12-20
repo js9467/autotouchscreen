@@ -260,12 +260,19 @@ void UIBuilder::buildNavigation() {
         lv_obj_set_style_bg_color(btn, active_color, LV_STATE_CHECKED);
         lv_obj_set_style_bg_opa(btn, LV_OPA_COVER, LV_STATE_CHECKED);
 
+        lv_color_t border_color = colorFromHex(config_->theme.border_color, UITheme::COLOR_BORDER);
         lv_obj_set_style_border_width(btn, config_->theme.border_width, 0);
-        lv_obj_set_style_border_color(btn, colorFromHex(config_->theme.border_color, UITheme::COLOR_BORDER), 0);
-        const std::uint8_t nav_radius = (config_->theme.nav_button_radius || config_->theme.nav_button_radius == 0)
-            ? config_->theme.nav_button_radius
-            : (config_->theme.button_radius ? config_->theme.button_radius : 20);
+        lv_obj_set_style_border_color(btn, border_color, 0);
+        lv_obj_set_style_border_width(btn, config_->theme.border_width, LV_STATE_CHECKED);
+        lv_obj_set_style_border_color(btn, border_color, LV_STATE_CHECKED);
+        const bool page_has_nav_radius = page.nav_button_radius >= 0 && page.nav_button_radius <= 50;
+        const std::uint8_t nav_radius = page_has_nav_radius
+            ? static_cast<std::uint8_t>(page.nav_button_radius)
+            : ((config_->theme.nav_button_radius || config_->theme.nav_button_radius == 0)
+                ? config_->theme.nav_button_radius
+                : (config_->theme.button_radius ? config_->theme.button_radius : 20));
         lv_obj_set_style_radius(btn, nav_radius, 0);
+        lv_obj_set_style_radius(btn, nav_radius, LV_STATE_CHECKED);
         lv_obj_set_style_pad_left(btn, UITheme::SPACE_MD, 0);
         lv_obj_set_style_pad_right(btn, UITheme::SPACE_MD, 0);
         lv_obj_set_style_pad_top(btn, UITheme::SPACE_SM, 0);
@@ -274,6 +281,9 @@ void UIBuilder::buildNavigation() {
         lv_obj_set_style_shadow_width(btn, 12, 0);
         lv_obj_set_style_shadow_color(btn, lv_color_hex(0x000000), 0);
         lv_obj_set_style_shadow_opa(btn, LV_OPA_20, 0);
+        lv_obj_set_style_shadow_width(btn, 12, LV_STATE_CHECKED);
+        lv_obj_set_style_shadow_color(btn, lv_color_hex(0x000000), LV_STATE_CHECKED);
+        lv_obj_set_style_shadow_opa(btn, LV_OPA_20, LV_STATE_CHECKED);
         lv_obj_add_flag(btn, LV_OBJ_FLAG_CHECKABLE);
         lv_obj_add_event_cb(btn, navButtonEvent, LV_EVENT_CLICKED,
                             reinterpret_cast<void*>(static_cast<uintptr_t>(index)));
@@ -281,7 +291,14 @@ void UIBuilder::buildNavigation() {
         lv_obj_t* label = lv_label_create(btn);
         lv_label_set_text(label, page.name.c_str());
         lv_obj_set_style_text_font(label, UITheme::FONT_BODY, 0);
-        lv_obj_set_style_text_color(label, colorFromHex(config_->theme.nav_button_text_color, UITheme::COLOR_TEXT_PRIMARY), 0);
+        const std::string nav_text_hex = !page.nav_text_color.empty()
+            ? page.nav_text_color
+            : (!config_->theme.nav_button_text_color.empty()
+                ? config_->theme.nav_button_text_color
+                : config_->theme.text_primary);
+        lv_color_t nav_text_color = colorFromHex(nav_text_hex, UITheme::COLOR_TEXT_PRIMARY);
+        lv_obj_set_style_text_color(label, nav_text_color, 0);
+        lv_obj_set_style_text_color(label, nav_text_color, LV_STATE_CHECKED);
         lv_obj_center(label);
 
         nav_buttons_.push_back(btn);
