@@ -250,12 +250,6 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); bo
 							<option value="right">Right</option>
 						</select>
 					</div>
-					<div class="row">
-						<label>X Offset (<span id="header-x-offset-value">0</span>px)</label>
-						<input id="header-title-x-offset" type="range" min="-100" max="100" value="0" oninput="updateHeaderFromInputs()" />
-						<label>Y Offset (<span id="header-y-offset-value">0</span>px)</label>
-						<input id="header-title-y-offset" type="range" min="-50" max="50" value="0" oninput="updateHeaderFromInputs()" />
-					</div>
 					<!-- Logo upload moved to Image Assets section -->
 				</div>
 				<h4>Header Appearance</h4>
@@ -642,26 +636,40 @@ function updatePageStyle(){
 function applyPageStyleToButtons(){
 	ensurePages();
 	const page = config.pages[activePageIndex];
-	page.buttons = (page.buttons||[]).map(btn=>{
-		// Only apply page styles to buttons with default values
-		const isDefaultColor = !btn.color || btn.color === '#FFA500';
-		const isDefaultPressed = !btn.pressed_color || btn.pressed_color === '#FF8800';
-		const isDefaultBorder = !btn.border_color || btn.border_color === '#FFFFFF';
-		const isDefaultBorderWidth = btn.border_width === 0 || btn.border_width === undefined;
-		const isDefaultRadius = btn.corner_radius === 12 || btn.corner_radius === undefined;
-		
-		return {
-			...btn,
-			color: (isDefaultColor && page.button_color) ? page.button_color : btn.color,
-			pressed_color: (isDefaultPressed && page.button_pressed_color) ? page.button_pressed_color : btn.pressed_color,
-			border_color: (isDefaultBorder && page.button_border_color) ? page.button_border_color : btn.border_color,
-			border_width: (isDefaultBorderWidth && page.button_border_width !== undefined) ? page.button_border_width : btn.border_width,
-			corner_radius: (isDefaultRadius && page.button_radius !== undefined) ? page.button_radius : btn.corner_radius
-		};
-	});
+	const theme = config.theme || {};
+
+	const pageBg = document.getElementById('page-bg-color');
+	const pageText = document.getElementById('page-text-color');
+	const pageNavActive = document.getElementById('page-nav-color');
+	const pageNavInactive = document.getElementById('page-nav-inactive-color');
+	const pageBtnColor = document.getElementById('page-btn-color');
+	const pageBtnPressed = document.getElementById('page-btn-pressed');
+	const pageBtnBorder = document.getElementById('page-btn-border');
+	const pageBtnBorderWidth = document.getElementById('page-btn-border-width');
+	const pageBtnRadius = document.getElementById('page-btn-radius');
+
+	// Normalize page-level fields to whatever the user currently sees in the UI
+	page.bg_color = pageBg ? pageBg.value : (page.bg_color || theme.page_bg_color || '#0f0f0f');
+	page.text_color = pageText ? pageText.value : (page.text_color || theme.text_primary || '#f2f4f8');
+	page.nav_color = pageNavActive ? pageNavActive.value : (page.nav_color || theme.nav_button_active_color || '#ff9d2e');
+	page.nav_inactive_color = pageNavInactive ? pageNavInactive.value : (page.nav_inactive_color || theme.nav_button_color || '#3a3a3a');
+	page.button_color = pageBtnColor ? pageBtnColor.value : (page.button_color || theme.accent_color || '#ff9d2e');
+	page.button_pressed_color = pageBtnPressed ? pageBtnPressed.value : (page.button_pressed_color || theme.button_pressed_color || page.button_color);
+	page.button_border_color = pageBtnBorder ? pageBtnBorder.value : (page.button_border_color || theme.border_color || '#20232f');
+	page.button_border_width = pageBtnBorderWidth ? parseInt(pageBtnBorderWidth.value)||0 : (Number.isFinite(page.button_border_width) ? page.button_border_width : (theme.border_width||0));
+	page.button_radius = pageBtnRadius ? parseInt(pageBtnRadius.value)||0 : (Number.isFinite(page.button_radius) ? page.button_radius : (theme.button_radius||12));
+	page.buttons = (page.buttons||[]).map(btn=>({
+		...btn,
+		color: page.button_color || btn.color,
+		pressed_color: page.button_pressed_color || btn.pressed_color || page.button_color || btn.color,
+		border_color: page.button_border_color || btn.border_color,
+		border_width: page.button_border_width !== undefined ? page.button_border_width : btn.border_width,
+		corner_radius: page.button_radius !== undefined ? page.button_radius : btn.corner_radius,
+		text_color: page.text_color || btn.text_color || theme.text_primary || '#FFFFFF'
+	}));
 	renderGrid();
 	renderPreview();
-	showBanner('Applied page styling to buttons with default values','success');
+	showBanner('Applied current window styling to all buttons on this page','success');
 }
 
 function capturePageAsBaseline(){
@@ -919,12 +927,6 @@ function renderPreview(){
 	const titleAlign = headerCfg.title_align || 'center';
 	titleEl.style.textAlign = titleAlign;
 	subtitleEl.style.textAlign = titleAlign;
-	
-	// Apply offsets - stored as 0-200 (0-100), convert to actual pixel offsets
-	const xOffset = (headerCfg.title_x_offset !== undefined) ? (headerCfg.title_x_offset - 100) : 0;
-	const yOffset = (headerCfg.title_y_offset !== undefined) ? (headerCfg.title_y_offset - 50) : 0;
-	titleEl.style.transform = `translate(${xOffset}px, ${yOffset}px)`;
-	subtitleEl.style.transform = `translate(${xOffset}px, ${yOffset}px)`;
 
 	renderNav();
 
@@ -939,13 +941,13 @@ function renderPreview(){
 			const btn = (page.buttons||[]).find(b=>b.row===r && b.col===c);
 			const el = document.createElement('div');
 			el.className = 'preview-btn'+(btn ? '' : ' empty');
-			const fill = firstDefined(btn && btn.color, page.button_color, theme.button_color, theme.accent_color, '#ff9d2e');
+			const fill = firstDefined(btn && btn.color, theme.button_color, theme.accent_color, '#ff9d2e');
 			el.style.background = fill;
-			el.style.borderColor = firstDefined(btn && btn.border_color, page.button_border_color, theme.border_color, 'transparent');
-			el.style.borderWidth = `${firstDefined(btn && btn.border_width, page.button_border_width, theme.border_width, 0)}px`;
-			const textColor = firstDefined(btn && btn.text_color, page.text_color, theme.text_primary, '#FFFFFF');
+			el.style.borderColor = firstDefined(btn && btn.border_color, theme.border_color, 'transparent');
+			el.style.borderWidth = `${firstDefined(btn && btn.border_width, theme.border_width, 0)}px`;
+			const textColor = firstDefined(btn && btn.text_color, theme.text_primary, '#FFFFFF');
 			el.style.color = textColor;
-			el.style.borderRadius = `${firstDefined(btn && btn.corner_radius, page.button_radius, theme.button_radius, 12)}px`;
+			el.style.borderRadius = `${firstDefined(btn && btn.corner_radius, theme.button_radius, 12)}px`;
 			el.textContent = (btn && btn.label) || '+';
 			// Apply text alignment if button has specific alignment
 			if (btn && btn.text_align) {
@@ -1025,16 +1027,6 @@ function updateHeaderFromInputs(){
 	config.header.title_font = document.getElementById('header-title-font').value || 'montserrat_24';
 	config.header.subtitle_font = document.getElementById('header-subtitle-font').value || 'montserrat_12';
 	config.header.title_align = document.getElementById('header-title-align').value || 'center';
-	
-	// Convert slider values (-100 to +100, -50 to +50) to stored range (0 to 200, 0 to 100)
-	const sliderX = parseInt(document.getElementById('header-title-x-offset').value) || 0;
-	const sliderY = parseInt(document.getElementById('header-title-y-offset').value) || 0;
-	config.header.title_x_offset = sliderX + 100;  // Convert -100..+100 to 0..200
-	config.header.title_y_offset = sliderY + 50;   // Convert -50..+50 to 0..100
-	
-	// Update offset displays with actual slider values
-	document.getElementById('header-x-offset-value').textContent = sliderX;
-	document.getElementById('header-y-offset-value').textContent = sliderY;
 	
 	// show_logo now controlled by image upload - always true if image exists
 	config.header.show_logo = !!(config.images && config.images.header_logo);
@@ -1183,18 +1175,6 @@ function hydrateHeaderFields(){
 	if (subtitleInput) subtitleInput.value = header.subtitle || '';
 	const titleAlign = document.getElementById('header-title-align');
 	if (titleAlign) titleAlign.value = header.title_align || 'center';
-	
-	// Convert offset-encoded values (0-200, 0-100) back to slider range (-100 to +100, -50 to +50)
-	const xOffset = (header.title_x_offset !== undefined) ? header.title_x_offset - 100 : 0;
-	const yOffset = (header.title_y_offset !== undefined) ? header.title_y_offset - 50 : 0;
-	const xOffsetEl = document.getElementById('header-title-x-offset');
-	if (xOffsetEl) xOffsetEl.value = xOffset;
-	const yOffsetEl = document.getElementById('header-title-y-offset');
-	if (yOffsetEl) yOffsetEl.value = yOffset;
-	const xOffsetValue = document.getElementById('header-x-offset-value');
-	if (xOffsetValue) xOffsetValue.textContent = xOffset;
-	const yOffsetValue = document.getElementById('header-y-offset-value');
-	if (yOffsetValue) yOffsetValue.textContent = yOffset;
 	
 	// Set full font names in selects
 	const titleFont = document.getElementById('header-title-font');
@@ -1722,10 +1702,6 @@ async function saveConfig(){
 	if (subtitleFont) config.header.subtitle_font = subtitleFont.value || 'montserrat_12';
 	const titleAlign = document.getElementById('header-title-align');
 	if (titleAlign) config.header.title_align = titleAlign.value || 'center';
-	const xOffset = document.getElementById('header-title-x-offset');
-	if (xOffset) config.header.title_x_offset = parseInt(xOffset.value) || 0;
-	const yOffset = document.getElementById('header-title-y-offset');
-	if (yOffset) config.header.title_y_offset = parseInt(yOffset.value) || 0;
 	// show_logo controlled by whether image exists
 	config.header.show_logo = !!(config.images && config.images.header_logo);
 

@@ -276,8 +276,6 @@ void ConfigManager::encodeConfig(const DeviceConfig& source, DynamicJsonDocument
     header["title_font"] = source.header.title_font.c_str();
     header["subtitle_font"] = source.header.subtitle_font.c_str();
     header["title_align"] = source.header.title_align.c_str();
-    header["title_x_offset"] = source.header.title_x_offset;
-    header["title_y_offset"] = source.header.title_y_offset;
 
     JsonObject display = doc["display"].to<JsonObject>();
     display["brightness"] = source.display.brightness;
@@ -341,6 +339,7 @@ void ConfigManager::encodeConfig(const DeviceConfig& source, DynamicJsonDocument
             btn_obj["label"] = button.label.c_str();
             btn_obj["color"] = button.color.c_str();
             btn_obj["pressed_color"] = button.pressed_color.c_str();
+            btn_obj["text_color"] = button.text_color.c_str();
             btn_obj["icon"] = button.icon.c_str();
             btn_obj["row"] = button.row;
             btn_obj["col"] = button.col;
@@ -415,8 +414,6 @@ bool ConfigManager::decodeConfig(JsonVariantConst json, DeviceConfig& target, st
         target.header.title_font = safeString(header["title_font"], target.header.title_font);
         target.header.subtitle_font = safeString(header["subtitle_font"], target.header.subtitle_font);
         target.header.title_align = safeString(header["title_align"], target.header.title_align);
-        target.header.title_x_offset = header["title_x_offset"] | target.header.title_x_offset;
-        target.header.title_y_offset = header["title_y_offset"] | target.header.title_y_offset;
     }
 
     JsonObjectConst display = json["display"];
@@ -506,6 +503,7 @@ bool ConfigManager::decodeConfig(JsonVariantConst json, DeviceConfig& target, st
                     button.label = safeString(btn_obj["label"], button.id);
                     button.color = sanitizeColor(safeString(btn_obj["color"], button.color));
                     button.pressed_color = sanitizeColor(safeString(btn_obj["pressed_color"], button.pressed_color));
+                    button.text_color = sanitizeColorOptional(safeString(btn_obj["text_color"], ""));
                     button.icon = safeString(btn_obj["icon"], "");
                     button.row = clampValue<std::uint8_t>(btn_obj["row"] | 0, 0, page.rows - 1);
                     button.col = clampValue<std::uint8_t>(btn_obj["col"] | 0, 0, page.cols - 1);

@@ -113,7 +113,7 @@ void UIBuilder::createBaseScreen() {
     lv_obj_set_style_bg_opa(main_container, LV_OPA_COVER, 0);
     lv_obj_set_style_radius(main_container, 0, 0);
     lv_obj_set_style_pad_all(main_container, UITheme::SPACE_SM, 0);
-    lv_obj_set_style_pad_gap(main_container, 46, 0);  // Nav button height spacing
+    lv_obj_set_style_pad_gap(main_container, UITheme::SPACE_SM, 0);
     lv_obj_set_style_shadow_width(main_container, 0, 0);
     lv_obj_set_flex_flow(main_container, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_flex_align(main_container, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER);
@@ -126,12 +126,14 @@ void UIBuilder::createBaseScreen() {
     lv_obj_set_height(header_bar_, LV_SIZE_CONTENT);
     lv_obj_set_style_pad_left(header_bar_, UITheme::SPACE_SM, 0);
     lv_obj_set_style_pad_right(header_bar_, UITheme::SPACE_SM, 0);
-    lv_obj_set_style_pad_top(header_bar_, UITheme::SPACE_SM, 0);
+    lv_obj_set_style_pad_top(header_bar_, UITheme::SPACE_XS, 0);
     lv_obj_set_style_pad_bottom(header_bar_, UITheme::SPACE_XS, 0);
-    lv_obj_set_style_pad_gap(header_bar_, 2, 0);
+    lv_obj_set_style_pad_gap(header_bar_, UITheme::SPACE_XS, 0);
     lv_obj_set_flex_flow(header_bar_, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_flex_align(header_bar_, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
     lv_obj_clear_flag(header_bar_, LV_OBJ_FLAG_SCROLLABLE);
+
+    const lv_coord_t header_text_width = screen_w - (UITheme::SPACE_SM * 2);
 
     // Optional header logo (hidden by default)
     header_logo_img_ = lv_img_create(header_bar_);
@@ -144,7 +146,8 @@ void UIBuilder::createBaseScreen() {
     lv_obj_set_style_text_font(header_title_label_, title_font, 0);
     lv_obj_set_style_text_color(header_title_label_, config_ ? colorFromHex(config_->theme.text_primary, UITheme::COLOR_TEXT_PRIMARY) : UITheme::COLOR_TEXT_PRIMARY, 0);
     lv_label_set_long_mode(header_title_label_, LV_LABEL_LONG_WRAP);
-    lv_obj_set_width(header_title_label_, LV_SIZE_CONTENT);
+    lv_obj_set_width(header_title_label_, lv_pct(100));
+    lv_obj_set_style_max_width(header_title_label_, header_text_width, 0);
 
     // Subtitle label - wraps text and scales with content
     header_subtitle_label_ = lv_label_create(header_bar_);
@@ -152,7 +155,8 @@ void UIBuilder::createBaseScreen() {
     lv_obj_set_style_text_font(header_subtitle_label_, subtitle_font, 0);
     lv_obj_set_style_text_color(header_subtitle_label_, config_ ? colorFromHex(config_->theme.text_secondary, UITheme::COLOR_TEXT_SECONDARY) : UITheme::COLOR_TEXT_SECONDARY, 0);
     lv_label_set_long_mode(header_subtitle_label_, LV_LABEL_LONG_WRAP);
-    lv_obj_set_width(header_subtitle_label_, LV_SIZE_CONTENT);
+    lv_obj_set_width(header_subtitle_label_, lv_pct(100));
+    lv_obj_set_style_max_width(header_subtitle_label_, header_text_width, 0);
 
     // Navigation bar - pill buttons similar to the web preview
     nav_bar_ = lv_obj_create(main_container);
@@ -305,11 +309,6 @@ void UIBuilder::buildPage(std::size_t index) {
     active_page_ = index;
     const PageConfig& page = config_->pages[index];
 
-    const bool page_style_active = !page.bg_color.empty() || !page.text_color.empty() ||
-                                   !page.button_color.empty() || !page.button_pressed_color.empty() ||
-                                   !page.button_border_color.empty() ||
-                                   page.button_border_width > 0 || page.button_radius > 0;
-
     const std::string page_bg_hex = !page.bg_color.empty()
         ? page.bg_color
         : (config_ ? config_->theme.page_bg_color : "#0F0F0F");
@@ -362,33 +361,24 @@ void UIBuilder::buildPage(std::size_t index) {
         lv_obj_t* btn = lv_btn_create(page_container_);
         lv_obj_remove_style_all(btn);
 
-        // Apply per-page overrides when provided
-        const uint8_t radius = page_style_active
-            ? (page.button_radius > 0 ? page.button_radius : (config_ ? config_->theme.button_radius : UITheme::RADIUS_LG))
-            : (config_ ? config_->theme.button_radius : UITheme::RADIUS_LG);
-        const uint8_t border_width = page_style_active
-            ? page.button_border_width
-            : (config_ ? config_->theme.border_width : 0);
-        const lv_color_t border_color = page_style_active && !page.button_border_color.empty()
-            ? colorFromHex(page.button_border_color, UITheme::COLOR_BORDER)
+        // Apply per-button styling; fall back to theme only when button fields are empty
+        lv_obj_set_style_radius(btn, button.corner_radius, 0);
+        lv_obj_set_style_border_width(btn, button.border_width, 0);
+        const lv_color_t border_color = !button.border_color.empty()
+            ? colorFromHex(button.border_color, UITheme::COLOR_BORDER)
             : (config_ ? colorFromHex(config_->theme.border_color, UITheme::COLOR_BORDER) : UITheme::COLOR_BORDER);
-        lv_obj_set_style_radius(btn, radius, 0);
-        lv_obj_set_style_border_width(btn, border_width, 0);
         lv_obj_set_style_border_color(btn, border_color, 0);
-        lv_obj_set_style_border_opa(btn, border_width > 0 ? LV_OPA_COVER : LV_OPA_TRANSP, 0);
+        lv_obj_set_style_border_opa(btn, button.border_width > 0 ? LV_OPA_COVER : LV_OPA_TRANSP, 0);
 
-        // Normal state color - prioritize button's own color, then page color, then theme
-        const std::string button_color_hex = !button.color.empty() && button.color != "#FFA500"
+        const std::string button_color_hex = !button.color.empty()
             ? button.color
-            : (!page.button_color.empty() ? page.button_color : (config_ ? config_->theme.accent_color : "#FFA500"));
+            : (config_ ? config_->theme.accent_color : "#FFA500");
         lv_color_t btn_color = colorFromHex(button_color_hex, UITheme::COLOR_ACCENT);
         lv_obj_set_style_bg_color(btn, btn_color, 0);
         lv_obj_set_style_bg_opa(btn, LV_OPA_COVER, 0);
 
-        // Pressed state color - prioritize button's own, then page, then darken
-        const std::string pressed_hex = !button.pressed_color.empty() && button.pressed_color != "#FF8800"
-            ? button.pressed_color
-            : !page.button_pressed_color.empty() ? page.button_pressed_color : "";
+        // Pressed state color - use button override or derive from base color
+        const std::string pressed_hex = !button.pressed_color.empty() ? button.pressed_color : "";
         lv_color_t pressed_color = pressed_hex.empty()
             ? lv_color_darken(btn_color, LV_OPA_40)
             : colorFromHex(pressed_hex, lv_color_darken(btn_color, LV_OPA_40));
@@ -418,12 +408,10 @@ void UIBuilder::buildPage(std::size_t index) {
 
         lv_obj_t* title = lv_label_create(btn);
         lv_label_set_text(title, button.label.c_str());
-        // Button text color priority: button.text_color -> page.text_color -> theme.text_primary
+        // Button text color priority: per-button value, then theme default
         const std::string text_hex = !button.text_color.empty()
             ? button.text_color
-            : (page_style_active && !page.text_color.empty()
-                ? page.text_color
-                : (config_ ? config_->theme.text_primary : "#FFFFFF"));
+            : (config_ ? config_->theme.text_primary : "#FFFFFF");
         lv_obj_set_style_text_color(title, colorFromHex(text_hex, UITheme::COLOR_TEXT_PRIMARY), 0);
 
         // Use font_name if specified, otherwise use font_family + font_size
@@ -607,35 +595,6 @@ void UIBuilder::updateHeaderBranding() {
     lv_obj_set_flex_align(header_bar_, LV_FLEX_ALIGN_START, cross_align, LV_FLEX_ALIGN_START);
     
     lv_obj_set_style_text_align(header_title_label_, text_align, 0);
-    
-    // Apply position offsets
-    // Stored as 0-200 (X) and 0-100 (Y) where 100/50 = zero offset
-    int16_t x_offset = static_cast<int16_t>(config_->header.title_x_offset) - 100;
-    int16_t y_offset = static_cast<int16_t>(config_->header.title_y_offset) - 50;
-    
-    // Apply base offset for alignment, then add user offset
-    // Left alignment needs +100px base to align to left edge
-    // Center alignment needs +200px base to align to center
-    // Right alignment needs +300px base to align to right edge  
-    int16_t base_offset = 200;  // Center default
-    if (config_->header.title_align == "left") {
-        base_offset = 100;
-    } else if (config_->header.title_align == "right") {
-        base_offset = 300;
-    }
-    
-    // Combine base alignment offset with user offset
-    int16_t final_x_offset = base_offset + x_offset;
-    lv_obj_set_style_translate_x(header_title_label_, final_x_offset, 0);
-    
-    // Apply Y offset
-    if (y_offset != 0) {
-        // Clamp Y offset to prevent title from going off-screen (max -10px up)
-        y_offset = (y_offset < -10) ? -10 : y_offset;
-        lv_obj_set_style_translate_y(header_title_label_, y_offset, 0);
-    } else {
-        lv_obj_set_style_translate_y(header_title_label_, 0, 0);
-    }
 
     // Update subtitle text and font
     if (header_subtitle_label_) {
@@ -646,15 +605,6 @@ void UIBuilder::updateHeaderBranding() {
             const lv_font_t* subtitle_font = fontFromName(config_->header.subtitle_font);
             lv_obj_set_style_text_font(header_subtitle_label_, subtitle_font, 0);
             lv_obj_set_style_text_align(header_subtitle_label_, text_align, 0);
-            
-            // Apply same offset logic as title (base offset + user offset)
-            lv_obj_set_style_translate_x(header_subtitle_label_, final_x_offset, 0);
-            
-            if (y_offset != 0) {
-                lv_obj_set_style_translate_y(header_subtitle_label_, y_offset, 0);
-            } else {
-                lv_obj_set_style_translate_y(header_subtitle_label_, 0, 0);
-            }
             
             lv_obj_clear_flag(header_subtitle_label_, LV_OBJ_FLAG_HIDDEN);
         }

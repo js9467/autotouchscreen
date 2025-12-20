@@ -91,8 +91,6 @@ struct HeaderConfig {
     std::string title_font = "montserrat_24";
     std::string subtitle_font = "montserrat_12";
     std::string title_align = "center";  // "left", "center", "right"
-    std::uint8_t title_x_offset = 0;  // X offset in pixels (-100 to 100)
-    std::uint8_t title_y_offset = 0;  // Y offset in pixels (-50 to 50)
 };
 
 struct ImageAssets {
