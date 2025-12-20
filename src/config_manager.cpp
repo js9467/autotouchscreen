@@ -301,6 +301,7 @@ void ConfigManager::encodeConfig(const DeviceConfig& source, DynamicJsonDocument
     theme["nav_button_color"] = source.theme.nav_button_color.c_str();
     theme["nav_button_active_color"] = source.theme.nav_button_active_color.c_str();
     theme["nav_button_text_color"] = source.theme.nav_button_text_color.c_str();
+    theme["nav_button_radius"] = source.theme.nav_button_radius;
     theme["button_radius"] = source.theme.button_radius;
     theme["border_width"] = source.theme.border_width;
     theme["header_border_width"] = source.theme.header_border_width;
@@ -322,6 +323,7 @@ void ConfigManager::encodeConfig(const DeviceConfig& source, DynamicJsonDocument
         page_obj["id"] = page.id.c_str();
         page_obj["name"] = page.name.c_str();
         page_obj["nav_color"] = page.nav_color.c_str();
+        page_obj["nav_inactive_color"] = page.nav_inactive_color.c_str();
         page_obj["bg_color"] = page.bg_color.c_str();
         page_obj["text_color"] = page.text_color.c_str();
         page_obj["button_color"] = page.button_color.c_str();
@@ -445,6 +447,7 @@ bool ConfigManager::decodeConfig(JsonVariantConst json, DeviceConfig& target, st
         target.theme.nav_button_color = sanitizeColor(safeString(theme["nav_button_color"], target.theme.nav_button_color));
         target.theme.nav_button_active_color = sanitizeColor(safeString(theme["nav_button_active_color"], target.theme.nav_button_active_color));
         target.theme.nav_button_text_color = sanitizeColor(safeString(theme["nav_button_text_color"], target.theme.nav_button_text_color));
+        target.theme.nav_button_radius = clampValue<std::uint8_t>(theme["nav_button_radius"] | target.theme.nav_button_radius, 0u, 50u);
         target.theme.button_radius = clampValue<std::uint8_t>(theme["button_radius"] | target.theme.button_radius, 0u, 50u);
         target.theme.border_width = clampValue<std::uint8_t>(theme["border_width"] | target.theme.border_width, 0u, 10u);
         target.theme.header_border_width = clampValue<std::uint8_t>(theme["header_border_width"] | target.theme.header_border_width, 0u, 10u);
@@ -480,6 +483,7 @@ bool ConfigManager::decodeConfig(JsonVariantConst json, DeviceConfig& target, st
             page.id = safeString(page_obj["id"], fallbackId("page", page_index));
             page.name = safeString(page_obj["name"], page.id);
             page.nav_color = sanitizeColorOptional(safeString(page_obj["nav_color"], ""));
+            page.nav_inactive_color = sanitizeColorOptional(safeString(page_obj["nav_inactive_color"], ""));
             page.bg_color = sanitizeColorOptional(safeString(page_obj["bg_color"], ""));
             page.text_color = sanitizeColorOptional(safeString(page_obj["text_color"], ""));
             page.button_color = sanitizeColorOptional(safeString(page_obj["button_color"], ""));

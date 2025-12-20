@@ -119,6 +119,7 @@ struct ThemeConfig {
     std::string nav_button_color = "#3A3A3A";
     std::string nav_button_active_color = "#FFA500";
     std::string nav_button_text_color = "#FFFFFF";
+    std::uint8_t nav_button_radius = 20;
     std::uint8_t button_radius = 12;
     std::uint8_t border_width = 2;
     std::uint8_t header_border_width = 0;

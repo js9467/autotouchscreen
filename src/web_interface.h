@@ -267,6 +267,8 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); bo
 					<div><label>Text Color</label><input id="theme-text-color" type="color" /></div>
 					<div><label>Nav Active</label><input id="theme-nav-active" type="color" /></div>
 					<div><label>Nav Inactive</label><input id="theme-nav-button" type="color" /></div>
+					<div><label>Nav Text</label><input id="theme-nav-text" type="color" /></div>
+					<div><label>Nav Radius</label><input id="theme-nav-radius" type="number" min="0" max="50" /></div>
 					<div><label>Button Fill</label><input id="theme-button-color" type="color" /></div>
 					<div><label>Button Pressed</label><input id="theme-button-pressed" type="color" /></div>
 					<div><label>Button Border</label><input id="theme-border" type="color" /></div>
@@ -293,6 +295,8 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); bo
 					<div class="field"><label>Text</label><input id="page-text-color" type="color" onchange="updatePageStyle()" /></div>
 					<div class="field"><label>Nav Active</label><input id="page-nav-color" type="color" onchange="updatePageMeta()" /></div>
 					<div class="field"><label>Nav Inactive</label><input id="page-nav-inactive-color" type="color" onchange="updatePageMeta()" /></div>
+					<div class="field"><label>Nav Text</label><input id="nav-text-color" type="color" onchange="updateNavStyle()" /></div>
+					<div class="field"><label>Nav Radius</label><input id="nav-radius" type="number" min="0" max="50" onchange="updateNavStyle()" /></div>
 					<div class="field"><label>Button Fill</label><input id="page-btn-color" type="color" onchange="updatePageStyle()" /></div>
 					<div class="field"><label>Pressed</label><input id="page-btn-pressed" type="color" onchange="updatePageStyle()" /></div>
 					<div class="field"><label>Border</label><input id="page-btn-border" type="color" onchange="updatePageStyle()" /></div>
@@ -586,6 +590,12 @@ function hydratePageFields(){
 	if (pageNavColor) pageNavColor.value = page.nav_color || theme.nav_button_active_color || '#ff9d2e';
 	const pageNavInactive = document.getElementById('page-nav-inactive-color');
 	if (pageNavInactive) pageNavInactive.value = page.nav_inactive_color || theme.nav_button_color || '#3a3a3a';
+	const navTextInput = document.getElementById('nav-text-color');
+	if (navTextInput) navTextInput.value = theme.nav_button_text_color || theme.text_primary || '#f2f4f8';
+	const navRadiusInput = document.getElementById('nav-radius');
+	if (navRadiusInput) navRadiusInput.value = (typeof theme.nav_button_radius === 'number')
+		? theme.nav_button_radius
+		: ((typeof theme.button_radius === 'number') ? theme.button_radius : 20);
 	const pageBgColor = document.getElementById('page-bg-color');
 	if (pageBgColor) pageBgColor.value = page.bg_color || theme.page_bg_color || '#0f0f0f';
 	const pageTextColor = document.getElementById('page-text-color');
@@ -615,6 +625,33 @@ function updatePageMeta(){
 	page.nav_color = document.getElementById('page-nav-color').value;
 	page.nav_inactive_color = document.getElementById('page-nav-inactive-color').value;
 	renderPageList();
+	renderNav();
+	renderPreview();
+}
+
+function updateNavStyle(){
+	ensurePages();
+	config.theme = config.theme || {};
+	const theme = config.theme;
+	const navTextInput = document.getElementById('nav-text-color');
+	const baselineNavText = document.getElementById('theme-nav-text');
+	const baselineNavRadius = document.getElementById('theme-nav-radius');
+	if (navTextInput) {
+		const textColor = navTextInput.value || theme.nav_button_text_color || '#f2f4f8';
+		theme.nav_button_text_color = textColor;
+		navTextInput.value = textColor;
+		if (baselineNavText) baselineNavText.value = textColor;
+	}
+	if (navRadiusInput) {
+		let radius = parseInt(navRadiusInput.value);
+		if (Number.isNaN(radius)) {
+			radius = (typeof theme.nav_button_radius === 'number') ? theme.nav_button_radius : ((typeof theme.button_radius === 'number') ? theme.button_radius : 20);
+		}
+		radius = Math.max(0, Math.min(50, radius));
+		navRadiusInput.value = radius;
+		theme.nav_button_radius = radius;
+		if (baselineNavRadius) baselineNavRadius.value = radius;
+	}
 	renderNav();
 	renderPreview();
 }
@@ -679,6 +716,20 @@ function capturePageAsBaseline(){
 	const firstBtn = (page.buttons||[])[0] || {};
 	const buttonFontFamily = firstDefined(firstBtn.font_family, theme.button_font_family, 'montserrat');
 	const buttonFontSize = firstDefined(firstBtn.font_size, theme.button_font_size, 24);
+	const navTextInput = document.getElementById('nav-text-color');
+	const navRadiusInput = document.getElementById('nav-radius');
+	let navTextColor = theme.nav_button_text_color || theme.text_primary || '#f2f4f8';
+	if (navTextInput && navTextInput.value) {
+		navTextColor = navTextInput.value;
+	}
+	let navRadius = typeof theme.nav_button_radius === 'number' ? theme.nav_button_radius : undefined;
+	if (navRadiusInput) {
+		const parsedRadius = parseInt(navRadiusInput.value);
+		if (!Number.isNaN(parsedRadius)) navRadius = parsedRadius;
+	}
+	if (!Number.isFinite(navRadius)) {
+		navRadius = (typeof theme.button_radius === 'number' && !Number.isNaN(theme.button_radius)) ? theme.button_radius : 20;
+	}
 	
 	config.theme = {
 		...theme,
@@ -686,6 +737,8 @@ function capturePageAsBaseline(){
 		text_primary: page.text_color || theme.text_primary || '#f2f4f8',
 		nav_button_active_color: page.nav_color || theme.nav_button_active_color || '#ff9d2e',
 		nav_button_color: page.nav_inactive_color || theme.nav_button_color || '#3a3a3a',
+		nav_button_text_color: navTextColor,
+		nav_button_radius: Math.max(0, Math.min(50, navRadius)),
 		accent_color: page.button_color || theme.accent_color || '#ff9d2e',
 		button_pressed_color: page.button_pressed_color || theme.button_pressed_color || '#ff7a1a',
 		border_color: page.button_border_color || theme.border_color || '#20232f',
@@ -722,6 +775,7 @@ function applyBaselineToPage(){
 		border_color: theme.border_color || page.button_border_color || btn.border_color,
 		border_width: theme.border_width !== undefined ? theme.border_width : (page.button_border_width || btn.border_width),
 		corner_radius: theme.button_radius !== undefined ? theme.button_radius : (page.button_radius || btn.corner_radius),
+		text_color: theme.text_primary || page.text_color || btn.text_color || '#f2f4f8',
 		font_family: theme.button_font_family || btn.font_family || 'montserrat',
 		font_size: theme.button_font_size || btn.font_size || 24
 	}));
@@ -746,6 +800,11 @@ function renderGrid(){
 	if(!grid) return;
 	const page = config.pages[activePageIndex];
 	const theme = config.theme || {};
+	const fallbackText = page.text_color || theme.text_primary || '#f2f4f8';
+	const fallbackFill = page.button_color || theme.accent_color || '#ff9d2e';
+	const fallbackBorderColor = page.button_border_color || theme.border_color || '#20232f';
+	const fallbackBorderWidth = Number.isFinite(page.button_border_width) ? page.button_border_width : (theme.border_width || 0);
+	const fallbackRadius = Number.isFinite(page.button_radius) && page.button_radius > 0 ? page.button_radius : (theme.button_radius || 12);
 	grid.style.gridTemplateColumns = `repeat(${page.cols}, minmax(120px, 1fr))`;
 	grid.innerHTML = '';
 	for(let r=0;r<page.rows;r++){
@@ -756,8 +815,15 @@ function renderGrid(){
 				cell.className = 'grid-cell';
 				const inner = document.createElement('div');
 				inner.className = 'grid-btn';
-				inner.style.background = btn.color || page.button_color || theme.button_color || theme.accent_color || '#ff9d2e';
-				inner.style.color = '#000';
+				const displayFill = btn.color || fallbackFill;
+				const displayText = btn.text_color || fallbackText;
+				const displayBorderColor = btn.border_color || fallbackBorderColor;
+				const displayBorderWidth = (btn.border_width !== undefined ? btn.border_width : fallbackBorderWidth) || 0;
+				const displayRadius = (btn.corner_radius !== undefined && btn.corner_radius !== null && btn.corner_radius > 0) ? btn.corner_radius : fallbackRadius;
+				inner.style.background = displayFill;
+				inner.style.color = displayText;
+				inner.style.border = `${displayBorderWidth}px solid ${displayBorderColor}`;
+				inner.style.borderRadius = `${displayRadius}px`;
 				inner.textContent = btn.label || 'Button';
 				inner.draggable = true;
 				inner.ondragstart = (e)=>{ e.dataTransfer.setData('text/plain', `${r},${c}`); };
@@ -992,6 +1058,10 @@ function renderNav(){
 	nav.innerHTML = '';
 	nav.style.background = firstDefined(theme.surface_color, '#12141c');
 	nav.style.borderBottom = `1px solid ${firstDefined(theme.border_color, '#20232f')}`;
+	const navTextColor = theme.nav_button_text_color || theme.text_primary || '#f2f4f8';
+	const navRadius = (typeof theme.nav_button_radius === 'number' && !Number.isNaN(theme.nav_button_radius))
+		? theme.nav_button_radius
+		: ((typeof theme.button_radius === 'number' && !Number.isNaN(theme.button_radius)) ? theme.button_radius : 20);
 	config.pages.forEach((p,idx)=>{
 		const chip = document.createElement('div');
 		chip.className = 'pill';
@@ -1000,7 +1070,9 @@ function renderNav(){
 		chip.style.background = active 
 			? (p.nav_color || theme.nav_button_active_color || theme.accent_color || '#ff9d2e') 
 			: (p.nav_inactive_color || theme.nav_button_color || '#2a2a2a');
-		chip.style.color = active ? '#16110a' : '#f2f4f8';
+		chip.style.color = navTextColor;
+		chip.style.opacity = active ? 1 : 0.75;
+		chip.style.borderRadius = `${navRadius}px`;
 		chip.draggable = true;
 		chip.ondragstart = (e)=>{ e.dataTransfer.setData('text/plain', idx); };
 		chip.ondragover = (e)=>e.preventDefault();
@@ -1056,6 +1128,10 @@ function hydrateThemeFields(){
 	if (themeNavActive) themeNavActive.value = theme.nav_button_active_color || '#ff9d2e';
 	const themeNavButton = document.getElementById('theme-nav-button');
 	if (themeNavButton) themeNavButton.value = theme.nav_button_color || '#2a2a2a';
+	const themeNavText = document.getElementById('theme-nav-text');
+	if (themeNavText) themeNavText.value = theme.nav_button_text_color || theme.text_primary || '#f2f4f8';
+	const themeNavRadius = document.getElementById('theme-nav-radius');
+	if (themeNavRadius) themeNavRadius.value = (typeof theme.nav_button_radius === 'number') ? theme.nav_button_radius : (theme.button_radius || 20);
 	const themeButtonColor = document.getElementById('theme-button-color');
 	if (themeButtonColor) themeButtonColor.value = theme.accent_color || '#ff9d2e';
 	const themeButtonPressed = document.getElementById('theme-button-pressed');
@@ -1085,19 +1161,28 @@ function collectTheme(){
 		border_color: document.getElementById('theme-border').value,
 		nav_button_color: document.getElementById('theme-nav-button').value,
 		nav_button_active_color: document.getElementById('theme-nav-active').value,
+		nav_button_text_color: document.getElementById('theme-nav-text').value,
+		nav_button_radius: Math.max(0, Math.min(50, parseInt(document.getElementById('theme-nav-radius').value)||20)),
 		button_radius: parseInt(document.getElementById('theme-radius').value)||12,
 		border_width: parseInt(document.getElementById('theme-border-width').value)||0,
 		
 		// Preserve additional fields
 		button_font_family: existing.button_font_family || 'montserrat',
 		button_font_size: existing.button_font_size || 24
-	};
+		};
+
+		const quickNavText = document.getElementById('nav-text-color');
+		if (quickNavText) quickNavText.value = config.theme.nav_button_text_color || config.theme.text_primary || '#f2f4f8';
+		const quickNavRadius = document.getElementById('nav-radius');
+		if (quickNavRadius) quickNavRadius.value = (typeof config.theme.nav_button_radius === 'number')
+			? config.theme.nav_button_radius
+			: (config.theme.button_radius || 20);
 }
 
 function wireThemeInputs(){
 	['theme-surface','theme-text-primary','theme-text-secondary','theme-header-border','theme-header-border-width',
-	 'theme-page-bg','theme-text-color','theme-nav-active','theme-nav-button','theme-button-color','theme-button-pressed',
-	 'theme-border','theme-border-width','theme-radius'].forEach(id=>{
+	 'theme-page-bg','theme-text-color','theme-nav-active','theme-nav-button','theme-nav-text','theme-nav-radius',
+	 'theme-button-color','theme-button-pressed','theme-border','theme-border-width','theme-radius'].forEach(id=>{
 		const el = document.getElementById(id);
 		if(!el) return;
 		el.addEventListener('input', ()=>{ collectTheme(); renderPreview(); });

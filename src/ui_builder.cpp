@@ -215,6 +215,17 @@ void UIBuilder::createBaseScreen() {
     lv_obj_set_style_text_color(status_sta_label_, config_ ? colorFromHex(config_->theme.text_primary, UITheme::COLOR_TEXT_PRIMARY) : UITheme::COLOR_TEXT_PRIMARY, 0);
     lv_label_set_text(status_sta_label_, "LAN waiting...");
 
+    // Invisible settings hotspot in the upper-right corner
+    header_overlay_ = lv_btn_create(base_screen_);
+    lv_obj_remove_style_all(header_overlay_);
+    lv_obj_set_size(header_overlay_, 120, 80);
+    lv_obj_set_style_bg_opa(header_overlay_, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_border_width(header_overlay_, 0, 0);
+    lv_obj_set_pos(header_overlay_, screen_w - 120, 0);
+    lv_obj_add_flag(header_overlay_, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_add_event_cb(header_overlay_, settingsButtonEvent, LV_EVENT_CLICKED, nullptr);
+    lv_obj_move_foreground(header_overlay_);
+
     // Use content_root directly as page container
     page_container_ = content_root_;
 }
@@ -251,7 +262,10 @@ void UIBuilder::buildNavigation() {
 
         lv_obj_set_style_border_width(btn, config_->theme.border_width, 0);
         lv_obj_set_style_border_color(btn, colorFromHex(config_->theme.border_color, UITheme::COLOR_BORDER), 0);
-        lv_obj_set_style_radius(btn, config_->theme.button_radius ? config_->theme.button_radius : 20, 0);
+        const std::uint8_t nav_radius = (config_->theme.nav_button_radius || config_->theme.nav_button_radius == 0)
+            ? config_->theme.nav_button_radius
+            : (config_->theme.button_radius ? config_->theme.button_radius : 20);
+        lv_obj_set_style_radius(btn, nav_radius, 0);
         lv_obj_set_style_pad_left(btn, UITheme::SPACE_MD, 0);
         lv_obj_set_style_pad_right(btn, UITheme::SPACE_MD, 0);
         lv_obj_set_style_pad_top(btn, UITheme::SPACE_SM, 0);
