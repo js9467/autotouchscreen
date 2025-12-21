@@ -4,6 +4,8 @@
 #include <WiFi.h>
 #include <DNSServer.h>
 
+#include <cstdint>
+
 struct WifiStatusSnapshot {
     IPAddress ap_ip;
     IPAddress sta_ip;
@@ -32,4 +34,6 @@ private:
     bool events_registered_ = false;
     IPAddress ap_ip_{0, 0, 0, 0};
     IPAddress sta_ip_{0, 0, 0, 0};
+    bool wifi_reconfigure_pending_ = false;
+    std::uint32_t wifi_reconfigure_request_ms_ = 0;
 };

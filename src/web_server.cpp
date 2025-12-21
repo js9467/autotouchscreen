@@ -15,6 +15,7 @@ const IPAddress kApGateway(192, 168, 4, 250);
 const IPAddress kApMask(255, 255, 255, 0);
 constexpr std::size_t kConfigJsonLimit = 524288;  // 512KB for config with base64 images (base64 adds ~33% overhead)
 constexpr std::size_t kWifiConnectJsonLimit = 1024;
+constexpr std::uint32_t kWifiReconfigureDelayMs = 750;  // Allow HTTP responses to finish before toggling radios
 
 const char* AuthModeToString(wifi_auth_mode_t mode) {
     switch (mode) {
@@ -29,6 +30,13 @@ const char* AuthModeToString(wifi_auth_mode_t mode) {
         case WIFI_AUTH_WAPI_PSK: return "wapi";
         default: return "unknown";
     }
+}
+
+bool WifiConfigEquals(const WifiConfig& lhs, const WifiConfig& rhs) {
+    const auto creds_equal = [](const WifiCredentials& a, const WifiCredentials& b) {
+        return a.enabled == b.enabled && a.ssid == b.ssid && a.password == b.password;
+    };
+    return creds_equal(lhs.ap, rhs.ap) && creds_equal(lhs.sta, rhs.sta);
 }
 }
 
@@ -70,10 +78,19 @@ void WebServerManager::begin() {
 void WebServerManager::loop() {
     // Process DNS requests for captive portal
     dns_server_.processNextRequest();
+
+    if (wifi_reconfigure_pending_) {
+        const std::uint32_t now = millis();
+        if (now - wifi_reconfigure_request_ms_ >= kWifiReconfigureDelayMs) {
+            wifi_reconfigure_pending_ = false;
+            configureWifi();
+        }
+    }
 }
 
 void WebServerManager::notifyConfigChanged() {
-    configureWifi();
+    wifi_reconfigure_pending_ = true;
+    wifi_reconfigure_request_ms_ = millis();
 }
 
 void WebServerManager::configureWifi() {
@@ -176,8 +193,10 @@ void WebServerManager::setupRoutes() {
 
     auto* handler = new AsyncCallbackJsonWebHandler("/api/config",
         [this](AsyncWebServerRequest* request, JsonVariant& json) {
+            auto& config_mgr = ConfigManager::instance();
+            WifiConfig previous_wifi = config_mgr.getConfig().wifi;
             std::string error;
-            if (!ConfigManager::instance().updateFromJson(json.as<JsonVariantConst>(), error)) {
+            if (!config_mgr.updateFromJson(json.as<JsonVariantConst>(), error)) {
                 DynamicJsonDocument doc(256);
                 doc["status"] = "error";
                 doc["message"] = error.c_str();
@@ -187,19 +206,24 @@ void WebServerManager::setupRoutes() {
                 return;
             }
 
-            if (!ConfigManager::instance().save()) {
+            const bool wifi_changed = !WifiConfigEquals(previous_wifi, config_mgr.getConfig().wifi);
+
+            if (!config_mgr.save()) {
                 request->send(500, "application/json", "{\"status\":\"error\",\"message\":\"Failed to persist\"}");
                 return;
             }
 
             UIBuilder::instance().markDirty();
-            notifyConfigChanged();
 
             DynamicJsonDocument doc(64);
             doc["status"] = "ok";
             String payload;
             serializeJson(doc, payload);
             request->send(200, "application/json", payload);
+
+            if (wifi_changed) {
+                notifyConfigChanged();
+            }
         }, kConfigJsonLimit);
     server_.addHandler(handler);
 
