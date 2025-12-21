@@ -15,6 +15,8 @@ const IPAddress kApGateway(192, 168, 4, 250);
 const IPAddress kApMask(255, 255, 255, 0);
 constexpr std::size_t kConfigJsonLimit = 524288;  // 512KB for config with base64 images (base64 adds ~33% overhead)
 constexpr std::size_t kWifiConnectJsonLimit = 1024;
+constexpr std::size_t kImageUploadJsonLimit = 1048576;  // 1MB limit for header/base64 payloads
+constexpr std::size_t kImageUploadContentLimit = 1048576;
 constexpr std::uint32_t kWifiReconfigureDelayMs = 750;  // Allow HTTP responses to finish before toggling radios
 
 const char* AuthModeToString(wifi_auth_mode_t mode) {
@@ -287,8 +289,12 @@ void WebServerManager::setupRoutes() {
             // Store image in appropriate field
             if (imageType == "header") {
                 cfg.images.header_logo = imageData.c_str();
+                // Toggle logo display based on whether we have data
+                cfg.header.show_logo = !imageData.isEmpty();
                 // Clear logo_variant when custom header is uploaded
-                cfg.header.logo_variant = "";
+                if (!imageData.isEmpty()) {
+                    cfg.header.logo_variant = "";
+                }
             } else if (imageType == "splash") {
                 cfg.images.splash_logo = imageData.c_str();
             } else if (imageType == "background") {
@@ -312,7 +318,8 @@ void WebServerManager::setupRoutes() {
             String payload;
             serializeJson(doc, payload);
             request->send(200, "application/json", payload);
-        }, 262144);  // 256KB limit for single image upload
+        }, kImageUploadJsonLimit);
+    image_handler->setMaxContentLength(kImageUploadContentLimit);
     server_.addHandler(image_handler);
 
     server_.on("/api/wifi/scan", HTTP_GET, [](AsyncWebServerRequest* request) {

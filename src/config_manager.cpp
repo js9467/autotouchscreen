@@ -6,9 +6,11 @@
 
 #include <algorithm>
 #include <sstream>
+#include <cctype>
 
 namespace {
 constexpr const char* kConfigPath = "/config.json";
+constexpr const char* kDefaultManifestUrl = "https://updates.bronco-controls.com/manifest.json";
 
 template <typename T>
 T clampValue(T value, T min_value, T max_value) {
@@ -38,11 +40,32 @@ std::string sanitizeColor(const std::string& hex) {
     return "#FFA500";
 }
 
+bool isValidHexColor(const std::string& hex) {
+    if (hex.size() != 7 || hex[0] != '#') {
+        return false;
+    }
+    for (std::size_t i = 1; i < hex.size(); ++i) {
+        if (!std::isxdigit(static_cast<unsigned char>(hex[i]))) {
+            return false;
+        }
+    }
+    return true;
+}
+
 std::string sanitizeColorOptional(const std::string& hex, const std::string& fallback = "") {
     if (hex.empty()) {
         return fallback;
     }
-    return sanitizeColor(hex);
+    return isValidHexColor(hex) ? hex : fallback;
+}
+
+std::string trimCopy(const std::string& value) {
+    const std::size_t start = value.find_first_not_of(" \t\r\n");
+    if (start == std::string::npos) {
+        return "";
+    }
+    const std::size_t end = value.find_last_not_of(" \t\r\n");
+    return value.substr(start, end - start + 1);
 }
 
 std::string fallbackId(const char* prefix, std::size_t index) {
@@ -108,7 +131,7 @@ std::string ConfigManager::toJson() const {
 }
 
 bool ConfigManager::updateFromJson(JsonVariantConst json, std::string& error) {
-    DeviceConfig incoming;
+    DeviceConfig incoming = config_;  // Preserve existing fields when JSON omits them
     if (!decodeConfig(json, incoming, error)) {
         return false;
     }
@@ -163,6 +186,9 @@ DeviceConfig ConfigManager::buildDefaultConfig() const {
     cfg.header.logo_variant = "";  // Empty by default - no built-in logo
     cfg.header.title_font = "montserrat_24";
     cfg.header.subtitle_font = "montserrat_12";
+    cfg.header.logo_target_height = 64;
+    cfg.header.logo_preserve_aspect = true;
+    cfg.header.nav_spacing = 12;
 
     cfg.display.brightness = 100;
     cfg.display.sleep_enabled = false;
@@ -173,6 +199,12 @@ DeviceConfig ConfigManager::buildDefaultConfig() const {
     cfg.wifi.ap.ssid = "CAN-Control";
     cfg.wifi.ap.password = "canbus123";
     cfg.wifi.sta.enabled = false;
+
+    cfg.ota.enabled = true;
+    cfg.ota.auto_apply = true;
+    cfg.ota.manifest_url = kDefaultManifestUrl;
+    cfg.ota.channel = "stable";
+    cfg.ota.check_interval_minutes = 60;
 
     // Initialize available fonts
     cfg.available_fonts.clear();
@@ -276,6 +308,10 @@ void ConfigManager::encodeConfig(const DeviceConfig& source, DynamicJsonDocument
     header["title_font"] = source.header.title_font.c_str();
     header["subtitle_font"] = source.header.subtitle_font.c_str();
     header["title_align"] = source.header.title_align.c_str();
+    header["logo_position"] = source.header.logo_position.c_str();
+    header["logo_target_height"] = source.header.logo_target_height;
+    header["logo_preserve_aspect"] = source.header.logo_preserve_aspect;
+    header["nav_spacing"] = source.header.nav_spacing;
 
     JsonObject display = doc["display"].to<JsonObject>();
     display["brightness"] = source.display.brightness;
@@ -317,11 +353,19 @@ void ConfigManager::encodeConfig(const DeviceConfig& source, DynamicJsonDocument
     sta["ssid"] = source.wifi.sta.ssid.c_str();
     sta["password"] = source.wifi.sta.password.c_str();
 
+    JsonObject ota = doc["ota"].to<JsonObject>();
+    ota["enabled"] = source.ota.enabled;
+    ota["auto_apply"] = source.ota.auto_apply;
+    ota["manifest_url"] = source.ota.manifest_url.c_str();
+    ota["channel"] = source.ota.channel.c_str();
+    ota["check_interval_minutes"] = source.ota.check_interval_minutes;
+
     JsonArray pages = doc["pages"].to<JsonArray>();
     for (const auto& page : source.pages) {
         JsonObject page_obj = pages.createNestedObject();
         page_obj["id"] = page.id.c_str();
         page_obj["name"] = page.name.c_str();
+        page_obj["nav_text"] = page.nav_text.c_str();
         page_obj["nav_color"] = page.nav_color.c_str();
         page_obj["nav_inactive_color"] = page.nav_inactive_color.c_str();
         page_obj["nav_text_color"] = page.nav_text_color.c_str();
@@ -420,6 +464,10 @@ bool ConfigManager::decodeConfig(JsonVariantConst json, DeviceConfig& target, st
         target.header.title_font = safeString(header["title_font"], target.header.title_font);
         target.header.subtitle_font = safeString(header["subtitle_font"], target.header.subtitle_font);
         target.header.title_align = safeString(header["title_align"], target.header.title_align);
+        target.header.logo_position = safeString(header["logo_position"], target.header.logo_position);
+        target.header.logo_target_height = clampValue<std::uint16_t>(header["logo_target_height"] | target.header.logo_target_height, 16u, 128u);
+        target.header.logo_preserve_aspect = header["logo_preserve_aspect"] | target.header.logo_preserve_aspect;
+        target.header.nav_spacing = clampValue<std::uint8_t>(header["nav_spacing"] | target.header.nav_spacing, 0u, 60u);
     }
 
     JsonObjectConst display = json["display"];
@@ -474,6 +522,16 @@ bool ConfigManager::decodeConfig(JsonVariantConst json, DeviceConfig& target, st
         }
     }
 
+    JsonObjectConst ota = json["ota"];
+    if (!ota.isNull()) {
+        target.ota.enabled = ota["enabled"] | target.ota.enabled;
+        target.ota.auto_apply = ota["auto_apply"] | target.ota.auto_apply;
+        target.ota.manifest_url = safeString(ota["manifest_url"], target.ota.manifest_url);
+        target.ota.channel = safeString(ota["channel"], target.ota.channel);
+        const std::uint32_t interval = ota["check_interval_minutes"] | target.ota.check_interval_minutes;
+        target.ota.check_interval_minutes = clampValue<std::uint32_t>(interval, 5u, 1440u);
+    }
+
     target.pages.clear();
     JsonArrayConst pages = json["pages"].as<JsonArrayConst>();
     if (!pages.isNull()) {
@@ -485,7 +543,12 @@ bool ConfigManager::decodeConfig(JsonVariantConst json, DeviceConfig& target, st
 
             PageConfig page;
             page.id = safeString(page_obj["id"], fallbackId("page", page_index));
-            page.name = safeString(page_obj["name"], page.id);
+            std::string raw_name = trimCopy(safeString(page_obj["name"], ""));
+            if (raw_name.empty()) {
+                raw_name = page.id;
+            }
+            page.name = raw_name;
+            page.nav_text = trimCopy(safeString(page_obj["nav_text"], ""));
             page.nav_color = sanitizeColorOptional(safeString(page_obj["nav_color"], ""));
             page.nav_inactive_color = sanitizeColorOptional(safeString(page_obj["nav_inactive_color"], ""));
             page.nav_text_color = sanitizeColorOptional(safeString(page_obj["nav_text_color"], ""));

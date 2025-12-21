@@ -6,6 +6,7 @@
 #include <Arduino.h>
 #include <cstdlib>
 #include <algorithm>
+#include <cstring>
 
 #include <ESP_Panel_Library.h>
 
@@ -113,7 +114,7 @@ void UIBuilder::createBaseScreen() {
     lv_obj_set_style_bg_opa(main_container, LV_OPA_COVER, 0);
     lv_obj_set_style_radius(main_container, 0, 0);
     lv_obj_set_style_pad_all(main_container, UITheme::SPACE_SM, 0);
-    lv_obj_set_style_pad_gap(main_container, UITheme::SPACE_SM, 0);
+    lv_obj_set_style_pad_gap(main_container, 0, 0);
     lv_obj_set_style_shadow_width(main_container, 0, 0);
     lv_obj_set_flex_flow(main_container, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_flex_align(main_container, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER);
@@ -135,13 +136,46 @@ void UIBuilder::createBaseScreen() {
 
     const lv_coord_t header_text_width = screen_w - (UITheme::SPACE_SM * 2);
 
+    header_brand_row_ = lv_obj_create(header_bar_);
+    lv_obj_remove_style_all(header_brand_row_);
+    lv_obj_set_width(header_brand_row_, lv_pct(100));
+    lv_obj_set_style_pad_all(header_brand_row_, 0, 0);
+    lv_obj_set_style_pad_gap(header_brand_row_, UITheme::SPACE_XS, 0);
+    lv_obj_set_flex_flow(header_brand_row_, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_flex_align(header_brand_row_, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
+    lv_obj_clear_flag(header_brand_row_, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_style_border_side(header_brand_row_, LV_BORDER_SIDE_BOTTOM, 0);
+    lv_obj_set_style_border_width(header_brand_row_, 0, 0);
+    lv_obj_set_style_border_color(header_brand_row_, lv_color_hex(0x000000), 0);
+
     // Optional header logo (hidden by default)
-    header_logo_img_ = lv_img_create(header_bar_);
-    lv_obj_set_size(header_logo_img_, 24, 24);
+    header_logo_slot_ = lv_obj_create(header_brand_row_);
+    lv_obj_remove_style_all(header_logo_slot_);
+    lv_obj_set_width(header_logo_slot_, LV_SIZE_CONTENT);
+    lv_obj_set_height(header_logo_slot_, LV_SIZE_CONTENT);
+    lv_obj_set_style_pad_all(header_logo_slot_, 0, 0);
+    lv_obj_set_style_bg_opa(header_logo_slot_, LV_OPA_TRANSP, 0);
+    lv_obj_set_flex_flow(header_logo_slot_, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_flex_align(header_logo_slot_, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_clear_flag(header_logo_slot_, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_add_flag(header_logo_slot_, LV_OBJ_FLAG_HIDDEN);
+
+    header_logo_img_ = lv_img_create(header_logo_slot_);
     lv_obj_add_flag(header_logo_img_, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_center(header_logo_img_);
+
+    header_text_container_ = lv_obj_create(header_brand_row_);
+    lv_obj_remove_style_all(header_text_container_);
+    lv_obj_set_width(header_text_container_, lv_pct(100));
+    lv_obj_set_style_pad_all(header_text_container_, 0, 0);
+    lv_obj_set_style_pad_gap(header_text_container_, UITheme::SPACE_XS, 0);
+    lv_obj_set_flex_flow(header_text_container_, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_flex_align(header_text_container_, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
+    lv_obj_set_flex_grow(header_text_container_, 1);
+    lv_obj_clear_flag(header_text_container_, LV_OBJ_FLAG_SCROLLABLE);
 
     // Title label - wraps text and scales with content
-    header_title_label_ = lv_label_create(header_bar_);
+    header_title_label_ = lv_label_create(header_text_container_);
     const lv_font_t* title_font = fontFromName(config_ ? config_->header.title_font : "montserrat_12");
     lv_obj_set_style_text_font(header_title_label_, title_font, 0);
     lv_obj_set_style_text_color(header_title_label_, config_ ? colorFromHex(config_->theme.text_primary, UITheme::COLOR_TEXT_PRIMARY) : UITheme::COLOR_TEXT_PRIMARY, 0);
@@ -150,7 +184,7 @@ void UIBuilder::createBaseScreen() {
     lv_obj_set_style_max_width(header_title_label_, header_text_width, 0);
 
     // Subtitle label - wraps text and scales with content
-    header_subtitle_label_ = lv_label_create(header_bar_);
+    header_subtitle_label_ = lv_label_create(header_text_container_);
     const lv_font_t* subtitle_font = fontFromName(config_ ? config_->header.subtitle_font : "montserrat_10");
     lv_obj_set_style_text_font(header_subtitle_label_, subtitle_font, 0);
     lv_obj_set_style_text_color(header_subtitle_label_, config_ ? colorFromHex(config_->theme.text_secondary, UITheme::COLOR_TEXT_SECONDARY) : UITheme::COLOR_TEXT_SECONDARY, 0);
@@ -158,15 +192,21 @@ void UIBuilder::createBaseScreen() {
     lv_obj_set_width(header_subtitle_label_, lv_pct(100));
     lv_obj_set_style_max_width(header_subtitle_label_, header_text_width, 0);
 
-    // Navigation bar - pill buttons similar to the web preview
-    nav_bar_ = lv_obj_create(main_container);
+    // Navigation bar lives inside the header so the shell only has two sections (header + page)
+    nav_bar_ = lv_obj_create(header_bar_);
     lv_obj_remove_style_all(nav_bar_);
     lv_obj_set_width(nav_bar_, lv_pct(100));
     lv_obj_set_height(nav_bar_, LV_SIZE_CONTENT);
-    lv_obj_set_style_pad_all(nav_bar_, 0, 0);
+    lv_obj_set_style_pad_left(nav_bar_, UITheme::SPACE_SM, 0);
+    lv_obj_set_style_pad_right(nav_bar_, UITheme::SPACE_SM, 0);
+    lv_obj_set_style_pad_top(nav_bar_, nav_base_pad_top_, 0);
+    lv_obj_set_style_pad_bottom(nav_bar_, UITheme::SPACE_XS, 0);
     lv_obj_set_style_pad_gap(nav_bar_, UITheme::SPACE_SM, 0);
-    lv_obj_set_flex_flow(nav_bar_, LV_FLEX_FLOW_ROW);
-    lv_obj_set_flex_align(nav_bar_, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_set_flex_flow(nav_bar_, LV_FLEX_FLOW_ROW_WRAP);
+    lv_obj_set_flex_align(nav_bar_, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_START);
+    lv_obj_set_style_bg_opa(nav_bar_, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_border_width(nav_bar_, 0, 0);
+    lv_obj_set_style_border_opa(nav_bar_, LV_OPA_TRANSP, 0);
     lv_obj_clear_flag(nav_bar_, LV_OBJ_FLAG_SCROLLABLE);
 
     // Content root (below nav)
@@ -228,6 +268,8 @@ void UIBuilder::createBaseScreen() {
 
     // Use content_root directly as page container
     page_container_ = content_root_;
+
+    applyHeaderNavSpacing();
 }
 
 void UIBuilder::buildNavigation() {
@@ -243,7 +285,8 @@ void UIBuilder::buildNavigation() {
 
     for (const auto& page : config_->pages) {
         lv_obj_t* btn = lv_btn_create(nav_bar_);
-        lv_obj_remove_style_all(btn);
+        // Don't remove all styles - keep base rendering intact for child labels
+        lv_obj_clear_flag(btn, LV_OBJ_FLAG_SCROLLABLE);
 
         // Use page-specific inactive color, fall back to theme nav_button_color
         lv_color_t inactive_color = !page.nav_inactive_color.empty() ?
@@ -277,6 +320,8 @@ void UIBuilder::buildNavigation() {
         lv_obj_set_style_pad_right(btn, UITheme::SPACE_MD, 0);
         lv_obj_set_style_pad_top(btn, UITheme::SPACE_SM, 0);
         lv_obj_set_style_pad_bottom(btn, UITheme::SPACE_SM, 0);
+        lv_obj_set_style_min_width(btn, 140, 0);
+        lv_obj_set_style_max_width(btn, 320, 0);
         lv_obj_set_height(btn, 46);
         lv_obj_set_style_shadow_width(btn, 12, 0);
         lv_obj_set_style_shadow_color(btn, lv_color_hex(0x000000), 0);
@@ -288,17 +333,34 @@ void UIBuilder::buildNavigation() {
         lv_obj_add_event_cb(btn, navButtonEvent, LV_EVENT_CLICKED,
                             reinterpret_cast<void*>(static_cast<uintptr_t>(index)));
 
+        // Create label - keep it simple like the working test
         lv_obj_t* label = lv_label_create(btn);
-        lv_label_set_text(label, page.name.c_str());
-        lv_obj_set_style_text_font(label, UITheme::FONT_BODY, 0);
-        const std::string nav_text_hex = !page.nav_text_color.empty()
-            ? page.nav_text_color
-            : (!config_->theme.nav_button_text_color.empty()
-                ? config_->theme.nav_button_text_color
-                : config_->theme.text_primary);
-        lv_color_t nav_text_color = colorFromHex(nav_text_hex, UITheme::COLOR_TEXT_PRIMARY);
+        
+        // Get label text
+        std::string nav_label_text;
+        if (!page.nav_text.empty()) {
+            nav_label_text = page.nav_text;
+        } else if (!page.name.empty()) {
+            nav_label_text = page.name;
+        } else if (!page.id.empty()) {
+            nav_label_text = page.id;
+        } else {
+            nav_label_text = "Page " + std::to_string(index + 1);
+        }
+        lv_label_set_text(label, nav_label_text.c_str());
+        
+        // Get text color: p.nav_text_color || theme.nav_button_text_color || theme.text_primary || '#f2f4f8'
+        lv_color_t nav_text_color = lv_color_hex(0xf2f4f8);  // Default
+        if (!page.nav_text_color.empty()) {
+            nav_text_color = colorFromHex(page.nav_text_color, nav_text_color);
+        } else if (!config_->theme.nav_button_text_color.empty()) {
+            nav_text_color = colorFromHex(config_->theme.nav_button_text_color, nav_text_color);
+        } else if (!config_->theme.text_primary.empty()) {
+            nav_text_color = colorFromHex(config_->theme.text_primary, nav_text_color);
+        }
+        
         lv_obj_set_style_text_color(label, nav_text_color, 0);
-        lv_obj_set_style_text_color(label, nav_text_color, LV_STATE_CHECKED);
+        lv_obj_set_style_text_font(label, &lv_font_montserrat_16, 0);
         lv_obj_center(label);
 
         nav_buttons_.push_back(btn);
@@ -439,11 +501,18 @@ void UIBuilder::buildPage(std::size_t index) {
 
         lv_obj_t* title = lv_label_create(btn);
         lv_label_set_text(title, button.label.c_str());
-        // Button text color priority: per-button value, then theme default
-        const std::string text_hex = !button.text_color.empty()
-            ? button.text_color
-            : (config_ ? config_->theme.text_primary : "#FFFFFF");
-        lv_obj_set_style_text_color(title, colorFromHex(text_hex, UITheme::COLOR_TEXT_PRIMARY), 0);
+        // Button text color priority: per-button > page override > theme default
+        const lv_color_t theme_text_fallback = config_
+            ? colorFromHex(config_->theme.text_primary, UITheme::COLOR_TEXT_PRIMARY)
+            : UITheme::COLOR_TEXT_PRIMARY;
+        const lv_color_t page_text_fallback = !page.text_color.empty()
+            ? colorFromHex(page.text_color, theme_text_fallback)
+            : theme_text_fallback;
+        lv_color_t label_color = page_text_fallback;
+        if (!button.text_color.empty()) {
+            label_color = colorFromHex(button.text_color, page_text_fallback);
+        }
+        lv_obj_set_style_text_color(title, label_color, 0);
 
         // Use font_name if specified, otherwise use font_family + font_size
         const lv_font_t* font;
@@ -471,7 +540,7 @@ void UIBuilder::buildPage(std::size_t index) {
 
         // Apply text alignment - set label to full button width for text alignment to work
         lv_obj_set_width(title, lv_pct(100));
-        lv_label_set_long_mode(title, LV_LABEL_LONG_DOT);
+        lv_label_set_long_mode(title, LV_LABEL_LONG_WRAP);
         
         lv_align_t align = LV_ALIGN_CENTER;
         lv_text_align_t text_align = LV_TEXT_ALIGN_CENTER;
@@ -495,10 +564,17 @@ void UIBuilder::updateNavSelection() {
         if (!btn) {
             continue;
         }
+        lv_obj_t* label = lv_obj_get_child(btn, 0);
         if (i == active_page_) {
             lv_obj_add_state(btn, LV_STATE_CHECKED);
+            if (label) {
+                lv_obj_add_state(label, LV_STATE_CHECKED);
+            }
         } else {
             lv_obj_clear_state(btn, LV_STATE_CHECKED);
+            if (label) {
+                lv_obj_clear_state(label, LV_STATE_CHECKED);
+            }
         }
     }
 }
@@ -541,11 +617,12 @@ std::vector<uint8_t> UIBuilder::decodeBase64Logo(const std::string& data_uri) {
     // Find the base64 data after "base64,"
     const std::string prefix = "base64,";
     size_t pos = data_uri.find(prefix);
+    std::string base64_data;
     if (pos == std::string::npos) {
-        return result;
+        base64_data = data_uri;
+    } else {
+        base64_data = data_uri.substr(pos + prefix.length());
     }
-    
-    std::string base64_data = data_uri.substr(pos + prefix.length());
     
     // Base64 decode table
     static const uint8_t decode_table[256] = {
@@ -586,15 +663,234 @@ std::vector<uint8_t> UIBuilder::decodeBase64Logo(const std::string& data_uri) {
     return result;
 }
 
+bool UIBuilder::loadImageDescriptor(const std::string& data_uri,
+                                    std::vector<uint8_t>& pixel_buffer,
+                                    lv_img_dsc_t& descriptor,
+                                    bool scrub_white_background) {
+    if (data_uri.rfind("lvimg:", 0) != 0) {
+        Serial.println("[UI] Unsupported image payload (missing lvimg: prefix)");
+        return false;
+    }
+
+    const size_t fmt_sep = data_uri.find(':', 6);
+    if (fmt_sep == std::string::npos) {
+        Serial.println("[UI] Malformed lvimg payload (format separator missing)");
+        return false;
+    }
+    const std::string format = data_uri.substr(6, fmt_sep - 6);
+
+    const size_t size_sep = data_uri.find(':', fmt_sep + 1);
+    if (size_sep == std::string::npos) {
+        Serial.println("[UI] Malformed lvimg payload (size separator missing)");
+        return false;
+    }
+    const std::string size_part = data_uri.substr(fmt_sep + 1, size_sep - (fmt_sep + 1));
+    const size_t x_pos = size_part.find('x');
+    if (x_pos == std::string::npos) {
+        Serial.println("[UI] Malformed lvimg payload (widthxheight missing)");
+        return false;
+    }
+
+    const uint16_t width = static_cast<uint16_t>(std::atoi(size_part.substr(0, x_pos).c_str()));
+    const uint16_t height = static_cast<uint16_t>(std::atoi(size_part.substr(x_pos + 1).c_str()));
+    if (width == 0 || height == 0) {
+        Serial.println("[UI] Invalid lvimg dimensions");
+        return false;
+    }
+
+    const std::string base64_data = data_uri.substr(size_sep + 1);
+    pixel_buffer = decodeBase64Logo(base64_data);
+    if (pixel_buffer.empty()) {
+        Serial.println("[UI] Failed to decode lvimg base64 payload");
+        return false;
+    }
+
+    descriptor = lv_img_dsc_t{};
+    descriptor.header.always_zero = 0;
+    descriptor.header.w = width;
+    descriptor.header.h = height;
+
+    if (format == "rgb565a") {
+        const size_t expected = static_cast<size_t>(width) * static_cast<size_t>(height) * 3;
+        if (pixel_buffer.size() != expected) {
+            Serial.printf("[UI] lvimg buffer mismatch (%u vs %u)\n",
+                          static_cast<unsigned>(pixel_buffer.size()),
+                          static_cast<unsigned>(expected));
+            return false;
+        }
+        if (scrub_white_background) {
+            const uint8_t tolerance = 28;
+            const uint8_t threshold = static_cast<uint8_t>(255 - tolerance);
+            std::size_t stripped = 0;
+            for (std::size_t i = 0; i + 2 < pixel_buffer.size(); i += 3) {
+                const uint16_t color = static_cast<uint16_t>(pixel_buffer[i]) |
+                                       (static_cast<uint16_t>(pixel_buffer[i + 1]) << 8);
+                uint8_t r5 = static_cast<uint8_t>((color >> 11) & 0x1F);
+                uint8_t g6 = static_cast<uint8_t>((color >> 5) & 0x3F);
+                uint8_t b5 = static_cast<uint8_t>(color & 0x1F);
+                uint8_t r = static_cast<uint8_t>((r5 << 3) | (r5 >> 2));
+                uint8_t g = static_cast<uint8_t>((g6 << 2) | (g6 >> 4));
+                uint8_t b = static_cast<uint8_t>((b5 << 3) | (b5 >> 2));
+                uint8_t maxc = std::max({r, g, b});
+                uint8_t minc = std::min({r, g, b});
+                if (maxc >= threshold && (maxc - minc) <= tolerance && pixel_buffer[i + 2] > 0) {
+                    pixel_buffer[i + 2] = 0;
+                    ++stripped;
+                }
+            }
+            if (stripped > 0) {
+                Serial.printf("[UI] Cleared %u near-white logo pixels to enforce transparency\n", static_cast<unsigned>(stripped));
+            }
+        }
+        descriptor.header.cf = LV_IMG_CF_TRUE_COLOR_ALPHA;
+    } else if (format == "rgb565") {
+        const size_t expected = static_cast<size_t>(width) * static_cast<size_t>(height) * 2;
+        if (pixel_buffer.size() != expected) {
+            Serial.println("[UI] lvimg rgb565 buffer mismatch");
+            return false;
+        }
+        descriptor.header.cf = LV_IMG_CF_TRUE_COLOR;
+    } else {
+        Serial.printf("[UI] Unsupported lvimg format: %s\n", format.c_str());
+        return false;
+    }
+
+    descriptor.data_size = pixel_buffer.size();
+    descriptor.data = pixel_buffer.data();
+    return true;
+}
+
+void UIBuilder::applyHeaderNavSpacing() {
+    if (!header_brand_row_) {
+        return;
+    }
+    lv_coord_t spacing = UITheme::SPACE_SM;
+    if (config_) {
+        spacing = std::min<lv_coord_t>(60, std::max<lv_coord_t>(0, config_->header.nav_spacing));
+    }
+
+    const uint8_t header_border_width = config_ ? config_->theme.header_border_width : 0;
+    if (header_border_width > 0) {
+        lv_color_t header_border_color = colorFromHex(config_->theme.header_border_color, UITheme::COLOR_BORDER);
+        lv_obj_set_style_border_width(header_brand_row_, header_border_width, 0);
+        lv_obj_set_style_border_color(header_brand_row_, header_border_color, 0);
+        lv_obj_set_style_border_opa(header_brand_row_, LV_OPA_COVER, 0);
+    } else {
+        lv_obj_set_style_border_width(header_brand_row_, 0, 0);
+    }
+
+    lv_obj_set_style_pad_bottom(header_brand_row_, spacing, 0);
+
+    nav_base_pad_top_ = spacing > 0
+        ? std::max<lv_coord_t>(UITheme::SPACE_XS, spacing / 2)
+        : UITheme::SPACE_XS;
+    if (nav_bar_) {
+        lv_obj_set_style_pad_top(nav_bar_, nav_base_pad_top_, 0);
+    }
+}
+
+void UIBuilder::applyHeaderLogoSizing(uint16_t src_width,
+                                      uint16_t src_height,
+                                      bool inline_layout) {
+    if (!header_logo_img_ || !header_logo_slot_) {
+        return;
+    }
+
+    constexpr uint16_t kZoomBase = LV_IMG_ZOOM_NONE;  // 256
+    constexpr uint16_t kZoomMin = LV_IMG_ZOOM_NONE / 4;   // 0.25x shrink cap
+    constexpr uint16_t kZoomMax = LV_IMG_ZOOM_NONE * 4;   // 4x enlarge cap
+    uint16_t configured_height = 64;
+    if (config_) {
+        const uint16_t raw_height = config_->header.logo_target_height;
+        configured_height = std::min<uint16_t>(120, std::max<uint16_t>(24, raw_height));
+    }
+    const lv_coord_t target_height = configured_height;
+    const lv_coord_t width_budget = inline_layout
+        ? static_cast<lv_coord_t>(configured_height * 2.5f)
+        : static_cast<lv_coord_t>(configured_height * 3.0f);
+
+    uint32_t zoom = kZoomBase;
+    if (src_height > 0) {
+        const uint32_t scaled = static_cast<uint32_t>(target_height) * kZoomBase;
+        zoom = scaled / src_height;
+        if (zoom == 0) {
+            zoom = kZoomMin;
+        }
+        if (src_width > 0) {
+            const uint32_t width_scaled = static_cast<uint32_t>(width_budget) * kZoomBase;
+            uint32_t width_zoom = width_scaled / src_width;
+            if (width_zoom == 0) {
+                width_zoom = kZoomMin;
+            }
+            zoom = std::min<uint32_t>(zoom, width_zoom);
+        }
+    }
+
+    zoom = std::max<uint32_t>(kZoomMin, std::min<uint32_t>(kZoomMax, zoom));
+    lv_img_set_zoom(header_logo_img_, static_cast<uint16_t>(zoom));
+
+    lv_coord_t display_width = target_height;
+    if (src_width > 0) {
+        display_width = static_cast<lv_coord_t>((static_cast<uint64_t>(src_width) * zoom + (kZoomBase / 2)) / kZoomBase);
+    }
+    display_width = std::max<lv_coord_t>(target_height, display_width);
+    display_width = std::min<lv_coord_t>(width_budget, display_width);
+
+    lv_obj_set_size(header_logo_slot_, display_width, target_height);
+    lv_obj_set_style_min_width(header_logo_slot_, display_width, 0);
+    lv_obj_set_style_min_height(header_logo_slot_, target_height, 0);
+    lv_obj_set_style_max_width(header_logo_slot_, width_budget, 0);
+    lv_obj_set_style_max_height(header_logo_slot_, target_height, 0);
+    lv_obj_set_style_pad_all(header_logo_slot_, 0, 0);
+    lv_obj_set_style_pad_gap(header_logo_slot_, 0, 0);
+    lv_obj_set_style_align(header_logo_img_, LV_ALIGN_CENTER, 0);
+}
+
 void UIBuilder::updateHeaderBranding() {
     if (!config_ || !header_title_label_ || !header_bar_) {
         return;
     }
 
+    applyHeaderNavSpacing();
+
+    lv_color_t header_bg = colorFromHex(config_->theme.surface_color, UITheme::COLOR_SURFACE);
+    lv_obj_set_style_bg_color(header_bar_, header_bg, 0);
+    lv_obj_set_style_bg_opa(header_bar_, LV_OPA_COVER, 0);
+
+    lv_obj_set_style_border_width(header_bar_, 0, 0);
+    lv_obj_set_style_border_opa(header_bar_, LV_OPA_TRANSP, 0);
+
+    if (nav_bar_) {
+        lv_obj_set_style_bg_opa(nav_bar_, LV_OPA_TRANSP, 0);
+        lv_obj_set_style_border_width(nav_bar_, 0, 0);
+        lv_obj_set_style_border_opa(nav_bar_, LV_OPA_TRANSP, 0);
+    }
+
+    const auto hideLogoArea = [this]() {
+        if (header_logo_img_) {
+            lv_obj_add_flag(header_logo_img_, LV_OBJ_FLAG_HIDDEN);
+        }
+        if (header_logo_slot_) {
+            lv_obj_set_size(header_logo_slot_, 0, 0);
+            lv_obj_add_flag(header_logo_slot_, LV_OBJ_FLAG_HIDDEN);
+        }
+    };
+
+    const auto showLogoArea = [this]() {
+        if (header_logo_slot_) {
+            lv_obj_clear_flag(header_logo_slot_, LV_OBJ_FLAG_HIDDEN);
+        }
+        if (header_logo_img_) {
+            lv_obj_clear_flag(header_logo_img_, LV_OBJ_FLAG_HIDDEN);
+        }
+    };
+
     // Update title text and font
     lv_label_set_text(header_title_label_, config_->header.title.c_str());
     const lv_font_t* title_font = fontFromName(config_->header.title_font);
     lv_obj_set_style_text_font(header_title_label_, title_font, 0);
+    lv_color_t title_color = colorFromHex(config_->theme.text_primary, UITheme::COLOR_TEXT_PRIMARY);
+    lv_obj_set_style_text_color(header_title_label_, title_color, 0);
     
     Serial.printf("[UI] Title alignment from config: '%s' (len=%d)\n", 
                   config_->header.title_align.c_str(), 
@@ -635,38 +931,71 @@ void UIBuilder::updateHeaderBranding() {
             lv_label_set_text(header_subtitle_label_, config_->header.subtitle.c_str());
             const lv_font_t* subtitle_font = fontFromName(config_->header.subtitle_font);
             lv_obj_set_style_text_font(header_subtitle_label_, subtitle_font, 0);
+            lv_color_t subtitle_color = colorFromHex(config_->theme.text_secondary, UITheme::COLOR_TEXT_SECONDARY);
+            lv_obj_set_style_text_color(header_subtitle_label_, subtitle_color, 0);
             lv_obj_set_style_text_align(header_subtitle_label_, text_align, 0);
             
             lv_obj_clear_flag(header_subtitle_label_, LV_OBJ_FLAG_HIDDEN);
         }
     }
 
-    if (!header_logo_img_) {
+    if (!header_logo_img_ || !header_brand_row_) {
         return;
     }
+
+    header_logo_ready_ = false;
+    lv_img_set_zoom(header_logo_img_, LV_IMG_ZOOM_NONE);
 
     Serial.printf("[UI] Logo config - show_logo: %d, logo_variant: '%s'\n", 
                   config_->header.show_logo, 
                   config_->header.logo_variant.c_str());
     
+    const std::string logo_position = config_->header.logo_position.empty() ? "stacked" : config_->header.logo_position;
+    const bool inline_layout = (logo_position == "inline-left" || logo_position == "inline-right");
+
+    if (inline_layout) {
+        lv_obj_set_flex_flow(header_brand_row_, LV_FLEX_FLOW_ROW);
+        lv_obj_set_style_pad_gap(header_brand_row_, UITheme::SPACE_SM, 0);
+        lv_obj_set_flex_align(header_brand_row_, LV_FLEX_ALIGN_START, cross_align, LV_FLEX_ALIGN_CENTER);
+        if (logo_position == "inline-left") {
+            if (header_logo_slot_) lv_obj_move_background(header_logo_slot_);
+            if (header_text_container_) lv_obj_move_foreground(header_text_container_);
+        } else {
+            if (header_text_container_) lv_obj_move_background(header_text_container_);
+            if (header_logo_slot_) lv_obj_move_foreground(header_logo_slot_);
+        }
+    } else {
+        lv_obj_set_flex_flow(header_brand_row_, LV_FLEX_FLOW_COLUMN);
+        lv_obj_set_style_pad_gap(header_brand_row_, UITheme::SPACE_XS, 0);
+        lv_obj_set_flex_align(header_brand_row_, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
+        if (header_logo_slot_) lv_obj_move_background(header_logo_slot_);
+        if (header_text_container_) lv_obj_move_foreground(header_text_container_);
+    }
+
     if (config_->header.show_logo) {
         // Priority 1: Custom uploaded header logo
         if (!config_->images.header_logo.empty()) {
             Serial.printf("[UI] Custom header logo found, length=%d\n", config_->images.header_logo.length());
             Serial.printf("[UI] Data URL prefix: %.50s...\n", config_->images.header_logo.c_str());
             
-            // LVGL can decode PNG/JPEG from data URLs directly
-            lv_img_set_src(header_logo_img_, config_->images.header_logo.c_str());
-            lv_obj_clear_flag(header_logo_img_, LV_OBJ_FLAG_HIDDEN);
-            lv_obj_invalidate(header_logo_img_);
-            
-            // Check if image loaded successfully
-            lv_img_header_t header;
-            lv_res_t res = lv_img_decoder_get_info(config_->images.header_logo.c_str(), &header);
-            if (res == LV_RES_OK) {
-                Serial.printf("[UI] Image decoded: %dx%d, format=%d\n", header.w, header.h, header.cf);
+            if (loadImageDescriptor(config_->images.header_logo, logo_buffer_, header_logo_dsc_, true)) {
+                header_logo_ready_ = true;
+                lv_img_set_src(header_logo_img_, &header_logo_dsc_);
+                showLogoArea();
+                lv_obj_invalidate(header_logo_img_);
+
+                lv_img_header_t header;
+                lv_res_t res = lv_img_decoder_get_info(&header_logo_dsc_, &header);
+                if (res == LV_RES_OK) {
+                    Serial.printf("[UI] Image decoded: %dx%d, format=%d\n", header.w, header.h, header.cf);
+                    applyHeaderLogoSizing(header.w, header.h, inline_layout);
+                } else {
+                    Serial.printf("[UI] WARN: Decoder couldn't preflight custom logo, res=%d\n", res);
+                    applyHeaderLogoSizing(0, 0, inline_layout);
+                }
             } else {
-                Serial.printf("[UI] ERROR: Failed to decode image, res=%d\n", res);
+                Serial.println("[UI] ERROR: Failed to prepare custom header logo");
+                hideLogoArea();
             }
             return;
         }
@@ -675,8 +1004,15 @@ void UIBuilder::updateHeaderBranding() {
         if (!config_->header.logo_base64.empty()) {
             Serial.println("[UI] Using legacy custom header logo");
             lv_img_set_src(header_logo_img_, config_->header.logo_base64.c_str());
-            lv_obj_clear_flag(header_logo_img_, LV_OBJ_FLAG_HIDDEN);
+            showLogoArea();
             lv_obj_invalidate(header_logo_img_);
+
+            lv_img_header_t header;
+            if (lv_img_decoder_get_info(config_->header.logo_base64.c_str(), &header) == LV_RES_OK) {
+                applyHeaderLogoSizing(header.w, header.h, inline_layout);
+            } else {
+                applyHeaderLogoSizing(0, 0, inline_layout);
+            }
             return;
         }
         
@@ -684,15 +1020,16 @@ void UIBuilder::updateHeaderBranding() {
         if (const lv_img_dsc_t* logo = iconForId(config_->header.logo_variant)) {
             Serial.printf("[UI] Using built-in logo variant: %s\n", config_->header.logo_variant.c_str());
             lv_img_set_src(header_logo_img_, logo);
-            lv_obj_clear_flag(header_logo_img_, LV_OBJ_FLAG_HIDDEN);
+            showLogoArea();
             lv_obj_invalidate(header_logo_img_);
+            applyHeaderLogoSizing(logo->header.w, logo->header.h, inline_layout);
         } else {
             Serial.printf("[UI] No logo found for variant: %s\n", config_->header.logo_variant.c_str());
-            lv_obj_add_flag(header_logo_img_, LV_OBJ_FLAG_HIDDEN);
+            hideLogoArea();
         }
     } else {
         Serial.println("[UI] Logo disabled in config");
-        lv_obj_add_flag(header_logo_img_, LV_OBJ_FLAG_HIDDEN);
+        hideLogoArea();
     }
 }
 
@@ -899,18 +1236,27 @@ void UIBuilder::setBrightness(uint8_t percent) {
 
 void UIBuilder::loadSleepIcon() {
     sleep_icon_buffer_.clear();
+    sleep_logo_ready_ = false;
 
     if (!config_) {
         return;
     }
 
+    std::string data_url;
+
     // Priority: new images.sleep_logo > legacy display.sleep_icon_base64
     if (!config_->images.sleep_logo.empty()) {
-        sleep_icon_data_url_ = config_->images.sleep_logo;
+        data_url = config_->images.sleep_logo;
     } else if (!config_->display.sleep_icon_base64.empty()) {
-        sleep_icon_data_url_ = config_->display.sleep_icon_base64;
-    } else {
-        sleep_icon_data_url_.clear();
+        data_url = config_->display.sleep_icon_base64;
+    }
+
+    if (!data_url.empty()) {
+        if (loadImageDescriptor(data_url, sleep_icon_buffer_, sleep_logo_dsc_)) {
+            sleep_logo_ready_ = true;
+        } else {
+            Serial.println("[UI] Failed to decode sleep icon");
+        }
     }
 }
 
@@ -941,15 +1287,15 @@ void UIBuilder::showSleepOverlay() {
     if (!sleep_overlay_) {
         return;
     }
-    if (!sleep_icon_data_url_.empty()) {
-        Serial.printf("[UI] Loading sleep icon, length=%d\n", sleep_icon_data_url_.length());
-        lv_img_set_src(sleep_image_, sleep_icon_data_url_.c_str());
+    if (sleep_logo_ready_) {
+        Serial.printf("[UI] Showing sleep icon (%u bytes)\n", static_cast<unsigned>(sleep_icon_buffer_.size()));
+        lv_img_set_src(sleep_image_, &sleep_logo_dsc_);
         lv_obj_clear_flag(sleep_image_, LV_OBJ_FLAG_HIDDEN);
         lv_obj_center(sleep_image_);
         
         // Check decode result
         lv_img_header_t header;
-        lv_res_t res = lv_img_decoder_get_info(sleep_icon_data_url_.c_str(), &header);
+        lv_res_t res = lv_img_decoder_get_info(&sleep_logo_dsc_, &header);
         if (res == LV_RES_OK) {
             Serial.printf("[UI] Sleep icon decoded: %dx%d\n", header.w, header.h);
         } else {
@@ -1001,4 +1347,116 @@ const lv_font_t* UIBuilder::fontFromName(const std::string& name) const {
     
     // Default fallback
     return &lv_font_montserrat_16;
+}
+
+const lv_font_t* UIBuilder::navLabelFontForText(const std::string& text) const {
+    bool has_cjk = false;
+    bool has_rtl = false;
+    bool has_extended = false;
+
+    std::size_t idx = 0;
+    while (idx < text.size()) {
+        uint32_t cp = nextUtf8Codepoint(text, idx);
+        if (cp == 0) {
+            continue;
+        }
+
+        // Common CJK ranges (Han, Kana, Hangul, full-width)
+        if ((cp >= 0x3400 && cp <= 0x4DBF) ||
+            (cp >= 0x4E00 && cp <= 0x9FFF) ||
+            (cp >= 0xF900 && cp <= 0xFAFF) ||
+            (cp >= 0x3040 && cp <= 0x30FF) ||
+            (cp >= 0x31F0 && cp <= 0x31FF) ||
+            (cp >= 0xAC00 && cp <= 0xD7A3) ||
+            (cp >= 0xFF01 && cp <= 0xFF60) ||
+            (cp >= 0xFFE0 && cp <= 0xFFE6)) {
+            has_cjk = true;
+            break;
+        }
+
+        // Hebrew, Arabic, Persian, Urdu ranges (including presentation forms)
+        if ((cp >= 0x0590 && cp <= 0x08FF) ||
+            (cp >= 0xFB50 && cp <= 0xFDFF) ||
+            (cp >= 0xFE70 && cp <= 0xFEFF)) {
+            has_rtl = true;
+        } else if (cp > 0x7F) {
+            has_extended = true;
+        }
+    }
+
+    if (has_cjk) {
+        return &lv_font_simsun_16_cjk;
+    }
+    if (has_rtl || has_extended) {
+        return &lv_font_dejavu_16_persian_hebrew;
+    }
+    return UITheme::FONT_BODY;
+}
+
+uint32_t UIBuilder::nextUtf8Codepoint(const std::string& text, std::size_t& index) const {
+    if (index >= text.size()) {
+        return 0;
+    }
+
+    auto readContinuation = [&](std::size_t pos) -> int {
+        if (pos >= text.size()) {
+            return -1;
+        }
+        const uint8_t byte = static_cast<uint8_t>(text[pos]);
+        if ((byte & 0xC0) != 0x80) {
+            return -1;
+        }
+        return byte & 0x3F;
+    };
+
+    const uint8_t first = static_cast<uint8_t>(text[index]);
+    if ((first & 0x80) == 0) {
+        ++index;
+        return first;
+    }
+
+    if ((first & 0xE0) == 0xC0) {
+        int b1 = readContinuation(index + 1);
+        if (b1 < 0) {
+            ++index;
+            return 0;
+        }
+        uint32_t cp = ((first & 0x1F) << 6) | static_cast<uint32_t>(b1);
+        index += 2;
+        return cp;
+    }
+
+    if ((first & 0xF0) == 0xE0) {
+        int b1 = readContinuation(index + 1);
+        int b2 = readContinuation(index + 2);
+        if (b1 < 0 || b2 < 0) {
+            ++index;
+            return 0;
+        }
+        uint32_t cp = ((first & 0x0F) << 12) |
+                       (static_cast<uint32_t>(b1) << 6) |
+                       static_cast<uint32_t>(b2);
+        index += 3;
+        return cp;
+    }
+
+    if ((first & 0xF8) == 0xF0) {
+        int b1 = readContinuation(index + 1);
+        int b2 = readContinuation(index + 2);
+        int b3 = readContinuation(index + 3);
+        if (b1 < 0 || b2 < 0 || b3 < 0) {
+            ++index;
+            return 0;
+        }
+        uint32_t cp = ((first & 0x07) << 18) |
+                       (static_cast<uint32_t>(b1) << 12) |
+                       (static_cast<uint32_t>(b2) << 6) |
+                       static_cast<uint32_t>(b3);
+        index += 4;
+        return cp;
+    }
+
+    // Invalid leading byte, skip it
+    ++index;
+    return 0;
 }

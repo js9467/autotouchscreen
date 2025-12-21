@@ -45,6 +45,7 @@ struct ButtonConfig {
 struct PageConfig {
     std::string id = "page_0";
     std::string name = "Home";
+    std::string nav_text = "";          // Optional nav label override
     std::string nav_color = "";             // Active nav button color
     std::string nav_inactive_color = "";    // Inactive nav button color
     std::string nav_text_color = "";        // Optional nav text color override
@@ -84,6 +85,14 @@ struct WifiConfig {
     }
 };
 
+struct OTAConfig {
+    bool enabled = true;
+    bool auto_apply = true;
+    std::string manifest_url = "https://updates.bronco-controls.com/manifest.json";
+    std::string channel = "stable";
+    std::uint32_t check_interval_minutes = 60;  // Minutes between background checks
+};
+
 struct HeaderConfig {
     std::string title = "CAN Control";
     std::string subtitle = "Configuration Interface";
@@ -93,6 +102,10 @@ struct HeaderConfig {
     std::string title_font = "montserrat_24";
     std::string subtitle_font = "montserrat_12";
     std::string title_align = "center";  // "left", "center", "right"
+    std::string logo_position = "stacked"; // "stacked", "inline-left", "inline-right"
+    std::uint16_t logo_target_height = 64;   // Desired on-device logo height in px
+    bool logo_preserve_aspect = true;        // Whether uploads should keep original aspect
+    std::uint8_t nav_spacing = 12;           // Gap between header and nav (px)
 };
 
 struct ImageAssets {
@@ -141,6 +154,7 @@ struct CanMessage {
 struct DeviceConfig {
     std::string version = "1.0.0";
     WifiConfig wifi{};
+    OTAConfig ota{};
     HeaderConfig header{};
     ThemeConfig theme{};
     DisplayConfig display{};

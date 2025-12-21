@@ -18,6 +18,7 @@
 #include "ui_builder.h"
 #include "ui_theme.h"
 #include "web_server.h"
+#include "ota_manager.h"
 
 // IO pin definitions for the Waveshare ESP32-S3-Touch-LCD-4.3 board
 #define TP_RST 1
@@ -186,6 +187,7 @@ void setup() {
 
     // Launch WiFi access point + web server
     WebServerManager::instance().begin();
+    OTAUpdateManager::instance().begin();
 
     Serial.println("=================================");
     Serial.println(" Touch the screen or open http://192.168.4.250 ");
@@ -216,8 +218,8 @@ void loop() {
     }
 
     const uint32_t now = millis();
+    WifiStatusSnapshot snapshot = WebServerManager::instance().getStatusSnapshot();
     if (now - last_network_push_ms >= 1000) {
-        const WifiStatusSnapshot snapshot = WebServerManager::instance().getStatusSnapshot();
         std::string ap_ip = snapshot.ap_ip.toString().c_str();
         std::string sta_ip = snapshot.sta_ip.toString().c_str();
         lvgl_port_lock(-1);
@@ -226,6 +228,7 @@ void loop() {
         last_network_push_ms = now;
     }
 
+    OTAUpdateManager::instance().loop(snapshot);
     WebServerManager::instance().loop();
     vTaskDelay(pdMS_TO_TICKS(50));
 }

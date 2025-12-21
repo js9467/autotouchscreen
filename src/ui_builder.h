@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "config_types.h"
+#include "ui_theme.h"
 
 class UIBuilder {
 public:
@@ -40,7 +41,12 @@ private:
     void setBrightness(uint8_t percent);
     const lv_img_dsc_t* iconForId(const std::string& id) const;
     const lv_font_t* fontFromName(const std::string& name) const;
+    const lv_font_t* navLabelFontForText(const std::string& text) const;
+    uint32_t nextUtf8Codepoint(const std::string& text, std::size_t& index) const;
     std::vector<uint8_t> decodeBase64Logo(const std::string& data_uri);
+    bool loadImageDescriptor(const std::string& data_uri, std::vector<uint8_t>& pixel_buffer, lv_img_dsc_t& descriptor, bool scrub_white_background = false);
+    void applyHeaderNavSpacing();
+    void applyHeaderLogoSizing(uint16_t src_width, uint16_t src_height, bool inline_layout);
 
     static void navButtonEvent(lv_event_t* e);
     static void actionButtonEvent(lv_event_t* e);
@@ -53,9 +59,14 @@ private:
     const DeviceConfig* config_ = nullptr;
     lv_obj_t* base_screen_ = nullptr;
     lv_obj_t* header_bar_ = nullptr;
+    lv_obj_t* header_brand_row_ = nullptr;
     lv_obj_t* header_overlay_ = nullptr;
+    lv_obj_t* header_logo_slot_ = nullptr;
     lv_obj_t* header_logo_img_ = nullptr;
+    lv_obj_t* header_text_container_ = nullptr;
     std::vector<uint8_t> logo_buffer_;
+    lv_img_dsc_t header_logo_dsc_{};
+    bool header_logo_ready_ = false;
     lv_obj_t* header_title_label_ = nullptr;
     lv_obj_t* header_subtitle_label_ = nullptr;
     lv_obj_t* info_modal_ = nullptr;
@@ -78,9 +89,11 @@ private:
     std::vector<lv_coord_t> grid_rows_;
     std::size_t active_page_ = 0;
     bool dirty_ = false;
+    lv_coord_t nav_base_pad_top_ = UITheme::SPACE_XS;
     std::string last_ap_ip_ = "";
     std::string last_sta_ip_ = "";
     bool last_sta_connected_ = false;
     std::vector<uint8_t> sleep_icon_buffer_;  // Kept for compatibility
-    std::string sleep_icon_data_url_;  // Data URL for sleep icon
+    lv_img_dsc_t sleep_logo_dsc_{};
+    bool sleep_logo_ready_ = false;
 };

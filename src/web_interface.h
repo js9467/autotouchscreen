@@ -137,13 +137,26 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); bo
 	margin: 6px 0 0;
 	color: var(--muted);
 }
-.preview-header { display: flex; padding: 14px; gap: 12px; align-items: center; border-bottom: 2px solid transparent; }
-.preview-header .title-wrap { flex: 1; display: flex; flex-direction: column; gap: 4px; }
-.preview-nav { display: flex; gap: 8px; padding: 10px 12px; flex-wrap: wrap; background: var(--panel); border-bottom: 1px solid var(--border); }
-.preview-nav .pill { cursor: grab; }
+.preview-header { display: flex; padding: 14px; gap: 12px; align-items: center; border-bottom: 2px solid transparent; margin-bottom: 12px; }
+.preview-header.stacked { flex-direction: column; align-items: flex-start; }
+.preview-header.inline-left { flex-direction: row; }
+.preview-header.inline-right { flex-direction: row-reverse; }
+.preview-header .title-wrap { flex: 1; display: flex; flex-direction: column; gap: 4px; min-width: 0; width: 100%; }
+.preview-header .title-wrap > * { word-break: break-word; overflow-wrap: anywhere; }
+.preview-logo { width: auto; height: 48px; max-width: 160px; border-radius: 10px; background: transparent; flex-shrink: 0; transition: height 0.2s ease, width 0.2s ease; border: 1px dashed var(--border); overflow: hidden; }
+.preview-logo img { width: 100%; height: 100%; object-fit: contain; display: block; border-radius: inherit; image-rendering: pixelated; }
+.row.align-center { align-items: center; gap: 12px; }
+.preview-nav { display: flex; gap: 8px; padding: 10px 12px; flex-wrap: wrap; background: var(--panel); border-bottom: 1px solid var(--border); margin-bottom: 12px; }
+.preview-nav .pill {
+	cursor: grab;
+	white-space: normal;
+	word-break: break-word;
+	line-height: 1.2;
+	max-width: 100%;
+}
 .preview-body { padding: 14px; min-height: 220px; }
 .preview-grid { display: grid; gap: 10px; }
-.preview-btn { padding: 14px 12px; border-radius: 12px; font-weight: 700; text-align: center; border: 1px solid transparent; cursor: pointer; }
+.preview-btn { padding: 14px 12px; border-radius: 12px; font-weight: 700; text-align: center; border: 1px solid transparent; cursor: pointer; word-break: break-word; overflow-wrap: anywhere; }
 .preview-btn.empty { border: 1px dashed var(--border); background: rgba(255,255,255,0.03); color: var(--muted); }
 .quick-edit { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 10px; align-items: center; }
 .quick-edit .field { display: inline-flex; align-items: center; gap: 6px; }
@@ -152,7 +165,7 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); bo
 .builder-grid { border: 1px dashed var(--border); border-radius: 14px; padding: 12px; background: rgba(255,255,255,0.02); }
 .grid-cell { border: 1px dashed var(--border); border-radius: 10px; min-height: 72px; display: flex; align-items: center; justify-content: center; color: var(--muted); cursor: pointer; transition: all .12s ease; }
 .grid-cell:hover { border-color: var(--accent); color: var(--accent); background: rgba(255,157,46,0.06); }
-.grid-btn { width: 100%; height: 100%; border-radius: 12px; padding: 10px; border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; cursor: grab; }
+.grid-btn { width: 100%; height: 100%; border-radius: 12px; padding: 10px; border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; cursor: grab; word-break: break-word; text-align: center; }
 .floating-bar { position: sticky; bottom: 0; margin-top: 18px; padding: 12px; background: rgba(11,12,16,0.7); backdrop-filter: blur(8px); border: 1px solid var(--border); border-radius: 14px; display: flex; justify-content: space-between; align-items: center; gap: 12px; box-shadow: 0 20px 40px rgba(0,0,0,0.35); }
 .modal { position: fixed; inset: 0; display: none; background: rgba(0,0,0,0.6); align-items: center; justify-content: center; padding: 24px; z-index: 20; }
 .modal.open { display: flex; }
@@ -250,6 +263,27 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); bo
 							<option value="right">Right</option>
 						</select>
 					</div>
+					<div class="row">
+						<label>Logo Placement</label>
+						<select id="header-logo-position" onchange="updateHeaderFromInputs()">
+							<option value="stacked">Above title</option>
+							<option value="inline-left">Left of text</option>
+							<option value="inline-right">Right of text</option>
+						</select>
+					</div>
+					<div class="row align-center">
+						<label>Logo Display Size</label>
+						<input id="header-logo-size" type="range" min="24" max="96" value="64" oninput="handleLogoSizeInput(this.value)" />
+						<span class="muted" id="header-logo-size-label">64px</span>
+					</div>
+					<div class="row">
+						<label><input id="header-logo-keep-aspect" type="checkbox" checked onchange="updateHeaderFromInputs()" /> Maintain proportions</label>
+					</div>
+					<div class="row align-center">
+						<label>Header ↔ Nav Gap</label>
+						<input id="header-nav-spacing" type="range" min="0" max="48" value="12" oninput="handleNavSpacingInput(this.value)" />
+						<span class="muted" id="header-nav-spacing-label">12px</span>
+					</div>
 					<!-- Logo upload moved to Image Assets section -->
 				</div>
 				<h4>Header Appearance</h4>
@@ -288,6 +322,7 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); bo
 						<select id="page-cols" onchange="updateGrid()"><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option></select>
 					</div>
 					<div class="field"><label>Name</label><input id="page-name-input" type="text" oninput="updatePageMeta()" /></div>
+					<div class="field"><label>Nav Text</label><input id="page-nav-text-input" type="text" oninput="updatePageMeta()" /></div>
 				</div>
 				<div class="quick-edit" style="border-top: 1px solid var(--border); padding-top: 10px; margin-top: 0;">
 					<h4 style="grid-column: 1/-1; margin: 0 0 8px;">Window Config</h4>
@@ -295,7 +330,7 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); bo
 					<div class="field"><label>Text</label><input id="page-text-color" type="color" onchange="updatePageStyle()" /></div>
 					<div class="field"><label>Nav Active</label><input id="page-nav-color" type="color" onchange="updatePageMeta()" /></div>
 					<div class="field"><label>Nav Inactive</label><input id="page-nav-inactive-color" type="color" onchange="updatePageMeta()" /></div>
-					<div class="field"><label>Nav Text</label><input id="nav-text-color" type="color" onchange="updatePageNavStyle()" /></div>
+					<div class="field"><label>Nav Text Color</label><input id="nav-text-color" type="color" onchange="updatePageNavStyle()" /></div>
 					<div class="field"><label>Nav Radius</label><input id="nav-radius" type="number" min="0" max="50" onchange="updatePageNavStyle()" /></div>
 					<div class="field"><label>Button Fill</label><input id="page-btn-color" type="color" onchange="updatePageStyle()" /></div>
 					<div class="field"><label>Pressed</label><input id="page-btn-pressed" type="color" onchange="updatePageStyle()" /></div>
@@ -307,8 +342,8 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); bo
 					<button class="btn small ghost" onclick="applyBaselineToPage()">Apply baseline</button>
 				</div>
 				<div class="device-preview" id="live-preview">
-					<div class="preview-header" id="preview-header">
-						<div style="width:38px;height:38px; border-radius:10px; background: var(--accent);" id="preview-logo"></div>
+					<div class="preview-header stacked" id="preview-header">
+						<div class="preview-logo" id="preview-logo"><img id="preview-logo-img" alt="Header logo preview" /></div>
 						<div class="title-wrap">
 							<div id="preview-title" style="font-weight: 700; line-height: 1.2;">CAN Control</div>
 							<div id="preview-subtitle" class="muted" style="font-size: 0.85rem; line-height: 1.3;">Configuration Interface</div>
@@ -477,7 +512,52 @@ function firstDefined() {
 	return undefined;
 }
 
-function switchTab(tabName){
+function clampLogoSize(value){
+	const parsed = parseInt(value, 10);
+	if (Number.isNaN(parsed)) return 64;
+	return Math.max(24, Math.min(96, parsed));
+}
+
+function setLogoSizeLabel(value){
+	const label = document.getElementById('header-logo-size-label');
+	if(label) label.textContent = `${value}px`;
+}
+
+function handleLogoSizeInput(value){
+	const clamped = clampLogoSize(value);
+	setLogoSizeLabel(clamped);
+	updateHeaderFromInputs();
+}
+
+function clampNavSpacing(value){
+	const parsed = parseInt(value, 10);
+	if (Number.isNaN(parsed)) return 12;
+	return Math.max(0, Math.min(48, parsed));
+}
+
+function setNavSpacingLabel(value){
+	const label = document.getElementById('header-nav-spacing-label');
+	if(label) label.textContent = `${value}px`;
+}
+
+function handleNavSpacingInput(value){
+	const clamped = clampNavSpacing(value);
+	setNavSpacingLabel(clamped);
+	updateHeaderFromInputs();
+}
+
+function getHeaderLogoDimensions(value){
+	if (!value) return null;
+	if (value.startsWith('lvimg:')) {
+		const parsed = parseLvimgPayload(value);
+		if (parsed) {
+			return { width: parsed.width, height: parsed.height };
+		}
+	}
+	return null;
+}
+
+window.switchTab = function(tabName){
 	document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
 	document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
 	document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
@@ -586,6 +666,8 @@ function hydratePageFields(){
 	const theme = config.theme || {};
 	const nameInput = document.getElementById('page-name-input');
 	if(nameInput) nameInput.value = page.name || '';
+	const navLabelInput = document.getElementById('page-nav-text-input');
+	if (navLabelInput) navLabelInput.value = page.nav_text || '';
 	const pageNavColor = document.getElementById('page-nav-color');
 	if (pageNavColor) pageNavColor.value = page.nav_color || theme.nav_button_active_color || '#ff9d2e';
 	const pageNavInactive = document.getElementById('page-nav-inactive-color');
@@ -625,7 +707,17 @@ function hydratePageFields(){
 function updatePageMeta(){
 	ensurePages();
 	const page = config.pages[activePageIndex];
-	page.name = document.getElementById('page-name-input').value || page.name;
+	const nameInput = document.getElementById('page-name-input');
+	if (nameInput) {
+		const trimmedName = nameInput.value ? nameInput.value.trim() : '';
+		if (trimmedName.length) {
+			page.name = trimmedName;
+		}
+	}
+	const navLabelInput = document.getElementById('page-nav-text-input');
+	if (navLabelInput) {
+		page.nav_text = navLabelInput.value ? navLabelInput.value.trim() : '';
+	}
 	page.nav_color = document.getElementById('page-nav-color').value;
 	page.nav_inactive_color = document.getElementById('page-nav-inactive-color').value;
 	renderPageList();
@@ -980,7 +1072,65 @@ function renderPreview(){
 	const header = document.getElementById('preview-header');
 	header.style.background = theme.surface_color || '#12141c';
 	header.style.borderBottom = `${firstDefined(theme.header_border_width, 0)}px solid ${firstDefined(theme.header_border_color, theme.accent_color, '#ff9d2e')}`;
-	document.getElementById('preview-logo').style.display = headerCfg.show_logo === false ? 'none' : 'block';
+	const navSpacingValue = clampNavSpacing(firstDefined(headerCfg.nav_spacing, 12));
+	header.style.marginBottom = `${navSpacingValue}px`;
+	const previewNav = document.getElementById('preview-nav');
+	if (previewNav) {
+		previewNav.style.marginBottom = '12px';
+	}
+	const placement = headerCfg.logo_position || 'stacked';
+	const inlineLayout = placement === 'inline-left' || placement === 'inline-right';
+	header.classList.toggle('stacked', placement === 'stacked');
+	header.classList.toggle('inline-left', placement === 'inline-left');
+	header.classList.toggle('inline-right', placement === 'inline-right');
+	const previewLogo = document.getElementById('preview-logo');
+	const previewLogoImg = document.getElementById('preview-logo-img');
+	const headerLogoValue = (config.images && config.images.header_logo) || '';
+	const previewLogoSrc = getImagePreviewSrc(headerLogoValue);
+	const hasLogo = !!previewLogoSrc;
+	if (previewLogo && previewLogoImg) {
+		const shouldShowLogo = headerCfg.show_logo !== false && hasLogo;
+		if (!shouldShowLogo) {
+			previewLogo.style.display = 'none';
+			previewLogoImg.src = '';
+			previewLogo.style.removeProperty('width');
+			previewLogo.style.removeProperty('min-width');
+			previewLogo.style.removeProperty('height');
+			previewLogo.style.removeProperty('max-height');
+			previewLogoImg.style.objectFit = 'contain';
+		} else {
+			previewLogo.style.display = 'flex';
+			previewLogo.style.alignItems = 'center';
+			previewLogo.style.justifyContent = 'center';
+			previewLogoImg.src = previewLogoSrc;
+			previewLogoImg.alt = 'Header logo preview';
+			const targetHeight = clampLogoSize(headerCfg.logo_target_height || 64);
+			const dims = getHeaderLogoDimensions(headerLogoValue);
+			let aspectRatio = 1;
+			if (dims && dims.height) {
+				aspectRatio = Math.max(0.2, Math.min(5, dims.width / Math.max(1, dims.height)));
+			}
+			const preserveAspect = headerCfg.logo_preserve_aspect !== false;
+			const maxWidth = inlineLayout ? targetHeight * 2.5 : targetHeight * 3;
+			let displayWidth = targetHeight * aspectRatio;
+			if (!Number.isFinite(displayWidth) || displayWidth <= 0) {
+				displayWidth = targetHeight;
+			}
+			if (!preserveAspect) {
+				displayWidth = targetHeight;
+				previewLogoImg.style.objectFit = 'fill';
+				previewLogoImg.style.imageRendering = 'pixelated';
+			} else {
+				displayWidth = Math.max(targetHeight, Math.min(maxWidth, displayWidth));
+				previewLogoImg.style.objectFit = 'contain';
+				previewLogoImg.style.imageRendering = 'pixelated';
+			}
+			previewLogo.style.width = `${displayWidth}px`;
+			previewLogo.style.minWidth = `${Math.max(targetHeight, Math.min(displayWidth, maxWidth))}px`;
+			previewLogo.style.height = `${targetHeight}px`;
+			previewLogo.style.maxHeight = `${targetHeight}px`;
+		}
+	}
 	
 	const titleEl = document.getElementById('preview-title');
 	const subtitleEl = document.getElementById('preview-subtitle');
@@ -1076,7 +1226,7 @@ function renderNav(){
 	config.pages.forEach((p,idx)=>{
 		const chip = document.createElement('div');
 		chip.className = 'pill';
-		chip.textContent = p.name || 'Page '+(idx+1);
+		chip.textContent = p.nav_text || p.name || 'Page '+(idx+1);
 		const active = idx===activePageIndex;
 		chip.style.background = active 
 			? (p.nav_color || theme.nav_button_active_color || theme.accent_color || '#ff9d2e') 
@@ -1114,6 +1264,18 @@ function updateHeaderFromInputs(){
 	config.header.title_font = document.getElementById('header-title-font').value || 'montserrat_24';
 	config.header.subtitle_font = document.getElementById('header-subtitle-font').value || 'montserrat_12';
 	config.header.title_align = document.getElementById('header-title-align').value || 'center';
+	const logoPlacement = document.getElementById('header-logo-position');
+	config.header.logo_position = logoPlacement ? (logoPlacement.value || 'stacked') : 'stacked';
+	const sizeInput = document.getElementById('header-logo-size');
+	const keepAspect = document.getElementById('header-logo-keep-aspect');
+	const logoHeight = clampLogoSize(sizeInput ? sizeInput.value : 64);
+	setLogoSizeLabel(logoHeight);
+	config.header.logo_target_height = logoHeight;
+	config.header.logo_preserve_aspect = keepAspect ? keepAspect.checked : true;
+	const navSpacingInput = document.getElementById('header-nav-spacing');
+	const navSpacing = clampNavSpacing(navSpacingInput ? navSpacingInput.value : 12);
+	setNavSpacingLabel(navSpacing);
+	config.header.nav_spacing = navSpacing;
 	
 	// show_logo now controlled by image upload - always true if image exists
 	config.header.show_logo = !!(config.images && config.images.header_logo);
@@ -1280,6 +1442,8 @@ function hydrateHeaderFields(){
 	if (subtitleInput) subtitleInput.value = header.subtitle || '';
 	const titleAlign = document.getElementById('header-title-align');
 	if (titleAlign) titleAlign.value = header.title_align || 'center';
+	const logoPlacement = document.getElementById('header-logo-position');
+	if (logoPlacement) logoPlacement.value = header.logo_position || 'stacked';
 	
 	// Set full font names in selects
 	const titleFont = document.getElementById('header-title-font');
@@ -1287,6 +1451,16 @@ function hydrateHeaderFields(){
 	
 	const subFont = document.getElementById('header-subtitle-font');
 	if (subFont) subFont.value = header.subtitle_font || 'montserrat_12';
+	const sizeSlider = document.getElementById('header-logo-size');
+	const sliderValue = clampLogoSize(header.logo_target_height || 64);
+	if (sizeSlider) sizeSlider.value = sliderValue;
+	setLogoSizeLabel(sliderValue);
+	const keepAspect = document.getElementById('header-logo-keep-aspect');
+	if (keepAspect) keepAspect.checked = header.logo_preserve_aspect !== false;
+	const navSpacingSlider = document.getElementById('header-nav-spacing');
+	const navSpacingValue = clampNavSpacing(header.nav_spacing ?? 12);
+	if (navSpacingSlider) navSpacingSlider.value = navSpacingValue;
+	setNavSpacingLabel(navSpacingValue);
 	// show_logo checkbox removed - logo display controlled by Image Assets upload
 }
 
@@ -1454,8 +1628,8 @@ function handleSleepIconUpload(evt){
 // Image upload configurations - reduced sizes for memory safety
 const IMAGE_CONFIGS = {
 	header: {
-		maxSize: [48, 36],
-		maxBytes: 10 * 1024,  // 10KB max
+		maxSize: [240, 96],
+		maxBytes: 80 * 1024,  // Allow higher-res logos to match on-device sizing
 		format: 'PNG',
 		hasAlpha: true,
 		configPath: 'images.header_logo'
@@ -1476,12 +1650,222 @@ const IMAGE_CONFIGS = {
 	},
 	sleep: {
 		maxSize: [150, 113],  // Reduced from 200x150
-		maxBytes: 15 * 1024,  // 15KB max
-		format: 'JPEG',  // Changed to JPEG
-		hasAlpha: false,
+		maxBytes: 60 * 1024,  // Allow larger raw lvimg payload
+		format: 'PNG',
+		hasAlpha: true,
 		configPath: 'images.sleep_logo'
 	}
 };
+
+const LVGL_IMAGE_TYPES = new Set(['header','sleep']);
+const lvimgPreviewCache = new Map();
+
+function needsLvglPayload(imageType) {
+	return LVGL_IMAGE_TYPES.has(imageType);
+}
+
+function getHeaderUploadSettings(){
+	const sizeInput = document.getElementById('header-logo-size');
+	const placement = document.getElementById('header-logo-position');
+	const keepAspectInput = document.getElementById('header-logo-keep-aspect');
+	const clamped = clampLogoSize(sizeInput ? sizeInput.value : 64);
+	const inlineLayout = placement && (placement.value === 'inline-left' || placement.value === 'inline-right');
+	const widthBudget = inlineLayout ? Math.max(80, Math.round(clamped * 2.5)) : Math.max(80, Math.round(clamped * 1.8));
+	return {
+		width: widthBudget,
+		height: clamped,
+		keepAspect: keepAspectInput ? keepAspectInput.checked : true
+	};
+}
+
+function blobToDataUrl(blob) {
+	return new Promise((resolve, reject) => {
+		const reader = new FileReader();
+		reader.onload = () => resolve(reader.result);
+		reader.onerror = () => reject(new Error('Failed to read optimized image'));
+		reader.readAsDataURL(blob);
+	});
+}
+
+function bufferToBase64(buffer) {
+	let binary = '';
+	const chunkSize = 0x8000;
+	for (let i = 0; i < buffer.length; i += chunkSize) {
+		const chunk = buffer.subarray(i, i + chunkSize);
+		let str = '';
+		for (let j = 0; j < chunk.length; j++) {
+			str += String.fromCharCode(chunk[j]);
+		}
+		binary += str;
+	}
+	return btoa(binary);
+}
+
+function rgbaToRgb565a(rgbaPixels) {
+	const pixelCount = rgbaPixels.length / 4;
+	const buffer = new Uint8Array(pixelCount * 3);
+	for (let i = 0, src = 0; i < pixelCount; i++, src += 4) {
+		const r = rgbaPixels[src];
+		const g = rgbaPixels[src + 1];
+		const b = rgbaPixels[src + 2];
+		const a = rgbaPixels[src + 3];
+		const rgb565 = ((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3);
+		const dst = i * 3;
+		buffer[dst] = rgb565 & 0xFF;
+		buffer[dst + 1] = (rgb565 >> 8) & 0xFF;
+		buffer[dst + 2] = a;
+	}
+	return buffer;
+}
+
+function stripNearWhiteBackground(imageData, tolerance = 20) {
+	if (!imageData) return 0;
+	const clampedTolerance = Math.max(1, Math.min(80, tolerance));
+	const threshold = 255 - clampedTolerance;
+	const data = imageData.data;
+	let modified = 0;
+	for (let i = 0; i < data.length; i += 4) {
+		const r = data[i];
+		const g = data[i + 1];
+		const b = data[i + 2];
+		const a = data[i + 3];
+		if (a === 0) continue;
+		const maxChannel = Math.max(r, g, b);
+		const minChannel = Math.min(r, g, b);
+		if (maxChannel >= threshold && (maxChannel - minChannel) <= clampedTolerance) {
+			data[i + 3] = 0;
+			modified++;
+		}
+	}
+	return modified;
+}
+
+async function drawBlobToCanvas(blob) {
+	return new Promise((resolve, reject) => {
+		const img = new Image();
+		const url = URL.createObjectURL(blob);
+		img.onload = () => {
+			const canvas = document.createElement('canvas');
+			canvas.width = img.naturalWidth || img.width;
+			canvas.height = img.naturalHeight || img.height;
+			const ctx = canvas.getContext('2d');
+			if (!ctx) {
+				URL.revokeObjectURL(url);
+				reject(new Error('Canvas context unavailable'));
+				return;
+			}
+			ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+			const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+			URL.revokeObjectURL(url);
+			resolve({ canvas, imageData, ctx });
+		};
+		img.onerror = () => {
+			URL.revokeObjectURL(url);
+			reject(new Error('Failed to decode optimized image'));
+		};
+		img.src = url;
+	});
+}
+
+async function blobToLvglPayload(blob, options = {}) {
+	const { canvas, imageData, ctx } = await drawBlobToCanvas(blob);
+	if (options.stripWhiteBg && imageData && ctx) {
+		const removed = stripNearWhiteBackground(imageData, options.bgTolerance ?? 20);
+		if (removed > 0) {
+			ctx.putImageData(imageData, 0, 0);
+			console.log(`Removed ${removed.toLocaleString()} near-white pixels for transparency`);
+		}
+	}
+	const { width, height, data } = imageData;
+	const rgb565a = rgbaToRgb565a(data);
+	return {
+		payload: `lvimg:rgb565a:${width}x${height}:${bufferToBase64(rgb565a)}`,
+		previewDataUrl: canvas.toDataURL('image/png'),
+		rawBytes: rgb565a.length,
+		width,
+		height
+	};
+}
+
+function base64ToUint8Array(base64) {
+	try {
+		const binary = atob(base64);
+		const len = binary.length;
+		const bytes = new Uint8Array(len);
+		for (let i = 0; i < len; i++) {
+			bytes[i] = binary.charCodeAt(i);
+		}
+		return bytes;
+	} catch (err) {
+		console.error('lvimg decode failed', err);
+		return null;
+	}
+}
+
+function parseLvimgPayload(payload) {
+	if (!payload || payload.indexOf('lvimg:') !== 0) {
+		return null;
+	}
+	const fmtSep = payload.indexOf(':', 6);
+	if (fmtSep === -1) return null;
+	const sizeSep = payload.indexOf(':', fmtSep + 1);
+	if (sizeSep === -1) return null;
+	const sizePart = payload.slice(fmtSep + 1, sizeSep);
+	const [wStr, hStr] = sizePart.split('x');
+	const width = parseInt(wStr, 10);
+	const height = parseInt(hStr, 10);
+	if (!width || !height) return null;
+	const base64 = payload.slice(sizeSep + 1);
+	const buffer = base64ToUint8Array(base64);
+	if (!buffer) return null;
+	return { format: payload.slice(6, fmtSep), width, height, buffer };
+}
+
+function lvimgToDataUrl(payload) {
+	const parsed = parseLvimgPayload(payload);
+	if (!parsed) return null;
+	const { format, width, height, buffer } = parsed;
+	const bytesPerPixel = format === 'rgb565a' ? 3 : (format === 'rgb565' ? 2 : 0);
+	if (!bytesPerPixel) return null;
+	const expected = width * height * bytesPerPixel;
+	if (buffer.length !== expected) return null;
+	const rgba = new Uint8ClampedArray(width * height * 4);
+	for (let i = 0, src = 0, dst = 0; i < width * height; i++, dst += 4, src += bytesPerPixel) {
+		const color = buffer[src] | (buffer[src + 1] << 8);
+		let r = (color >> 11) & 0x1F;
+		let g = (color >> 5) & 0x3F;
+		let b = color & 0x1F;
+		r = (r << 3) | (r >> 2);
+		g = (g << 2) | (g >> 4);
+		b = (b << 3) | (b >> 2);
+		rgba[dst] = r;
+		rgba[dst + 1] = g;
+		rgba[dst + 2] = b;
+		rgba[dst + 3] = (format === 'rgb565a') ? buffer[src + 2] : 255;
+	}
+	const canvas = document.createElement('canvas');
+	canvas.width = width;
+	canvas.height = height;
+	const ctx = canvas.getContext('2d');
+	if (!ctx) return null;
+	ctx.putImageData(new ImageData(rgba, width, height), 0, 0);
+	return canvas.toDataURL('image/png');
+}
+
+function getImagePreviewSrc(value) {
+	if (!value) return null;
+	if (value.startsWith('lvimg:')) {
+		if (lvimgPreviewCache.has(value)) {
+			return lvimgPreviewCache.get(value);
+		}
+		const dataUrl = lvimgToDataUrl(value);
+		if (dataUrl) {
+			lvimgPreviewCache.set(value, dataUrl);
+		}
+		return dataUrl;
+	}
+	return value;
+}
 
 // Image processing utility - resize image using canvas
 function resizeImage(file, imageType) {
@@ -1578,25 +1962,43 @@ async function handleImageUpload(evt, imageType) {
 
 	try {
 		showBanner(`Optimizing ${imageType} image via Fly.io...`, 'info');
-		
 		const imgConfig = IMAGE_CONFIGS[imageType];
-		const [maxWidth, maxHeight] = imgConfig.maxSize;
+		if (!imgConfig) {
+			throw new Error('Unsupported image type');
+		}
+		
+		let targetWidth = imgConfig.maxSize[0];
+		let targetHeight = imgConfig.maxSize[1];
+		let fitMode = 'contain';
+		if (imageType === 'header') {
+			const sizing = getHeaderUploadSettings();
+			targetWidth = sizing.width;
+			targetHeight = sizing.height;
+			fitMode = sizing.keepAspect ? 'contain' : 'fill';
+			config.header = config.header || {};
+			config.header.logo_target_height = sizing.height;
+			config.header.logo_preserve_aspect = sizing.keepAspect;
+		}
 		const format = imgConfig.format.toLowerCase();
 		
-		// Send to Fly optimization service
 		const formData = new FormData();
 		formData.append('file', file);
 		
 		const flyUrl = 'https://image-optimizer-still-flower-1282.fly.dev/optimize';
 		const params = new URLSearchParams({
-			w: maxWidth.toString(),
-			h: maxHeight.toString(),
-			fit: 'contain',
+			w: targetWidth.toString(),
+			h: targetHeight.toString(),
+			fit: fitMode,
 			fmt: format === 'png' ? 'png' : 'jpeg',
 			q: '80',
 			bg: '000000',
-			rotate: '1'
+			rotate: '1',
+			alpha: imgConfig.hasAlpha ? '1' : '0'
 		});
+		if (imageType === 'header') {
+			params.set('strip', 'white');
+			params.set('strip_tol', '32');
+		}
 		
 		console.log(`Optimizing ${imageType} via Fly: ${flyUrl}?${params}`);
 		
@@ -1606,31 +2008,34 @@ async function handleImageUpload(evt, imageType) {
 		});
 		
 		if (!optimizeResponse.ok) {
-			throw new Error(`Fly optimization failed: ${optimizeResponse.statusText}`);
+			throw new Error(`Fly optimization failed: ${optimizeResponse.status} ${optimizeResponse.statusText}`);
 		}
 		
-		// Get optimized image as blob
 		const optimizedBlob = await optimizeResponse.blob();
-		console.log(`Optimized ${imageType}: ${(optimizedBlob.size / 1024).toFixed(1)}KB`);
-		
-		// Convert to base64 for ESP32
-		const dataUrl = await new Promise((resolve, reject) => {
-			const reader = new FileReader();
-			reader.onload = () => resolve(reader.result);
-			reader.onerror = reject;
-			reader.readAsDataURL(optimizedBlob);
-		});
-		
-		// Check final size
-		const base64Size = dataUrl.length;
-		if (base64Size > imgConfig.maxBytes * 2) { // Allow some overhead for base64
-			showBanner(`Optimized image still too large (${(base64Size/1024).toFixed(1)}KB). Try a simpler image.`, 'error');
+		console.log(`Optimized ${imageType}: ${(optimizedBlob.size / 1024).toFixed(1)}KB via Fly`);
+
+		const needsLvgl = needsLvglPayload(imageType);
+		let storagePayload;
+		let previewDataUrl;
+		let payloadBytes = optimizedBlob.size;
+		if (needsLvgl) {
+			const lvglOptions = (imageType === 'header') ? { stripWhiteBg: true, bgTolerance: 24 } : {};
+			const lvglPayload = await blobToLvglPayload(optimizedBlob, lvglOptions);
+			storagePayload = lvglPayload.payload;
+			previewDataUrl = lvglPayload.previewDataUrl;
+			payloadBytes = lvglPayload.rawBytes;
+			lvimgPreviewCache.set(storagePayload, previewDataUrl);
+		} else {
+			previewDataUrl = await blobToDataUrl(optimizedBlob);
+			storagePayload = previewDataUrl;
+		}
+
+		if (payloadBytes > imgConfig.maxBytes) {
+			showBanner(`Optimized image still too large (${(payloadBytes/1024).toFixed(1)}KB raw). Try a simpler image.`, 'error');
 			evt.target.value = '';
 			return;
 		}
 		
-		// Upload to ESP32
-		showBanner(`Uploading optimized ${imageType} to device...`, 'info');
 		// Upload to ESP32
 		showBanner(`Uploading optimized ${imageType} to device...`, 'info');
 		const response = await fetch('/api/image/upload', {
@@ -1638,7 +2043,7 @@ async function handleImageUpload(evt, imageType) {
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({
 				type: imageType,
-				data: dataUrl
+				data: storagePayload
 			})
 		});
 		
@@ -1650,7 +2055,11 @@ async function handleImageUpload(evt, imageType) {
 		if (!config.images) config.images = {};
 		const configPath = IMAGE_CONFIGS[imageType].configPath.split('.');
 		if (configPath[0] === 'images') {
-			config.images[configPath[1]] = dataUrl;
+			config.images[configPath[1]] = storagePayload;
+		}
+		if (imageType === 'header') {
+			config.header = config.header || {};
+			config.header.show_logo = true;
 		}
 
 		// Update preview
@@ -1659,16 +2068,18 @@ async function handleImageUpload(evt, imageType) {
 		const sizeSpan = document.getElementById(`${imageType}-logo-size`);
 		
 		if (previewImg && previewDiv && sizeSpan) {
-			previewImg.src = dataUrl;
+			previewImg.src = previewDataUrl;
 			previewDiv.style.display = 'block';
 			const img = new Image();
 			img.onload = () => {
 				sizeSpan.textContent = `${img.width}x${img.height}, ${(optimizedBlob.size / 1024).toFixed(1)}KB (optimized)`;
 			};
-			img.src = dataUrl;
+			img.src = previewDataUrl;
 		}
 
+		renderPreview();
 		showBanner(`✅ ${imageType} image optimized & uploaded! Check device display.`, 'success');
+		evt.target.value = '';
 	} catch (error) {
 		console.error('Image upload error:', error);
 		showBanner(`Error: ${error.message}`, 'error');
@@ -1683,6 +2094,10 @@ function clearImage(imageType) {
 	if (configPath[0] === 'images') {
 		config.images[configPath[1]] = '';
 	}
+	if (imageType === 'header') {
+		config.header = config.header || {};
+		config.header.show_logo = false;
+	}
 	
 	// Upload empty image to server
 	fetch('/api/image/upload', {
@@ -1696,9 +2111,11 @@ function clearImage(imageType) {
 		if (response.ok) {
 			const previewDiv = document.getElementById(`${imageType}-logo-preview`);
 			const uploadInput = document.getElementById(`${imageType}-logo-upload`);
+			lvimgPreviewCache.clear();
 			
 			if (previewDiv) previewDiv.style.display = 'none';
 			if (uploadInput) uploadInput.value = '';
+			renderPreview();
 			
 			showBanner(`${imageType} image cleared`, 'success');
 		}
@@ -1721,34 +2138,36 @@ function hydrateDisplay(){
 	// Hydrate image assets
 	const images = config.images || {};
 	
-	// Header logo
-	if (images.header_logo) {
+	const headerPreviewSrc = getImagePreviewSrc(images.header_logo);
+	if (headerPreviewSrc) {
 		const headerPreviewImg = document.getElementById('header-logo-preview-img');
-		if (headerPreviewImg) headerPreviewImg.src = images.header_logo;
+		if (headerPreviewImg) headerPreviewImg.src = headerPreviewSrc;
 		const headerPreview = document.getElementById('header-logo-preview');
 		if (headerPreview) headerPreview.style.display = 'block';
 	}
-	
-	// Splash logo
-	if (images.splash_logo) {
+
+	const splashPreviewSrc = getImagePreviewSrc(images.splash_logo);
+	if (splashPreviewSrc) {
 		const splashPreviewImg = document.getElementById('splash-logo-preview-img');
-		if (splashPreviewImg) splashPreviewImg.src = images.splash_logo;
+		if (splashPreviewImg) splashPreviewImg.src = splashPreviewSrc;
 		const splashPreview = document.getElementById('splash-logo-preview');
 		if (splashPreview) splashPreview.style.display = 'block';
 	}
-	
-	// Background image
-	if (images.background_image) {
+
+	const bgPreviewSrc = getImagePreviewSrc(images.background_image);
+	if (bgPreviewSrc) {
 		const bgPreviewImg = document.getElementById('background-preview-img');
-		if (bgPreviewImg) bgPreviewImg.src = images.background_image;
+		if (bgPreviewImg) bgPreviewImg.src = bgPreviewSrc;
 		const bgPreview = document.getElementById('background-preview');
 		if (bgPreview) bgPreview.style.display = 'block';
 	}
-	
-	// Sleep logo
-	if (images.sleep_logo) {
-		document.getElementById('sleep-logo-preview-img').src = images.sleep_logo;
-		document.getElementById('sleep-logo-preview').style.display = 'block';
+
+	const sleepPreviewSrc = getImagePreviewSrc(images.sleep_logo);
+	if (sleepPreviewSrc) {
+		const sleepImg = document.getElementById('sleep-logo-preview-img');
+		const sleepPreview = document.getElementById('sleep-logo-preview');
+		if (sleepImg) sleepImg.src = sleepPreviewSrc;
+		if (sleepPreview) sleepPreview.style.display = 'block';
 	}
 
 	// Legacy sleep icon support
@@ -1764,6 +2183,7 @@ async function loadConfig(){
 	try{
 		const res = await fetch('/api/config');
 		config = await res.json();
+		lvimgPreviewCache.clear();
 		ensurePages();
 		populateFontSelects();  // Must populate fonts BEFORE hydrating header fields
 		hydrateThemeFields();
