@@ -25,7 +25,7 @@ function Resolve-PackagePath {
     $embeddedArtifacts = $RequiredArtifacts |
         ForEach-Object { Join-Path $PSScriptRoot $_ }
 
-    [array]$missingEmbedded = $embeddedArtifacts | Where-Object { -not (Test-Path $_) }
+    $missingEmbedded = @($embeddedArtifacts | Where-Object { -not (Test-Path $_) })
     if ($missingEmbedded.Count -eq 0) {
         return $PSScriptRoot
     }
@@ -46,7 +46,7 @@ function Resolve-PackagePath {
             $required = $RequiredArtifacts |
                 ForEach-Object { Join-Path $dir.FullName $_ }
 
-            [array]$missing = $required | Where-Object { -not (Test-Path $_) }
+            $missing = @($required | Where-Object { -not (Test-Path $_) })
             if ($missing.Count -gt 0) {
                 continue
             }
@@ -71,8 +71,8 @@ function Get-SerialCandidates {
 
 function Detect-Port {
     param([array]$Candidates)
-    [array]$Candidates = $Candidates
-    if (-not $Candidates -or $Candidates.Count -eq 0) {
+    $Candidates = @($Candidates)
+    if ($Candidates.Count -eq 0) {
         return $null
     }
 
