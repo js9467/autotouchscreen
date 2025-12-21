@@ -19,6 +19,7 @@
 #include "ui_theme.h"
 #include "web_server.h"
 #include "ota_manager.h"
+#include "version_auto.h"
 
 // IO pin definitions for the Waveshare ESP32-S3-Touch-LCD-4.3 board
 #define TP_RST 1
@@ -116,6 +117,7 @@ void setup() {
     Serial.println("=================================");
     Serial.println(" Bronco Controls - Web Config ");
     Serial.println("=================================");
+    Serial.printf(" Firmware Version: %s\n", APP_VERSION);
 
     // Initialize LVGL core
     lv_init();

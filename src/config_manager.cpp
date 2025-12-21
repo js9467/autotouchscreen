@@ -8,9 +8,11 @@
 #include <sstream>
 #include <cctype>
 
+#include "version_auto.h"
+
 namespace {
 constexpr const char* kConfigPath = "/config.json";
-constexpr const char* kDefaultManifestUrl = "https://updates.bronco-controls.com/manifest.json";
+constexpr const char* kDefaultManifestUrl = "https://image-optimizer-still-flower-1282.fly.dev/ota/manifest";
 
 template <typename T>
 T clampValue(T value, T min_value, T max_value) {
@@ -98,6 +100,8 @@ bool ConfigManager::begin() {
         return save();
     }
 
+    bool needs_save = false;
+
     // Check if config needs upgrade based on available fonts
     DeviceConfig defaults = buildDefaultConfig();
     if (config_.available_fonts.size() < defaults.available_fonts.size()) {
@@ -105,6 +109,24 @@ bool ConfigManager::begin() {
                      config_.available_fonts.size(), defaults.available_fonts.size());
         // Preserve user settings but update available fonts
         config_.available_fonts = defaults.available_fonts;
+        needs_save = true;
+    }
+
+    if (config_.version != APP_VERSION) {
+        Serial.printf("[ConfigManager] Bumping stored version %s -> %s\n",
+                      config_.version.c_str(), APP_VERSION);
+        config_.version = APP_VERSION;
+        needs_save = true;
+    }
+
+    // Migrate old OTA URL to new endpoint
+    if (config_.ota.manifest_url == "https://updates.bronco-controls.com/manifest.json") {
+        Serial.println("[ConfigManager] Migrating OTA URL to Fly.io endpoint");
+        config_.ota.manifest_url = defaults.ota.manifest_url;
+        needs_save = true;
+    }
+
+    if (needs_save) {
         return save();
     }
 
@@ -179,7 +201,7 @@ bool ConfigManager::writeToStorage(const std::string& json) const {
 
 DeviceConfig ConfigManager::buildDefaultConfig() const {
     DeviceConfig cfg;
-    cfg.version = "1.0.0";
+    cfg.version = APP_VERSION;
     cfg.header.title = "CAN Control";
     cfg.header.subtitle = "Configuration Interface";
     cfg.header.show_logo = true;
@@ -197,7 +219,7 @@ DeviceConfig ConfigManager::buildDefaultConfig() const {
     // Ensure WiFi AP is always enabled by default
     cfg.wifi.ap.enabled = true;
     cfg.wifi.ap.ssid = "CAN-Control";
-    cfg.wifi.ap.password = "canbus123";
+    cfg.wifi.ap.password.clear();
     cfg.wifi.sta.enabled = false;
 
     cfg.ota.enabled = true;

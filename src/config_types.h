@@ -71,7 +71,7 @@ struct FontConfig {
 struct WifiCredentials {
     bool enabled = true;
     std::string ssid = "CAN-Control";
-    std::string password = "canbus123";
+    std::string password = "";
 };
 
 struct WifiConfig {
@@ -88,7 +88,7 @@ struct WifiConfig {
 struct OTAConfig {
     bool enabled = true;
     bool auto_apply = true;
-    std::string manifest_url = "https://updates.bronco-controls.com/manifest.json";
+    std::string manifest_url = "https://image-optimizer-still-flower-1282.fly.dev/ota/manifest";
     std::string channel = "stable";
     std::uint32_t check_interval_minutes = 60;  // Minutes between background checks
 };

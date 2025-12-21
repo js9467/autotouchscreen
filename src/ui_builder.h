@@ -51,6 +51,10 @@ private:
     void refreshOtaStatusLabel();
     std::string humanizeOtaStatus(const std::string& status) const;
     lv_color_t colorForOtaStatus(const std::string& status) const;
+    void refreshNetworkStatusLabel();
+    std::string connectionStatusText() const;
+    lv_color_t connectionStatusColor() const;
+    void refreshVersionLabel();
 
     static void navButtonEvent(lv_event_t* e);
     static void actionButtonEvent(lv_event_t* e);
@@ -78,8 +82,11 @@ private:
     lv_obj_t* info_modal_bg_ = nullptr;
     lv_obj_t* brightness_value_label_ = nullptr;
     lv_obj_t* brightness_slider_ = nullptr;
+    lv_obj_t* network_status_label_ = nullptr;
+    lv_obj_t* version_label_ = nullptr;
     lv_obj_t* ota_status_label_ = nullptr;
     lv_obj_t* ota_update_btn_ = nullptr;
+    lv_obj_t* info_ip_label_ = nullptr;
     lv_obj_t* sleep_overlay_ = nullptr;
     lv_obj_t* sleep_image_ = nullptr;
     lv_timer_t* sleep_timer_ = nullptr;

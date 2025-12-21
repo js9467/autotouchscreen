@@ -69,17 +69,14 @@ void WebServerManager::begin() {
     configureWifi();
     setupRoutes();
     server_.begin();
-    
-    // Start DNS server for captive portal
-    dns_server_.start(53, "*", kApIp);
-    
     Serial.println("[WebServer] HTTP server started on port 80");
-    Serial.println("[WebServer] Captive portal DNS active");
 }
 
 void WebServerManager::loop() {
     // Process DNS requests for captive portal
-    dns_server_.processNextRequest();
+    if (dns_active_) {
+        dns_server_.processNextRequest();
+    }
 
     if (wifi_reconfigure_pending_) {
         const std::uint32_t now = millis();
@@ -99,20 +96,23 @@ void WebServerManager::configureWifi() {
     auto& wifi = ConfigManager::instance().getConfig().wifi;
     WiFi.mode(WIFI_MODE_APSTA);
 
-    // SAFETY: Always enable AP if it was disabled (prevents lockout)
-    if (!wifi.ap.enabled) {
-        Serial.println("[WebServer] WARNING: AP was disabled. Re-enabling to prevent lockout.");
+    const bool sta_configured = wifi.sta.enabled && !wifi.sta.ssid.empty();
+    if ((!wifi.ap.enabled || ap_suppressed_) && !sta_configured) {
+        Serial.println("[WebServer] WARNING: Station credentials missing. Enabling fallback AP.");
         wifi.ap.enabled = true;
+        ap_suppressed_ = false;
         if (wifi.ap.ssid.empty()) {
             wifi.ap.ssid = "CAN-Control";
-        }
-        if (wifi.ap.password.empty() || wifi.ap.password.length() < 8) {
-            wifi.ap.password = "canbus123";
         }
         ConfigManager::instance().save();
     }
 
-    if (wifi.ap.enabled) {
+    if (ap_suppressed_ && !sta_connected_) {
+        Serial.println("[WebServer] STA disconnected. Re-enabling AP for recovery.");
+        ap_suppressed_ = false;
+    }
+
+    if (wifi.ap.enabled && !ap_suppressed_) {
         const char* password = nullptr;
         if (wifi.ap.password.length() >= 8) {
             password = wifi.ap.password.c_str();
@@ -130,9 +130,19 @@ void WebServerManager::configureWifi() {
         }
         ap_ip_ = WiFi.softAPIP();
         Serial.printf("[WebServer] AP ready at %s\n", ap_ip_.toString().c_str());
+        if (!dns_active_) {
+            dns_server_.start(53, "*", kApIp);
+            dns_active_ = true;
+            Serial.println("[WebServer] Captive portal DNS active");
+        }
     } else {
         WiFi.softAPdisconnect(true);
         ap_ip_ = IPAddress(0, 0, 0, 0);
+        if (dns_active_) {
+            dns_server_.stop();
+            dns_active_ = false;
+            Serial.println("[WebServer] Captive portal DNS stopped");
+        }
     }
 
     if (wifi.sta.enabled && !wifi.sta.ssid.empty()) {
@@ -368,6 +378,8 @@ WifiStatusSnapshot WebServerManager::getStatusSnapshot() const {
 void WebServerManager::disableAP() {
     Serial.println("[WebServer] Disabling Access Point");
     dns_server_.stop();
+    dns_active_ = false;
+    ap_suppressed_ = true;
     WiFi.softAPdisconnect(true);
     ap_ip_ = IPAddress(0, 0, 0, 0);
 }

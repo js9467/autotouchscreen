@@ -36,4 +36,6 @@ private:
     IPAddress sta_ip_{0, 0, 0, 0};
     bool wifi_reconfigure_pending_ = false;
     std::uint32_t wifi_reconfigure_request_ms_ = 0;
+    bool ap_suppressed_ = false;
+    bool dns_active_ = false;
 };

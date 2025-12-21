@@ -7,6 +7,7 @@
 #include <cstdlib>
 #include <algorithm>
 #include <cstring>
+#include <cctype>
 
 #include <ESP_Panel_Library.h>
 
@@ -16,6 +17,7 @@
 #include "icon_library.h"
 #include "ui_theme.h"
 #include "assets/images.h"
+#include "version_auto.h"
 
 extern ESP_Panel* panel;
 
@@ -77,6 +79,7 @@ void UIBuilder::updateNetworkStatus(const std::string& ap_ip, const std::string&
     last_ap_ip_ = ap_ip;
     last_sta_ip_ = sta_ip;
     last_sta_connected_ = sta_connected;
+    refreshNetworkStatusLabel();
 }
 
 void UIBuilder::createBaseScreen() {
@@ -382,17 +385,25 @@ void UIBuilder::buildNavigation() {
 }
 
 void UIBuilder::buildEmptyState() {
+    if (!page_container_) {
+        return;
+    }
+
     lv_obj_clean(page_container_);
     lv_obj_remove_style_all(page_container_);
     lv_color_t bg = config_ ? colorFromHex(config_->theme.page_bg_color, UITheme::COLOR_SURFACE) : UITheme::COLOR_SURFACE;
     lv_obj_set_width(page_container_, lv_pct(100));
-    lv_obj_set_height(page_container_, lv_pct(100));
     lv_obj_set_flex_grow(page_container_, 1);
     lv_obj_set_style_bg_color(page_container_, bg, 0);
     lv_obj_set_style_bg_opa(page_container_, LV_OPA_COVER, 0);
-    lv_obj_set_style_pad_all(page_container_, UITheme::SPACE_MD, 0);
-    lv_obj_set_style_pad_gap(page_container_, UITheme::SPACE_SM, 0);
     lv_obj_set_style_radius(page_container_, 0, 0);
+    lv_obj_set_style_pad_all(page_container_, UITheme::SPACE_MD, 0);
+    lv_obj_set_style_shadow_width(page_container_, 0, 0);
+    lv_obj_clear_flag(page_container_, LV_OBJ_FLAG_SCROLLABLE);
+
+    lv_obj_set_layout(page_container_, LV_LAYOUT_FLEX);
+    lv_obj_set_flex_flow(page_container_, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_flex_align(page_container_, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
 
     lv_obj_t* label = lv_label_create(page_container_);
     lv_label_set_text(label, "No pages configured. Use the web interface to add controls.");
@@ -407,6 +418,10 @@ void UIBuilder::buildPage(std::size_t index) {
         return;
     }
 
+    if (!page_container_) {
+        return;
+    }
+
     active_page_ = index;
     const PageConfig& page = config_->pages[index];
 
@@ -417,13 +432,14 @@ void UIBuilder::buildPage(std::size_t index) {
     lv_obj_clean(page_container_);
     lv_obj_remove_style_all(page_container_);
     lv_obj_set_width(page_container_, lv_pct(100));
-    lv_obj_set_height(page_container_, lv_pct(100));
     lv_obj_set_flex_grow(page_container_, 1);
     lv_obj_set_style_bg_color(page_container_, colorFromHex(page_bg_hex, UITheme::COLOR_SURFACE), 0);
     lv_obj_set_style_bg_opa(page_container_, LV_OPA_COVER, 0);
     lv_obj_set_style_radius(page_container_, 0, 0);
     lv_obj_set_style_pad_all(page_container_, UITheme::SPACE_MD, 0);
     lv_obj_set_style_border_width(page_container_, 0, 0);
+    lv_obj_set_style_shadow_width(page_container_, 0, 0);
+    lv_obj_clear_flag(page_container_, LV_OBJ_FLAG_SCROLLABLE);
 
     grid_cols_.assign(page.cols + 1, LV_GRID_TEMPLATE_LAST);
     grid_rows_.assign(page.rows + 1, LV_GRID_TEMPLATE_LAST);
@@ -441,11 +457,12 @@ void UIBuilder::buildPage(std::size_t index) {
         lv_obj_set_layout(page_container_, LV_LAYOUT_FLEX);
         lv_obj_set_flex_flow(page_container_, LV_FLEX_FLOW_COLUMN);
         lv_obj_set_flex_align(page_container_, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
-        
+
         lv_obj_t* label = lv_label_create(page_container_);
         lv_label_set_text(label, "This page has no buttons yet.");
         lv_obj_set_style_text_font(label, UITheme::FONT_BODY, 0);
-        lv_obj_set_style_text_color(label, colorFromHex(config_->theme.text_secondary, UITheme::COLOR_TEXT_SECONDARY), 0);
+        lv_color_t secondary = config_ ? colorFromHex(config_->theme.text_secondary, UITheme::COLOR_TEXT_SECONDARY) : UITheme::COLOR_TEXT_SECONDARY;
+        lv_obj_set_style_text_color(label, secondary, 0);
         updateNavSelection();
         return;
     }
@@ -1059,7 +1076,7 @@ void UIBuilder::createInfoModal() {
 
     // Modal content box - larger to fit time controls
     info_modal_ = lv_obj_create(info_modal_bg_);
-    lv_obj_set_size(info_modal_, 550, 480);  // Increased height for AM/PM button
+    lv_obj_set_size(info_modal_, 520, 420);
     lv_obj_center(info_modal_);
     lv_obj_set_style_bg_color(info_modal_, lv_color_hex(0x2A2A2A), 0);
     lv_obj_set_style_bg_opa(info_modal_, LV_OPA_COVER, 0);
@@ -1067,10 +1084,10 @@ void UIBuilder::createInfoModal() {
     lv_obj_set_style_border_color(info_modal_, lv_color_hex(0xFFA500), 0);
     lv_obj_set_style_border_opa(info_modal_, LV_OPA_COVER, 0);
     lv_obj_set_style_radius(info_modal_, 16, 0);
-    lv_obj_set_style_pad_all(info_modal_, UITheme::SPACE_LG, 0);
+    lv_obj_set_style_pad_all(info_modal_, UITheme::SPACE_MD, 0);
     lv_obj_set_flex_flow(info_modal_, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_flex_align(info_modal_, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
-    lv_obj_set_style_pad_gap(info_modal_, UITheme::SPACE_MD, 0);
+    lv_obj_set_style_pad_gap(info_modal_, UITheme::SPACE_SM, 0);
     lv_obj_add_flag(info_modal_, LV_OBJ_FLAG_CLICKABLE);  // Block clicks from reaching background
     lv_obj_clear_flag(info_modal_, LV_OBJ_FLAG_SCROLLABLE);  // Modal content shouldn't close on click
 
@@ -1081,15 +1098,49 @@ void UIBuilder::createInfoModal() {
     lv_obj_set_style_text_color(title, lv_color_hex(0xFFFFFF), 0);
     lv_obj_set_style_text_opa(title, LV_OPA_COVER, 0);
 
-    // IP address label
-    lv_obj_t* ip_label = lv_label_create(info_modal_);
-    lv_label_set_text(ip_label, "IP: Not connected");
-    lv_obj_set_style_text_font(ip_label, &lv_font_montserrat_16, 0);
-    lv_obj_set_style_text_color(ip_label, lv_color_hex(0xFFFFFF), 0);
-    lv_obj_set_style_text_opa(ip_label, LV_OPA_COVER, 0);
-    lv_label_set_long_mode(ip_label, LV_LABEL_LONG_WRAP);
-    lv_obj_set_width(ip_label, 500);
-    lv_obj_set_user_data(info_modal_, ip_label);
+    // Compact stat cards keep layout stable
+    lv_obj_t* stats_row = lv_obj_create(info_modal_);
+    lv_obj_remove_style_all(stats_row);
+    lv_obj_set_width(stats_row, 500);
+    lv_obj_set_flex_flow(stats_row, LV_FLEX_FLOW_ROW_WRAP);
+    lv_obj_set_style_pad_gap(stats_row, UITheme::SPACE_SM, 0);
+    lv_obj_set_style_pad_all(stats_row, 0, 0);
+
+    auto createStatCard = [&](const char* label_text, const char* default_value, lv_obj_t** value_slot) {
+        lv_obj_t* card = lv_obj_create(stats_row);
+        lv_obj_remove_style_all(card);
+        lv_obj_set_style_bg_color(card, lv_color_hex(0x1c1c1c), 0);
+        lv_obj_set_style_bg_opa(card, LV_OPA_COVER, 0);
+        lv_obj_set_style_radius(card, UITheme::RADIUS_MD, 0);
+        lv_obj_set_style_pad_all(card, UITheme::SPACE_SM, 0);
+        lv_obj_set_style_min_width(card, 150, 0);
+        lv_obj_set_style_max_width(card, 240, 0);
+        lv_obj_set_style_min_height(card, 74, 0);
+        lv_obj_set_flex_flow(card, LV_FLEX_FLOW_COLUMN);
+        lv_obj_set_flex_align(card, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
+        lv_obj_set_flex_grow(card, 1);
+
+        lv_obj_t* heading = lv_label_create(card);
+        lv_obj_set_style_text_font(heading, &lv_font_montserrat_12, 0);
+        lv_obj_set_style_text_color(heading, UITheme::COLOR_TEXT_SECONDARY, 0);
+        lv_label_set_text(heading, label_text);
+
+        lv_obj_t* value = lv_label_create(card);
+        lv_obj_set_style_text_font(value, &lv_font_montserrat_18, 0);
+        lv_obj_set_style_text_color(value, UITheme::COLOR_TEXT_PRIMARY, 0);
+        lv_label_set_long_mode(value, LV_LABEL_LONG_CLIP);
+        lv_obj_set_width(value, lv_pct(100));
+        lv_label_set_text(value, default_value);
+        if (value_slot) {
+            *value_slot = value;
+        }
+    };
+
+    createStatCard("Connectivity", "Checking...", &network_status_label_);
+    createStatCard("IP Address", "Not connected", &info_ip_label_);
+    const char* version_default = (APP_VERSION && APP_VERSION[0]) ? APP_VERSION : "--";
+    createStatCard("Firmware", version_default, &version_label_);
+    refreshVersionLabel();
 
     // Brightness controls
     lv_obj_t* brightness_row = lv_obj_create(info_modal_);
@@ -1124,44 +1175,54 @@ void UIBuilder::createInfoModal() {
     lv_obj_set_style_pad_gap(ota_section, UITheme::SPACE_XS, 0);
     lv_obj_set_width(ota_section, 500);
 
-    lv_obj_t* ota_heading = lv_label_create(ota_section);
+    lv_obj_t* ota_header = lv_obj_create(ota_section);
+    lv_obj_remove_style_all(ota_header);
+    lv_obj_set_width(ota_header, lv_pct(100));
+    lv_obj_set_flex_flow(ota_header, LV_FLEX_FLOW_ROW);
+    lv_obj_set_flex_align(ota_header, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_set_style_pad_all(ota_header, 0, 0);
+    lv_obj_set_style_pad_gap(ota_header, UITheme::SPACE_SM, 0);
+
+    lv_obj_t* ota_heading = lv_label_create(ota_header);
     lv_label_set_text(ota_heading, "Software Updates");
     lv_obj_set_style_text_font(ota_heading, UITheme::FONT_BODY, 0);
     lv_obj_set_style_text_color(ota_heading, lv_color_hex(0xFFFFFF), 0);
+    lv_obj_set_style_flex_grow(ota_heading, 1, 0);
 
-    ota_status_label_ = lv_label_create(ota_section);
-    lv_label_set_long_mode(ota_status_label_, LV_LABEL_LONG_WRAP);
-    lv_obj_set_width(ota_status_label_, 500);
-    lv_obj_set_style_text_font(ota_status_label_, UITheme::FONT_BODY, 0);
-    lv_obj_set_style_text_color(ota_status_label_, lv_color_hex(0xFFFFFF), 0);
-
-    lv_obj_t* ota_actions = lv_obj_create(ota_section);
-    lv_obj_remove_style_all(ota_actions);
-    lv_obj_set_flex_flow(ota_actions, LV_FLEX_FLOW_ROW);
-    lv_obj_set_style_pad_gap(ota_actions, UITheme::SPACE_SM, 0);
-    lv_obj_set_width(ota_actions, 500);
-
-    ota_update_btn_ = lv_btn_create(ota_actions);
-    lv_obj_set_size(ota_update_btn_, 200, 44);
+    ota_update_btn_ = lv_btn_create(ota_header);
+    lv_obj_set_size(ota_update_btn_, 160, 40);
     lv_obj_set_style_bg_color(ota_update_btn_, lv_color_hex(0xFFA500), 0);
     lv_obj_set_style_radius(ota_update_btn_, UITheme::RADIUS_MD, 0);
     lv_obj_add_event_cb(ota_update_btn_, otaCheckButtonEvent, LV_EVENT_CLICKED, nullptr);
 
     lv_obj_t* ota_btn_label = lv_label_create(ota_update_btn_);
-    lv_label_set_text(ota_btn_label, "Check For Updates");
+    lv_label_set_text(ota_btn_label, "Check Now");
     lv_obj_set_style_text_font(ota_btn_label, UITheme::FONT_BODY, 0);
     lv_obj_center(ota_btn_label);
+
+    ota_status_label_ = lv_label_create(ota_section);
+    lv_label_set_long_mode(ota_status_label_, LV_LABEL_LONG_CLIP);
+    lv_obj_set_width(ota_status_label_, lv_pct(100));
+    lv_obj_set_style_text_font(ota_status_label_, UITheme::FONT_BODY, 0);
+    lv_obj_set_style_text_color(ota_status_label_, lv_color_hex(0xFFFFFF), 0);
 
     ota_status_text_ = OTAUpdateManager::instance().lastStatus();
     refreshOtaStatusLabel();
 
     // Close button
-    lv_obj_t* close_btn = lv_btn_create(info_modal_);
+    lv_obj_t* close_row = lv_obj_create(info_modal_);
+    lv_obj_remove_style_all(close_row);
+    lv_obj_set_width(close_row, 500);
+    lv_obj_set_flex_flow(close_row, LV_FLEX_FLOW_ROW);
+    lv_obj_set_flex_align(close_row, LV_FLEX_ALIGN_END, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_set_style_pad_all(close_row, 0, 0);
+
+    lv_obj_t* close_btn = lv_btn_create(close_row);
     lv_obj_set_size(close_btn, 120, 40);
     lv_obj_set_style_bg_color(close_btn, lv_color_hex(0xFFA500), 0);
-    lv_obj_set_style_pad_top(close_btn, UITheme::SPACE_SM, 0);
+    lv_obj_set_style_radius(close_btn, UITheme::RADIUS_MD, 0);
     lv_obj_add_event_cb(close_btn, infoModalCloseEvent, LV_EVENT_CLICKED, nullptr);
-    
+
     lv_obj_t* close_label = lv_label_create(close_btn);
     lv_label_set_text(close_label, "Close");
     lv_obj_set_style_text_font(close_label, UITheme::FONT_BODY, 0);
@@ -1190,20 +1251,8 @@ void UIBuilder::showInfoModal() {
     }
 
     updateOtaStatus(OTAUpdateManager::instance().lastStatus());
-
-    // Update IP address in modal
-    lv_obj_t* ip_label = static_cast<lv_obj_t*>(lv_obj_get_user_data(info_modal_));
-    if (ip_label) {
-        std::string ip_text = "IP: ";
-        if (last_sta_connected_ && !last_sta_ip_.empty() && last_sta_ip_ != "0.0.0.0") {
-            ip_text += last_sta_ip_;
-        } else if (!last_ap_ip_.empty() && last_ap_ip_ != "0.0.0.0") {
-            ip_text += last_ap_ip_;
-        } else {
-            ip_text += "Not connected";
-        }
-        lv_label_set_text(ip_label, ip_text.c_str());
-    }
+    refreshNetworkStatusLabel();
+    refreshVersionLabel();
 
     lv_obj_move_foreground(info_modal_bg_);  // Ensure modal is on top layer
     lv_obj_clear_flag(info_modal_bg_, LV_OBJ_FLAG_HIDDEN);
@@ -1299,6 +1348,52 @@ lv_color_t UIBuilder::colorForOtaStatus(const std::string& status) const {
         return UITheme::COLOR_ERROR;
     }
     return UITheme::COLOR_TEXT_PRIMARY;
+}
+
+void UIBuilder::refreshNetworkStatusLabel() {
+    if (info_ip_label_) {
+        const char* ip_value = "Not connected";
+        if (last_sta_connected_ && !last_sta_ip_.empty() && last_sta_ip_ != "0.0.0.0") {
+            ip_value = last_sta_ip_.c_str();
+        } else if (!last_ap_ip_.empty() && last_ap_ip_ != "0.0.0.0") {
+            ip_value = last_ap_ip_.c_str();
+        }
+        lv_label_set_text(info_ip_label_, ip_value);
+    }
+
+    if (network_status_label_) {
+        const std::string status_text = connectionStatusText();
+        lv_label_set_text(network_status_label_, status_text.c_str());
+        lv_obj_set_style_text_color(network_status_label_, connectionStatusColor(), 0);
+    }
+}
+
+std::string UIBuilder::connectionStatusText() const {
+    if (last_sta_connected_ && !last_sta_ip_.empty() && last_sta_ip_ != "0.0.0.0") {
+        return "Wi-Fi Online";
+    }
+    if (!last_ap_ip_.empty() && last_ap_ip_ != "0.0.0.0") {
+        return "Hosting AP";
+    }
+    return "Offline";
+}
+
+lv_color_t UIBuilder::connectionStatusColor() const {
+    if (last_sta_connected_) {
+        return UITheme::COLOR_SUCCESS;
+    }
+    if (!last_ap_ip_.empty() && last_ap_ip_ != "0.0.0.0") {
+        return UITheme::COLOR_ACCENT;
+    }
+    return UITheme::COLOR_ERROR;
+}
+
+void UIBuilder::refreshVersionLabel() {
+    if (!version_label_) {
+        return;
+    }
+    const char* version_text = (APP_VERSION && APP_VERSION[0]) ? APP_VERSION : "--";
+    lv_label_set_text(version_label_, version_text);
 }
 
 void UIBuilder::settingsButtonEvent(lv_event_t* e) {
