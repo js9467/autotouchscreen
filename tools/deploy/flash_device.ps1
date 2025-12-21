@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [string]$PackagePath = "$PSScriptRoot/../../dist/latest",
+    [string]$PackagePath,
     [string]$Port,
     [switch]$ListPorts,
     [string]$EsptoolVersion = "v4.7.0"
@@ -12,6 +12,41 @@ $ErrorActionPreference = "Stop"
 function Write-Info {
     param([string]$Message)
     Write-Host "[flash] $Message"
+}
+
+function Resolve-PackagePath {
+    param([string]$InputPath)
+
+    if ($InputPath) {
+        return (Resolve-Path -LiteralPath $InputPath -ErrorAction Stop).Path
+    }
+
+    $localDist = Join-Path $PSScriptRoot "dist"
+    $latestDir = Join-Path $localDist "latest"
+
+    if (Test-Path $latestDir) {
+        return (Resolve-Path -LiteralPath $latestDir).Path
+    }
+
+    if (Test-Path $localDist) {
+        # Grab the highest-looking version folder that contains all required binaries.
+        $candidates = Get-ChildItem -LiteralPath $localDist -Directory |
+            Sort-Object Name -Descending
+
+        foreach ($dir in $candidates) {
+            $required = @("bootloader.bin", "partitions.bin", "boot_app0.bin", "firmware.bin") |
+                ForEach-Object { Join-Path $dir.FullName $_ }
+
+            $missing = $required | Where-Object { -not (Test-Path $_) }
+            if ($missing.Count -gt 0) {
+                continue
+            }
+
+            return $dir.FullName
+        }
+    }
+
+    throw "Could not locate firmware package. Provide -PackagePath or include dist/<version> with binaries."
 }
 
 function Get-SerialCandidates {
@@ -82,11 +117,7 @@ if ($ListPorts) {
     return
 }
 
-if (-not (Test-Path $PackagePath)) {
-    throw "Package directory '$PackagePath' does not exist"
-}
-
-$resolvedPackage = (Resolve-Path $PackagePath).Path
+$resolvedPackage = Resolve-PackagePath -InputPath $PackagePath
 $bootloader = Join-Path $resolvedPackage "bootloader.bin"
 $partitions = Join-Path $resolvedPackage "partitions.bin"
 $bootApp0 = Join-Path $resolvedPackage "boot_app0.bin"
