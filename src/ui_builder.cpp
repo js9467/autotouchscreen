@@ -12,6 +12,7 @@
 
 #include "can_manager.h"
 #include "config_manager.h"
+#include "ota_manager.h"
 #include "icon_library.h"
 #include "ui_theme.h"
 #include "assets/images.h"
@@ -89,9 +90,18 @@ void UIBuilder::createBaseScreen() {
     lv_obj_clear_flag(base_screen_, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_set_style_pad_all(base_screen_, 0, 0);
 
-    // Apply shell background (always use bg_color so the card can float above it)
-    lv_color_t shell_bg_color = config_ ? colorFromHex(config_->theme.bg_color, UITheme::COLOR_BG) : UITheme::COLOR_BG;
-    lv_obj_set_style_bg_color(base_screen_, shell_bg_color, 0);
+    // Apply shell background using the active page color so no border shows around the UI
+    lv_color_t flush_bg = UITheme::COLOR_SURFACE;
+    if (config_) {
+        if (!config_->theme.page_bg_color.empty()) {
+            flush_bg = colorFromHex(config_->theme.page_bg_color, flush_bg);
+        } else if (!config_->theme.surface_color.empty()) {
+            flush_bg = colorFromHex(config_->theme.surface_color, flush_bg);
+        } else if (!config_->theme.bg_color.empty()) {
+            flush_bg = colorFromHex(config_->theme.bg_color, flush_bg);
+        }
+    }
+    lv_obj_set_style_bg_color(base_screen_, flush_bg, 0);
     lv_obj_set_style_bg_opa(base_screen_, LV_OPA_COVER, 0);
 
     lv_scr_load(base_screen_);
@@ -106,14 +116,14 @@ void UIBuilder::createBaseScreen() {
     lv_obj_clear_flag(shell, LV_OBJ_FLAG_SCROLLABLE);
 
     // Main card - fullscreen
-    lv_color_t card_bg_color = config_ ? colorFromHex(config_->theme.surface_color, lv_color_hex(0xF4F6FA)) : lv_color_hex(0xF4F6FA);
+    lv_color_t card_bg_color = flush_bg;
     lv_obj_t* main_container = lv_obj_create(shell);
     lv_obj_set_size(main_container, screen_w, screen_h);
     lv_obj_set_pos(main_container, 0, 0);
     lv_obj_set_style_bg_color(main_container, card_bg_color, 0);
     lv_obj_set_style_bg_opa(main_container, LV_OPA_COVER, 0);
     lv_obj_set_style_radius(main_container, 0, 0);
-    lv_obj_set_style_pad_all(main_container, UITheme::SPACE_SM, 0);
+    lv_obj_set_style_pad_all(main_container, 0, 0);
     lv_obj_set_style_pad_gap(main_container, 0, 0);
     lv_obj_set_style_shadow_width(main_container, 0, 0);
     lv_obj_set_flex_flow(main_container, LV_FLEX_FLOW_COLUMN);
@@ -216,7 +226,8 @@ void UIBuilder::createBaseScreen() {
     lv_obj_set_flex_grow(content_root_, 1);
     lv_obj_set_style_bg_color(content_root_, config_ ? colorFromHex(config_->theme.page_bg_color, UITheme::COLOR_SURFACE) : UITheme::COLOR_SURFACE, 0);
     lv_obj_set_style_bg_opa(content_root_, LV_OPA_COVER, 0);
-    lv_obj_set_style_radius(content_root_, 22, 0);
+    lv_obj_set_style_radius(content_root_, 0, 0);
+    lv_obj_set_style_shadow_width(content_root_, 0, 0);
     lv_obj_set_style_pad_all(content_root_, UITheme::SPACE_MD, 0);
     lv_obj_set_style_pad_gap(content_root_, UITheme::SPACE_SM, 0);
     lv_obj_clear_flag(content_root_, LV_OBJ_FLAG_SCROLLABLE);
@@ -379,12 +390,9 @@ void UIBuilder::buildEmptyState() {
     lv_obj_set_flex_grow(page_container_, 1);
     lv_obj_set_style_bg_color(page_container_, bg, 0);
     lv_obj_set_style_bg_opa(page_container_, LV_OPA_COVER, 0);
-    lv_obj_set_style_radius(page_container_, 20, 0);
     lv_obj_set_style_pad_all(page_container_, UITheme::SPACE_MD, 0);
     lv_obj_set_style_pad_gap(page_container_, UITheme::SPACE_SM, 0);
-    lv_obj_set_style_shadow_width(page_container_, 18, 0);
-    lv_obj_set_style_shadow_color(page_container_, lv_color_hex(0x000000), 0);
-    lv_obj_set_style_shadow_opa(page_container_, LV_OPA_20, 0);
+    lv_obj_set_style_radius(page_container_, 0, 0);
 
     lv_obj_t* label = lv_label_create(page_container_);
     lv_label_set_text(label, "No pages configured. Use the web interface to add controls.");
@@ -413,12 +421,9 @@ void UIBuilder::buildPage(std::size_t index) {
     lv_obj_set_flex_grow(page_container_, 1);
     lv_obj_set_style_bg_color(page_container_, colorFromHex(page_bg_hex, UITheme::COLOR_SURFACE), 0);
     lv_obj_set_style_bg_opa(page_container_, LV_OPA_COVER, 0);
-    lv_obj_set_style_radius(page_container_, 20, 0);
+    lv_obj_set_style_radius(page_container_, 0, 0);
     lv_obj_set_style_pad_all(page_container_, UITheme::SPACE_MD, 0);
     lv_obj_set_style_border_width(page_container_, 0, 0);
-    lv_obj_set_style_shadow_width(page_container_, 18, 0);
-    lv_obj_set_style_shadow_color(page_container_, lv_color_hex(0x000000), 0);
-    lv_obj_set_style_shadow_opa(page_container_, LV_OPA_20, 0);
 
     grid_cols_.assign(page.cols + 1, LV_GRID_TEMPLATE_LAST);
     grid_rows_.assign(page.rows + 1, LV_GRID_TEMPLATE_LAST);
@@ -1111,7 +1116,44 @@ void UIBuilder::createInfoModal() {
     lv_label_set_text(brightness_value_label_, pct_buf);
     lv_obj_set_style_text_font(brightness_value_label_, UITheme::FONT_BODY, 0);
 
-    // Time controls removed; this modal now only shows device info.
+    // OTA controls
+    lv_obj_t* ota_section = lv_obj_create(info_modal_);
+    lv_obj_remove_style_all(ota_section);
+    lv_obj_set_flex_flow(ota_section, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_style_pad_all(ota_section, 0, 0);
+    lv_obj_set_style_pad_gap(ota_section, UITheme::SPACE_XS, 0);
+    lv_obj_set_width(ota_section, 500);
+
+    lv_obj_t* ota_heading = lv_label_create(ota_section);
+    lv_label_set_text(ota_heading, "Software Updates");
+    lv_obj_set_style_text_font(ota_heading, UITheme::FONT_BODY, 0);
+    lv_obj_set_style_text_color(ota_heading, lv_color_hex(0xFFFFFF), 0);
+
+    ota_status_label_ = lv_label_create(ota_section);
+    lv_label_set_long_mode(ota_status_label_, LV_LABEL_LONG_WRAP);
+    lv_obj_set_width(ota_status_label_, 500);
+    lv_obj_set_style_text_font(ota_status_label_, UITheme::FONT_BODY, 0);
+    lv_obj_set_style_text_color(ota_status_label_, lv_color_hex(0xFFFFFF), 0);
+
+    lv_obj_t* ota_actions = lv_obj_create(ota_section);
+    lv_obj_remove_style_all(ota_actions);
+    lv_obj_set_flex_flow(ota_actions, LV_FLEX_FLOW_ROW);
+    lv_obj_set_style_pad_gap(ota_actions, UITheme::SPACE_SM, 0);
+    lv_obj_set_width(ota_actions, 500);
+
+    ota_update_btn_ = lv_btn_create(ota_actions);
+    lv_obj_set_size(ota_update_btn_, 200, 44);
+    lv_obj_set_style_bg_color(ota_update_btn_, lv_color_hex(0xFFA500), 0);
+    lv_obj_set_style_radius(ota_update_btn_, UITheme::RADIUS_MD, 0);
+    lv_obj_add_event_cb(ota_update_btn_, otaCheckButtonEvent, LV_EVENT_CLICKED, nullptr);
+
+    lv_obj_t* ota_btn_label = lv_label_create(ota_update_btn_);
+    lv_label_set_text(ota_btn_label, "Check For Updates");
+    lv_obj_set_style_text_font(ota_btn_label, UITheme::FONT_BODY, 0);
+    lv_obj_center(ota_btn_label);
+
+    ota_status_text_ = OTAUpdateManager::instance().lastStatus();
+    refreshOtaStatusLabel();
 
     // Close button
     lv_obj_t* close_btn = lv_btn_create(info_modal_);
@@ -1147,6 +1189,8 @@ void UIBuilder::showInfoModal() {
         return;
     }
 
+    updateOtaStatus(OTAUpdateManager::instance().lastStatus());
+
     // Update IP address in modal
     lv_obj_t* ip_label = static_cast<lv_obj_t*>(lv_obj_get_user_data(info_modal_));
     if (ip_label) {
@@ -1179,12 +1223,99 @@ void UIBuilder::hideInfoModal() {
     hideSleepOverlay();
 }
 
+void UIBuilder::updateOtaStatus(const std::string& status) {
+    ota_status_text_ = status.empty() ? "idle" : status;
+    refreshOtaStatusLabel();
+}
+
+void UIBuilder::refreshOtaStatusLabel() {
+    if (!ota_status_label_) {
+        return;
+    }
+    const std::string friendly = humanizeOtaStatus(ota_status_text_);
+    lv_label_set_text(ota_status_label_, friendly.c_str());
+    lv_obj_set_style_text_color(ota_status_label_, colorForOtaStatus(ota_status_text_), 0);
+}
+
+std::string UIBuilder::humanizeOtaStatus(const std::string& status) const {
+    if (status.empty()) {
+        return "Idle";
+    }
+
+    auto startsWith = [](const std::string& value, const char* prefix) {
+        return value.rfind(prefix, 0) == 0;
+    };
+
+    if (status == "disabled") return "OTA disabled";
+    if (status == "waiting-for-wifi") return "Waiting for Wi-Fi";
+    if (status == "wifi-ready") return "Wi-Fi connected";
+    if (status == "manual-check-requested") return "Checking for updates...";
+    if (status == "up-to-date") return "You're up to date";
+    if (status == "manifest-url-empty" || status == "missing-manifest-url") return "Manifest URL missing";
+    if (status == "manifest-channel-mismatch") return "No update available on this channel";
+    if (startsWith(status, "update-available-")) return std::string("Update available: ") + status.substr(18);
+    if (startsWith(status, "updated-to-")) return std::string("Updated to ") + status.substr(11);
+    if (startsWith(status, "downloading-")) return std::string("Downloading ") + status.substr(12);
+    if (startsWith(status, "manifest-http-")) return std::string("Manifest download failed (HTTP ") + status.substr(14) + ")";
+    if (startsWith(status, "firmware-http-")) return std::string("Firmware download failed (HTTP ") + status.substr(14) + ")";
+    if (startsWith(status, "manifest-parse-")) return std::string("Manifest parse error: ") + status.substr(15);
+    if (status == "manifest-begin-failed") return "Unable to reach manifest";
+    if (status == "firmware-begin-failed") return "Unable to reach firmware file";
+    if (status == "update-begin-failed") return "Updater failed to start";
+    if (status == "update-end-failed") return "Updater failed to finish";
+    if (status == "md5-invalid") return "Firmware checksum mismatch";
+    if (status == "firmware-empty") return "Firmware payload empty";
+    if (status == "manifest-missing-fields") return "Manifest missing firmware info";
+
+    std::string friendly = status;
+    std::replace(friendly.begin(), friendly.end(), '-', ' ');
+    if (!friendly.empty()) {
+        friendly[0] = static_cast<char>(std::toupper(static_cast<unsigned char>(friendly[0])));
+    }
+    return friendly;
+}
+
+lv_color_t UIBuilder::colorForOtaStatus(const std::string& status) const {
+    auto startsWith = [](const std::string& value, const char* prefix) {
+        return value.rfind(prefix, 0) == 0;
+    };
+
+    if (status == "up-to-date" || startsWith(status, "updated-to-")) {
+        return UITheme::COLOR_SUCCESS;
+    }
+    if (status == "manual-check-requested" || startsWith(status, "downloading-") ||
+        startsWith(status, "update-available-") || status == "wifi-ready") {
+        return UITheme::COLOR_ACCENT;
+    }
+    if (status == "waiting-for-wifi" || status == "disabled") {
+        return UITheme::COLOR_TEXT_SECONDARY;
+    }
+    if (status == "manifest-url-empty" || status == "missing-manifest-url" ||
+        status == "manifest-begin-failed" || status == "firmware-begin-failed" ||
+        status == "update-begin-failed" || status == "update-end-failed" ||
+        status == "md5-invalid" || status == "firmware-empty" ||
+        status == "manifest-missing-fields" || startsWith(status, "manifest-http-") ||
+        startsWith(status, "firmware-http-") || startsWith(status, "manifest-parse-")) {
+        return UITheme::COLOR_ERROR;
+    }
+    return UITheme::COLOR_TEXT_PRIMARY;
+}
+
 void UIBuilder::settingsButtonEvent(lv_event_t* e) {
     if (lv_event_get_code(e) != LV_EVENT_CLICKED) {
         return;
     }
     Serial.println("[UI] Settings button clicked - showing settings modal");
     UIBuilder::instance().showInfoModal();
+}
+
+void UIBuilder::otaCheckButtonEvent(lv_event_t* e) {
+    if (lv_event_get_code(e) != LV_EVENT_CLICKED) {
+        return;
+    }
+    Serial.println("[UI] Manual OTA check requested");
+    OTAUpdateManager::instance().triggerImmediateCheck();
+    UIBuilder::instance().updateOtaStatus("manual-check-requested");
 }
 void UIBuilder::infoModalCloseEvent(lv_event_t* e) {
     if (lv_event_get_code(e) != LV_EVENT_CLICKED) {

@@ -198,6 +198,7 @@ void loop() {
     static uint32_t last_network_push_ms = 0;
     static uint32_t ap_start_ms = 0;
     static bool ap_shutdown_complete = false;
+    static std::string last_ota_status_pushed;
     
     // Record AP start time on first loop
     if (ap_start_ms == 0) {
@@ -228,7 +229,17 @@ void loop() {
         last_network_push_ms = now;
     }
 
-    OTAUpdateManager::instance().loop(snapshot);
+    OTAUpdateManager& ota = OTAUpdateManager::instance();
+    ota.loop(snapshot);
+
+    const std::string& ota_status = ota.lastStatus();
+    if (ota_status != last_ota_status_pushed) {
+        lvgl_port_lock(-1);
+        UIBuilder::instance().updateOtaStatus(ota_status);
+        lvgl_port_unlock();
+        last_ota_status_pushed = ota_status;
+    }
+
     WebServerManager::instance().loop();
     vTaskDelay(pdMS_TO_TICKS(50));
 }

@@ -16,6 +16,7 @@ public:
 
     void begin();
     void applyConfig(const DeviceConfig& config);
+    void updateOtaStatus(const std::string& status);
 
     void markDirty();
     bool consumeDirtyFlag();
@@ -47,6 +48,9 @@ private:
     bool loadImageDescriptor(const std::string& data_uri, std::vector<uint8_t>& pixel_buffer, lv_img_dsc_t& descriptor, bool scrub_white_background = false);
     void applyHeaderNavSpacing();
     void applyHeaderLogoSizing(uint16_t src_width, uint16_t src_height, bool inline_layout);
+    void refreshOtaStatusLabel();
+    std::string humanizeOtaStatus(const std::string& status) const;
+    lv_color_t colorForOtaStatus(const std::string& status) const;
 
     static void navButtonEvent(lv_event_t* e);
     static void actionButtonEvent(lv_event_t* e);
@@ -54,6 +58,7 @@ private:
     static void infoModalCloseEvent(lv_event_t* e);
     static void brightnessSliderEvent(lv_event_t* e);
     static void modalActivityEvent(lv_event_t* e);
+    static void otaCheckButtonEvent(lv_event_t* e);
     static lv_color_t colorFromHex(const std::string& hex, lv_color_t fallback);
 
     const DeviceConfig* config_ = nullptr;
@@ -73,6 +78,8 @@ private:
     lv_obj_t* info_modal_bg_ = nullptr;
     lv_obj_t* brightness_value_label_ = nullptr;
     lv_obj_t* brightness_slider_ = nullptr;
+    lv_obj_t* ota_status_label_ = nullptr;
+    lv_obj_t* ota_update_btn_ = nullptr;
     lv_obj_t* sleep_overlay_ = nullptr;
     lv_obj_t* sleep_image_ = nullptr;
     lv_timer_t* sleep_timer_ = nullptr;
@@ -96,4 +103,5 @@ private:
     std::vector<uint8_t> sleep_icon_buffer_;  // Kept for compatibility
     lv_img_dsc_t sleep_logo_dsc_{};
     bool sleep_logo_ready_ = false;
+    std::string ota_status_text_ = "idle";
 };

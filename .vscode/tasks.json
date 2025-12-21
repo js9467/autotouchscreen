@@ -9,6 +9,31 @@
 				"$platformio"
 			],
 			"group": "build"
+		},
+		{
+			"label": "Erase ESP32 Flash",
+			"type": "shell",
+			"command": "pio",
+			"args": [
+				"run",
+				"--target",
+				"erase"
+			]
+		},
+		{
+			"label": "Erase ESP32 Flash",
+			"type": "shell",
+			"command": "pio run --target erase"
+		},
+		{
+			"label": "Erase ESP32 Flash (Copilot)",
+			"type": "shell",
+			"command": "pio",
+			"args": [
+				"run",
+				"--target",
+				"erase"
+			]
 		}
 	]
 }
