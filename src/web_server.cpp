@@ -215,15 +215,17 @@ void WebServerManager::setupRoutes() {
 
             UIBuilder::instance().markDirty();
 
+            if (wifi_changed) {
+                request->onDisconnect([this]() {
+                    notifyConfigChanged();
+                });
+            }
+
             DynamicJsonDocument doc(64);
             doc["status"] = "ok";
             String payload;
             serializeJson(doc, payload);
             request->send(200, "application/json", payload);
-
-            if (wifi_changed) {
-                notifyConfigChanged();
-            }
         }, kConfigJsonLimit);
     server_.addHandler(handler);
 
@@ -253,7 +255,9 @@ void WebServerManager::setupRoutes() {
                 return;
             }
 
-            notifyConfigChanged();
+            request->onDisconnect([this]() {
+                notifyConfigChanged();
+            });
 
             DynamicJsonDocument doc(160);
             doc["status"] = "connecting";
