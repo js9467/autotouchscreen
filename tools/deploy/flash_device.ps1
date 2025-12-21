@@ -8,6 +8,7 @@ param(
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
+$RequiredArtifacts = @("bootloader.bin", "partitions.bin", "boot_app0.bin", "firmware.bin")
 
 function Write-Info {
     param([string]$Message)
@@ -19,6 +20,14 @@ function Resolve-PackagePath {
 
     if ($InputPath) {
         return (Resolve-Path -LiteralPath $InputPath -ErrorAction Stop).Path
+    }
+
+    $embeddedArtifacts = $RequiredArtifacts |
+        ForEach-Object { Join-Path $PSScriptRoot $_ }
+
+    $missingEmbedded = $embeddedArtifacts | Where-Object { -not (Test-Path $_) }
+    if ($missingEmbedded.Count -eq 0) {
+        return $PSScriptRoot
     }
 
     $localDist = Join-Path $PSScriptRoot "dist"
@@ -34,7 +43,7 @@ function Resolve-PackagePath {
             Sort-Object Name -Descending
 
         foreach ($dir in $candidates) {
-            $required = @("bootloader.bin", "partitions.bin", "boot_app0.bin", "firmware.bin") |
+            $required = $RequiredArtifacts |
                 ForEach-Object { Join-Path $dir.FullName $_ }
 
             $missing = $required | Where-Object { -not (Test-Path $_) }
@@ -118,17 +127,18 @@ if ($ListPorts) {
 }
 
 $resolvedPackage = Resolve-PackagePath -InputPath $PackagePath
-$bootloader = Join-Path $resolvedPackage "bootloader.bin"
-$partitions = Join-Path $resolvedPackage "partitions.bin"
-$bootApp0 = Join-Path $resolvedPackage "boot_app0.bin"
-$firmware = Join-Path $resolvedPackage "firmware.bin"
-
-$required = @($bootloader, $partitions, $bootApp0, $firmware)
-foreach ($file in $required) {
-    if (-not (Test-Path $file)) {
-        throw "Required artifact missing: $file"
+$artifactMap = @{}
+foreach ($name in $RequiredArtifacts) {
+    $artifactMap[$name] = Join-Path $resolvedPackage $name
+    if (-not (Test-Path $artifactMap[$name])) {
+        throw "Required artifact missing: $($artifactMap[$name])"
     }
 }
+
+$bootloader = $artifactMap["bootloader.bin"]
+$partitions = $artifactMap["partitions.bin"]
+$bootApp0 = $artifactMap["boot_app0.bin"]
+$firmware = $artifactMap["firmware.bin"]
 
 if (-not $Port) {
     $Port = Detect-Port -Candidates $candidates
