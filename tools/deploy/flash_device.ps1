@@ -25,7 +25,7 @@ function Resolve-PackagePath {
     $embeddedArtifacts = $RequiredArtifacts |
         ForEach-Object { Join-Path $PSScriptRoot $_ }
 
-    $missingEmbedded = @($embeddedArtifacts | Where-Object { -not (Test-Path $_) })
+    [array]$missingEmbedded = $embeddedArtifacts | Where-Object { -not (Test-Path $_) }
     if ($missingEmbedded.Count -eq 0) {
         return $PSScriptRoot
     }
@@ -46,7 +46,7 @@ function Resolve-PackagePath {
             $required = $RequiredArtifacts |
                 ForEach-Object { Join-Path $dir.FullName $_ }
 
-            $missing = @($required | Where-Object { -not (Test-Path $_) })
+            [array]$missing = $required | Where-Object { -not (Test-Path $_) }
             if ($missing.Count -gt 0) {
                 continue
             }
@@ -60,9 +60,9 @@ function Resolve-PackagePath {
 
 function Get-SerialCandidates {
     try {
-        return Get-CimInstance Win32_SerialPort |
+        return @(Get-CimInstance Win32_SerialPort |
             Select-Object DeviceID, Description, Manufacturer, PNPDeviceID |
-            Sort-Object DeviceID
+            Sort-Object DeviceID)
     } catch {
         Write-Warning "Unable to enumerate serial ports: $_"
         return @()
@@ -115,7 +115,7 @@ function Ensure-Esptool {
     return $tool.FullName
 }
 
-$candidates = Get-SerialCandidates
+$candidates = @(Get-SerialCandidates)
 if ($ListPorts) {
     if ($candidates.Count -eq 0) {
         Write-Info "No serial ports found"
