@@ -12,6 +12,7 @@ RUN npm ci --omit=dev || npm i --omit=dev
 
 # Copy app
 COPY ota_functions/server.js ./
+COPY ota_functions/releases ./releases
 
 # Fly expects the app to listen on 0.0.0.0 and PORT
 ENV NODE_ENV=production

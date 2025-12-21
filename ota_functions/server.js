@@ -1,8 +1,15 @@
 import express from "express";
 import Busboy from "busboy";
 import sharp from "sharp";
+import fs from "node:fs";
+import path from "node:path";
 
 const app = express();
+const releaseRoot = path.resolve(process.env.OTA_RELEASES_DIR ?? path.join(process.cwd(), "releases"));
+
+if (!fs.existsSync(releaseRoot)) {
+  fs.mkdirSync(releaseRoot, { recursive: true });
+}
 
 // Allow the ESP32 UI (served from the LAN) to call this Fly service directly
 app.use((req, res, next) => {
@@ -14,6 +21,87 @@ app.use((req, res, next) => {
 });
 
 app.get("/health", (req, res) => res.json({ ok: true }));
+
+app.get("/ota/releases", (req, res) => {
+  const versions = listReleaseVersions();
+  const origin = getRequestOrigin(req);
+  const releases = versions.map((version) => {
+    const release = loadRelease(version);
+    if (!release) {
+      return null;
+    }
+    return {
+      version,
+      channel: release.manifest.channel || "stable",
+      released_at: release.manifest.released_at || null,
+      manifest: `${origin}/ota/releases/${encodeURIComponent(version)}/manifest`
+    };
+  }).filter(Boolean);
+
+  res.json({ releases });
+});
+
+app.get("/ota/manifest", (req, res) => {
+  const channel = typeof req.query.channel === "string" ? req.query.channel : undefined;
+  const release = selectRelease(channel);
+  if (!release) {
+    return res.status(404).json({ error: "No OTA releases available" });
+  }
+  res.setHeader("Cache-Control", "no-store");
+  res.json(buildManifestResponse(release.manifest, req, release.version));
+});
+
+app.get("/ota/releases/:version/manifest", (req, res) => {
+  const release = loadRelease(req.params.version);
+  if (!release) {
+    return res.status(404).json({ error: "Release not found" });
+  }
+  res.setHeader("Cache-Control", "no-store");
+  res.json(buildManifestResponse(release.manifest, req, release.version));
+});
+
+app.get("/ota/releases/:version/*", (req, res) => {
+  const release = loadRelease(req.params.version);
+  if (!release) {
+    return res.status(404).json({ error: "Release not found" });
+  }
+
+  const asset = req.params[0];
+  if (!asset) {
+    return res.status(404).json({ error: "Asset not specified" });
+  }
+
+  const sanitized = sanitizeAssetPath(asset);
+  const filePath = safeJoin(release.directory, sanitized);
+  if (!filePath) {
+    return res.status(404).json({ error: "Asset not found" });
+  }
+
+  let stat;
+  try {
+    stat = fs.statSync(filePath);
+  } catch {
+    return res.status(404).json({ error: "Asset not found" });
+  }
+
+  if (stat.isDirectory()) {
+    return res.status(404).json({ error: "Asset not found" });
+  }
+
+  res.setHeader("Content-Length", stat.size);
+  res.setHeader("Cache-Control", "public, max-age=300, immutable");
+  res.setHeader("Content-Type", guessMimeType(filePath));
+
+  const stream = fs.createReadStream(filePath);
+  stream.on("error", () => {
+    if (!res.headersSent) {
+      res.sendStatus(500);
+    } else {
+      res.destroy();
+    }
+  });
+  stream.pipe(res);
+});
 
 /**
  * POST /optimize
@@ -160,6 +248,138 @@ async function removeNearWhiteBackground(img, tolerance = 24) {
   }
 
   return sharp(data, { raw: { width: info.width, height: info.height, channels: info.channels } }).toColorspace("srgb");
+}
+
+function listReleaseVersions() {
+  try {
+    return fs.readdirSync(releaseRoot, { withFileTypes: true })
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => entry.name)
+      .sort((a, b) => compareVersions(b, a));
+  } catch {
+    return [];
+  }
+}
+
+function loadRelease(version) {
+  if (!version) {
+    return null;
+  }
+  const safeName = String(version).replace(/[^0-9A-Za-z._-]/g, "");
+  if (!safeName) {
+    return null;
+  }
+  const directory = safeJoin(releaseRoot, safeName);
+  if (!directory || !fs.existsSync(directory)) {
+    return null;
+  }
+  const manifestPath = safeJoin(directory, "manifest.json");
+  if (!manifestPath || !fs.existsSync(manifestPath)) {
+    return null;
+  }
+  try {
+    const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+    return { version: safeName, manifest, directory };
+  } catch (error) {
+    console.error(`[OTA] Failed to parse manifest for ${version}:`, error);
+    return null;
+  }
+}
+
+function selectRelease(channel) {
+  const versions = listReleaseVersions();
+  for (const version of versions) {
+    const release = loadRelease(version);
+    if (!release) {
+      continue;
+    }
+    const manifestChannel = release.manifest.channel || "stable";
+    if (!channel || manifestChannel === channel) {
+      return release;
+    }
+  }
+  return null;
+}
+
+function buildManifestResponse(manifest, req, version) {
+  const origin = getRequestOrigin(req);
+  const clone = JSON.parse(JSON.stringify(manifest || {}));
+  clone.version = clone.version || version;
+  const firmwareNode = clone.firmware || (clone.firmware = {});
+  const assetName = firmwareNode.url && !isAbsoluteUrl(firmwareNode.url)
+    ? sanitizeAssetPath(firmwareNode.url)
+    : "firmware.bin";
+
+  if (!isAbsoluteUrl(firmwareNode.url)) {
+    firmwareNode.url = `${origin}/ota/releases/${encodeURIComponent(version)}/${encodeAssetPath(assetName)}`;
+  }
+
+  clone.firmware = firmwareNode;
+  clone.channel = clone.channel || "stable";
+  clone.manifest = `${origin}/ota/releases/${encodeURIComponent(version)}/manifest`;
+  return clone;
+}
+
+function sanitizeAssetPath(value) {
+  const cleaned = String(value || "").replace(/\\/g, "/").replace(/^\.?\//, "");
+  if (!cleaned || cleaned.includes("..")) {
+    return "firmware.bin";
+  }
+  return cleaned;
+}
+
+function encodeAssetPath(asset) {
+  return asset.split("/").map((segment) => encodeURIComponent(segment)).join("/");
+}
+
+function safeJoin(base, target) {
+  const resolvedBase = path.resolve(base);
+  const resolvedTarget = path.resolve(resolvedBase, target);
+  if (!resolvedTarget.startsWith(resolvedBase)) {
+    return null;
+  }
+  return resolvedTarget;
+}
+
+function guessMimeType(filePath) {
+  if (filePath.endsWith(".json")) {
+    return "application/json";
+  }
+  if (filePath.endsWith(".bin")) {
+    return "application/octet-stream";
+  }
+  return "application/octet-stream";
+}
+
+function isAbsoluteUrl(value) {
+  return /^https?:\/\//i.test(String(value || ""));
+}
+
+function compareVersions(a, b) {
+  const partsA = versionParts(a);
+  const partsB = versionParts(b);
+  const len = Math.max(partsA.length, partsB.length);
+  for (let i = 0; i < len; i++) {
+    const diff = (partsA[i] || 0) - (partsB[i] || 0);
+    if (diff !== 0) {
+      return diff > 0 ? 1 : -1;
+    }
+  }
+  return 0;
+}
+
+function getRequestOrigin(req) {
+  const protoHeader = req.get("x-forwarded-proto");
+  const proto = (protoHeader || req.protocol || "http").split(",")[0].trim() || "http";
+  const host = req.get("x-forwarded-host") || req.get("host") || "localhost";
+  return `${proto}://${host}`;
+}
+
+function versionParts(value) {
+  return String(value || "")
+    .split(/[^0-9]+/)
+    .filter(Boolean)
+    .map((segment) => parseInt(segment, 10));
 }
 
 app.listen(process.env.PORT || 8080, "0.0.0.0", () => {

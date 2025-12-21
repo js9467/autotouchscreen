@@ -48,6 +48,16 @@ Your ESP32 Bronco Controls project now has cloud-based automatic image optimizat
 | Background | 400x240px | JPEG | Main screen background |
 | Sleep | 150x113px | JPEG | Sleep mode icon |
 
+## OTA Releases
+
+- Place each firmware drop under `ota_functions/releases/<version>/` (`firmware.bin` + `manifest.json`). The directory is gitignored so artifacts stay local.
+- Deploy with `flyctl deploy` to bake the latest releases into the Fly image.
+- Devices should use `https://image-optimizer-still-flower-1282.fly.dev/ota/manifest` as their `manifest_url` (optionally `?channel=beta`).
+- Helpful endpoints:
+   - `GET /ota/releases` — list every baked version
+   - `GET /ota/releases/<version>/manifest` — inspect a specific manifest
+   - `GET /ota/releases/<version>/firmware.bin` — download the binary exactly as devices will
+
 ## What Changed for Users
 
 ### Before

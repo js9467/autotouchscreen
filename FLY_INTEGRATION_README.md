@@ -63,6 +63,26 @@ Image optimization endpoint
 | background | 400x240px | JPEG | 80 | Background image |
 | sleep | 150x113px | JPEG | 80 | Sleep mode icon |
 
+### OTA Release Hosting
+
+The Fly service now doubles as the firmware distribution point. Workflow:
+
+1. Build firmware locally (see `DEPLOYMENT_AUTOMATION.md`).
+2. Generate a manifest with `tools/deploy/build_manifest.mjs` (leave `--base-url` empty so the manifest references `firmware.bin`).
+3. Copy `firmware.bin` + `manifest.json` into `ota_functions/releases/<version>/`.
+4. Run `flyctl deploy` to bake the release into the container image.
+
+Available endpoints:
+
+| Endpoint | Purpose |
+|----------|---------|
+| `GET /ota/releases` | Lists every version baked into the image with channel + manifest URLs |
+| `GET /ota/manifest?channel=stable` | Returns the newest release for a channel (devices point here) |
+| `GET /ota/releases/:version/manifest` | Manifest for a specific version |
+| `GET /ota/releases/:version/<asset>` | Streams assets (e.g., `firmware.bin`) referenced in the manifest |
+
+When a manifest contains `"firmware": { "url": "firmware.bin" }`, the service rewrites it on-the-fly to `https://image-optimizer-still-flower-1282.fly.dev/ota/releases/<version>/firmware.bin` and serves the corresponding file.
+
 ## Files Modified
 
 ### Web Interface (`src/web_interface.h`)
