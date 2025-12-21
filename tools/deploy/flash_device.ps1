@@ -71,6 +71,7 @@ function Get-SerialCandidates {
 
 function Detect-Port {
     param([array]$Candidates)
+    [array]$Candidates = $Candidates
     if (-not $Candidates -or $Candidates.Count -eq 0) {
         return $null
     }
