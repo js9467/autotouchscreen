@@ -25,7 +25,7 @@ function Resolve-PackagePath {
     $embeddedArtifacts = $RequiredArtifacts |
         ForEach-Object { Join-Path $PSScriptRoot $_ }
 
-    $missingEmbedded = $embeddedArtifacts | Where-Object { -not (Test-Path $_) }
+    $missingEmbedded = @($embeddedArtifacts | Where-Object { -not (Test-Path $_) })
     if ($missingEmbedded.Count -eq 0) {
         return $PSScriptRoot
     }
@@ -46,7 +46,7 @@ function Resolve-PackagePath {
             $required = $RequiredArtifacts |
                 ForEach-Object { Join-Path $dir.FullName $_ }
 
-            $missing = $required | Where-Object { -not (Test-Path $_) }
+            $missing = @($required | Where-Object { -not (Test-Path $_) })
             if ($missing.Count -gt 0) {
                 continue
             }
