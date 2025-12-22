@@ -4,50 +4,37 @@ This directory contains tools for flashing firmware to ESP32-S3-Box devices and 
 
 ## Quick Start for End Users
 
-### ⚡ **Easiest Method: One-Click Installer (RECOMMENDED)**
+### ⚡ **Method 1: One-Line PowerShell Command (Fastest)**
 
-**Download and run - that's it!**
-
-1. **Download the installer:** [BroncoFlasher-Installer.zip](https://github.com/js9467/autotouchscreen/raw/main/tools/deploy/BroncoFlasher-Installer.zip)
-
-2. **Extract the ZIP** - you'll get one file: `BroncoFlasher.cmd`
-
-3. **Double-click `BroncoFlasher.cmd`** to flash your device
-
-The installer auto-downloads everything (latest firmware, bootloader files, esptool) and flashes your ESP32 device automatically.
-
-**What it does:**
-- Downloads latest firmware from OTA server
-- Downloads bootloader files from GitHub  
-- Auto-detects your ESP32 device
-- Flashes everything automatically
-- No PowerShell execution policy issues
-- Just one double-click!
-
-**Note:** Chrome/Edge may warn "This type of file can harm your computer" - click "Keep" to download. This is normal for .cmd files.
-
----
-
-### 🔧 **Advanced: PowerShell Script**
-
-For users who prefer PowerShell or need custom options:
-
-**Download:** Right-click → Save Link As: [BroncoFlasher.ps1](https://github.com/js9467/autotouchscreen/raw/main/tools/deploy/BroncoFlasher.ps1)
+**Open PowerShell and paste this:**
 
 ```powershell
-# List available COM ports
-.\BroncoFlasher.ps1 -ListPorts
-
-# Specify COM port manually
-.\BroncoFlasher.ps1 -Port COM3
-
-# Offline mode (use cached files)
-.\BroncoFlasher.ps1 -OfflineMode
+irm https://raw.githubusercontent.com/js9467/autotouchscreen/main/tools/deploy/BroncoFlasher.ps1 | iex
 ```
+
+Press Enter - your device gets flashed with the latest firmware automatically!
+
+**How to open PowerShell:**
+- Press `Windows Key + X`, then click "PowerShell" or "Terminal"
+- Or search for "PowerShell" in Start Menu
 
 ---
 
-### 📦 **Alternative: BroncoFlasher.zip (Traditional Method)**
+### 💾 **Method 2: Download Install.bat (Easiest for Non-Technical Users)**
+
+**For users who prefer a file to download:**
+
+1. **Download:** [Install.zip](https://github.com/js9467/autotouchscreen/raw/main/tools/deploy/Install.zip) (tiny 1KB file)
+2. **Extract** the ZIP - you'll get `Install.bat`
+3. **Double-click Install.bat**
+
+The installer downloads everything needed and flashes your device.
+
+---
+
+### 📦 **Method 3: Full BroncoFlasher.zip Package**
+
+If you need offline flashing or the above methods don't work:
 
 If you prefer offline flashing or the standalone script doesn't work:
 
