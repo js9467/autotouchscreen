@@ -1120,7 +1120,7 @@ void UIBuilder::createInfoModal() {
     lv_obj_add_event_cb(ota_primary_button_, otaUpdateButtonEvent, LV_EVENT_CLICKED, nullptr);
 
     ota_primary_button_label_ = lv_label_create(ota_primary_button_);
-    lv_label_set_text(ota_primary_button_label_, "Update Now");
+    lv_label_set_text(ota_primary_button_label_, "Update Now!");
     lv_obj_set_style_text_font(ota_primary_button_label_, UITheme::FONT_BODY, 0);
     lv_obj_set_style_text_color(ota_primary_button_label_, lv_color_hex(0x000000), 0);
     lv_obj_center(ota_primary_button_label_);
@@ -1411,10 +1411,13 @@ std::string UIBuilder::humanizeOtaStatus(const std::string& status) const {
     if (status == "disabled") return "OTA disabled";
     if (status == "waiting-for-wifi") return "Waiting for Wi-Fi";
     if (status == "wifi-ready") return "Wi-Fi connected";
+    if (status == "checking-connectivity") return "Checking connection...";
     if (status == "manual-check-requested") return "Checking for updates...";
     if (status == "up-to-date") return "You're up to date";
     if (status == "manifest-url-empty" || status == "missing-manifest-url") return "Manifest URL missing";
     if (status == "manifest-channel-mismatch") return "No update available on this channel";
+    if (status == "manifest-dns-failed-no-internet") return "No internet connection";
+    if (status == "manifest-dns-failed-fly-dev") return "Cannot reach update server";
     if (startsWith(status, "update-available-")) return std::string("Update available: ") + status.substr(18);
     if (startsWith(status, "updated-to-")) return std::string("Updated to ") + status.substr(11);
     if (startsWith(status, "downloading-")) {

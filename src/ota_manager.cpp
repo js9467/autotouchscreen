@@ -183,6 +183,9 @@ bool OTAUpdateManager::fetchManifest(ManifestInfo& manifest) {
         return false;
     }
 
+    setStatus("checking-connectivity");
+    Serial.println("[OTA] Checking network connectivity...");
+    
     // Test DNS resolution
     Serial.printf("[OTA] Testing DNS for: %s\n", "image-optimizer-still-flower-1282.fly.dev");
     IPAddress ip;
@@ -216,9 +219,13 @@ bool OTAUpdateManager::fetchManifest(ManifestInfo& manifest) {
     }
 
     http.setUserAgent(kUserAgent);
-    http.setTimeout(20000);
+    http.setTimeout(30000);  // Increased timeout to 30 seconds
+    http.setConnectTimeout(15000);  // 15 second connection timeout
 
+    Serial.println("[OTA] Sending HTTP GET request...");
     const int http_code = http.GET();
+    Serial.printf("[OTA] HTTP response code: %d\n", http_code);
+    
     if (http_code != HTTP_CODE_OK) {
         setStatus(std::string("manifest-http-") + std::to_string(http_code));
         http.end();
