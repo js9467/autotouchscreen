@@ -173,17 +173,28 @@ function Get-LatestFirmware {
     
     Write-Step "Fetching latest firmware from OTA server..."
     
+    # Force download flag - delete cached firmware
+    $forceDownload = $env:BRONCO_FORCE_DOWNLOAD -eq 'true'
+    if ($forceDownload) {
+        if (Test-Path $firmwarePath) {
+            Remove-Item $firmwarePath -Force
+            Write-Step "Cleared cached firmware (force download enabled)"
+        }
+        if (Test-Path $versionPath) {
+            Remove-Item $versionPath -Force
+        }
+    }
+    
     try {
         $manifest = Invoke-RestMethod -Uri "$OtaServer/ota/manifest" -Method Get
         $version = $manifest.version
         $firmwareUrl = $manifest.firmware.url
         $expectedMd5 = $manifest.md5.ToLower()
         
-        # Check if we have the latest version cached (unless forced)
-        $forceDownload = $env:BRONCO_FORCE_DOWNLOAD -eq 'true'
+        # Check if we have the latest version cached
         $needsDownload = $true
         
-        if (-not $forceDownload -and (Test-Path $versionPath)) {
+        if ((Test-Path $versionPath)) {
             $cachedInfo = Get-Content $versionPath -Raw
             if ($cachedInfo -match "Firmware Version: (.+)") {
                 $cachedVersion = $matches[1]
