@@ -179,27 +179,43 @@ function Get-LatestFirmware {
         $firmwareUrl = $manifest.firmware.url
         $expectedMd5 = $manifest.md5.ToLower()
         
-        Write-Header "Latest Firmware: v$version"
-        Write-Step "Downloading firmware.bin ($(($manifest.size / 1MB).ToString('0.0')) MB)..."
-        
-        Invoke-WebRequest -Uri $firmwareUrl -OutFile $firmwarePath -UseBasicParsing
-        
-        # Verify MD5
-        $actualMd5 = (Get-FileHash -Path $firmwarePath -Algorithm MD5).Hash.ToLower()
-        if ($actualMd5 -ne $expectedMd5) {
-            throw "MD5 mismatch! Expected: $expectedMd5, Got: $actualMd5"
+        # Check if we have the latest version cached
+        $needsDownload = $true
+        if (Test-Path $versionPath) {
+            $cachedInfo = Get-Content $versionPath -Raw
+            if ($cachedInfo -match "Firmware Version: (.+)") {
+                $cachedVersion = $matches[1]
+                if ($cachedVersion -eq $version -and (Test-Path $firmwarePath)) {
+                    Write-Step "Latest firmware v$version already cached"
+                    $needsDownload = $false
+                }
+            }
         }
         
-        # Save version info
-        @"
+        if ($needsDownload) {
+            Write-Header "Latest Firmware: v$version"
+            Write-Step "Downloading firmware.bin ($(($manifest.size / 1MB).ToString('0.0')) MB)..."
+            
+            Invoke-WebRequest -Uri $firmwareUrl -OutFile $firmwarePath -UseBasicParsing
+            
+            # Verify MD5
+            $actualMd5 = (Get-FileHash -Path $firmwarePath -Algorithm MD5).Hash.ToLower()
+            if ($actualMd5 -ne $expectedMd5) {
+                throw "MD5 mismatch! Expected: $expectedMd5, Got: $actualMd5"
+            }
+            
+            # Save version info
+            @"
 Firmware Version: $version
 Downloaded: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')
 Source: $OtaServer
 MD5: $expectedMd5
 Size: $($manifest.size) bytes
 "@ | Set-Content -Path $versionPath
+            
+            Write-Success "Firmware v$version downloaded and verified"
+        }
         
-        Write-Success "Firmware v$version verified (MD5: $actualMd5)"
         return $firmwarePath
         
     } catch {
