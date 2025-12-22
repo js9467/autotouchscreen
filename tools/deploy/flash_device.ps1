@@ -3,7 +3,10 @@ param(
     [string]$PackagePath,
     [string]$Port,
     [switch]$ListPorts,
-    [string]$EsptoolVersion = "v4.7.0"
+    [string]$EsptoolVersion = "v4.7.0",
+    [switch]$DownloadLatest = $true,  # Default to downloading latest
+    [switch]$SkipDownload,  # Skip OTA download and use local files only
+    [string]$OtaServer = "https://image-optimizer-still-flower-1282.fly.dev"
 )
 
 Set-StrictMode -Version Latest
@@ -13,6 +16,32 @@ $RequiredArtifacts = @("bootloader.bin", "partitions.bin", "boot_app0.bin", "fir
 function Write-Info {
     param([string]$Message)
     Write-Host "[flash] $Message"
+}
+
+function Download-LatestFirmware {
+    param([string]$Server)
+    
+    Write-Info "Downloading latest firmware from OTA server..."
+    try {
+        $manifest = Invoke-RestMethod -Uri "$Server/ota/manifest" -Method Get
+        Write-Info "Found firmware version: $($manifest.version)"
+        
+        $firmwareUrl = $manifest.firmware.url
+        $firmwarePath = Join-Path $PSScriptRoot "firmware.bin"
+        
+        Invoke-WebRequest -Uri $firmwareUrl -OutFile $firmwarePath -UseBasicParsing
+        
+        # Verify MD5
+        $downloadedHash = (Get-FileHash -Path $firmwarePath -Algorithm MD5).Hash.ToLower()
+        if ($downloadedHash -ne $manifest.md5.ToLower()) {
+            throw "MD5 mismatch! Expected: $($manifest.md5), Got: $downloadedHash"
+        }
+        
+        Write-Info "Firmware v$($manifest.version) downloaded and verified"
+        return $PSScriptRoot
+    } catch {
+        throw "Failed to download firmware from OTA server: $_"
+    }
 }
 
 function Resolve-PackagePath {
@@ -127,7 +156,21 @@ if ($ListPorts) {
     return
 }
 
-$resolvedPackage = Resolve-PackagePath -InputPath $PackagePath
+# Always try to download latest firmware from OTA server first
+# Fall back to local files if download fails or user explicitly disables
+if (-not $SkipDownload) {
+    try {
+        Write-Info "Checking for latest firmware from OTA server..."
+        $resolvedPackage = Download-LatestFirmware -Server $OtaServer
+    } catch {
+        Write-Warning "Could not download latest firmware: $_"
+        Write-Info "Falling back to local firmware files..."
+        $resolvedPackage = Resolve-PackagePath -InputPath $PackagePath
+    }
+} else {
+    Write-Info "Skipping OTA download, using local firmware..."
+    $resolvedPackage = Resolve-PackagePath -InputPath $PackagePath
+}
 $artifactMap = @{}
 foreach ($name in $RequiredArtifacts) {
     $artifactMap[$name] = Join-Path $resolvedPackage $name

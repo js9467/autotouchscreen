@@ -1,0 +1,287 @@
+<#
+.SYNOPSIS
+Bronco Controls - One-Click ESP32 Flasher
+
+.DESCRIPTION
+Downloads the latest firmware and flashes your ESP32-S3-Box device.
+No extraction needed - just run this script!
+
+.PARAMETER Port
+Specify COM port manually (e.g., COM3). Auto-detects if not provided.
+
+.PARAMETER ListPorts
+List available serial ports and exit.
+
+.PARAMETER OfflineMode
+Use cached files instead of downloading fresh firmware.
+
+.EXAMPLE
+.\BroncoFlasher.ps1
+Auto-detects device and flashes latest firmware
+
+.EXAMPLE
+.\BroncoFlasher.ps1 -Port COM3
+Flash using specific COM port
+
+.EXAMPLE
+.\BroncoFlasher.ps1 -ListPorts
+Show available serial ports
+#>
+
+[CmdletBinding()]
+param(
+    [string]$Port,
+    [switch]$ListPorts,
+    [switch]$OfflineMode,
+    [string]$GitHubRepo = "js9467/autotouchscreen",
+    [string]$GitHubBranch = "main",
+    [string]$OtaServer = "https://image-optimizer-still-flower-1282.fly.dev",
+    [string]$EsptoolVersion = "v4.7.0"
+)
+
+$ErrorActionPreference = "Stop"
+$ProgressPreference = 'SilentlyContinue'  # Faster downloads
+
+# Colors
+function Write-Header { param([string]$Message) Write-Host "`n[BRONCO] $Message" -ForegroundColor Cyan }
+function Write-Success { param([string]$Message) Write-Host "  [OK] $Message" -ForegroundColor Green }
+function Write-Step { param([string]$Message) Write-Host "  --> $Message" -ForegroundColor Yellow }
+function Write-ErrorMsg { param([string]$Message) Write-Host "  [ERROR] $Message" -ForegroundColor Red }
+
+# Setup working directory
+$WorkDir = Join-Path $env:LOCALAPPDATA "BroncoControls\flash-temp"
+if (-not (Test-Path $WorkDir)) {
+    New-Item -ItemType Directory -Path $WorkDir -Force | Out-Null
+}
+
+Write-Header "Bronco Controls ESP32 Flasher"
+Write-Host "  Workspace: $WorkDir`n" -ForegroundColor DarkGray
+
+# Detect serial ports
+function Get-SerialPorts {
+    try {
+        return @(Get-CimInstance Win32_SerialPort |
+            Select-Object DeviceID, Description |
+            Sort-Object DeviceID)
+    } catch {
+        return @()
+    }
+}
+
+function Detect-ESP32Port {
+    param([array]$Ports)
+    if ($Ports.Count -eq 0) { return $null }
+    
+    $patterns = @('CP210', 'Silicon Labs', 'USB Serial', 'USB JTAG', 'ESP32', 'CH910')
+    foreach ($pattern in $patterns) {
+        $match = $Ports | Where-Object { $_.Description -like "*$pattern*" }
+        if ($match) { return $match[0].DeviceID }
+    }
+    return $Ports[0].DeviceID
+}
+
+$ports = @(Get-SerialPorts)
+if ($ListPorts) {
+    Write-Header "Available Serial Ports"
+    if ($ports.Count -eq 0) {
+        Write-Host "  No serial ports found`n"
+    } else {
+        $ports | Format-Table -AutoSize
+    }
+    exit 0
+}
+
+# Download esptool
+function Get-Esptool {
+    param([string]$Version)
+    $esptoolDir = Join-Path $env:LOCALAPPDATA "BroncoControls\esptool-$Version"
+    $esptoolExe = Join-Path $esptoolDir "esptool.exe"
+    
+    if (Test-Path $esptoolExe) {
+        return $esptoolExe
+    }
+    
+    Write-Step "Downloading esptool $Version..."
+    $downloadUrl = "https://github.com/espressif/esptool/releases/download/$Version/esptool-$Version-win64.zip"
+    $tempZip = Join-Path $env:TEMP "esptool-$([guid]::NewGuid()).zip"
+    
+    try {
+        Invoke-WebRequest -Uri $downloadUrl -OutFile $tempZip -UseBasicParsing
+        
+        if (Test-Path $esptoolDir) {
+            Remove-Item $esptoolDir -Recurse -Force
+        }
+        New-Item -ItemType Directory -Path $esptoolDir -Force | Out-Null
+        Expand-Archive -Path $tempZip -DestinationPath $esptoolDir -Force
+        Remove-Item $tempZip -Force
+        
+        $tool = Get-ChildItem -Path $esptoolDir -Filter esptool.exe -Recurse | Select-Object -First 1
+        if (-not $tool) {
+            throw "esptool.exe not found after extraction"
+        }
+        
+        Write-Success "esptool downloaded"
+        return $tool.FullName
+    } catch {
+        throw "Failed to download esptool: $_"
+    }
+}
+
+# Download static binaries from GitHub
+function Get-StaticBinary {
+    param([string]$Filename)
+    
+    $localPath = Join-Path $WorkDir $Filename
+    $cacheAge = if (Test-Path $localPath) { (Get-Date) - (Get-Item $localPath).LastWriteTime } else { $null }
+    
+    # Use cached file if less than 7 days old or in offline mode
+    if ($OfflineMode -and (Test-Path $localPath)) {
+        Write-Step "Using cached $Filename"
+        return $localPath
+    }
+    
+    if ($cacheAge -and $cacheAge.TotalDays -lt 7) {
+        Write-Step "Using cached $Filename ($(($cacheAge.TotalDays).ToString('0.0')) days old)"
+        return $localPath
+    }
+    
+    Write-Step "Downloading $Filename from GitHub..."
+    $url = "https://raw.githubusercontent.com/$GitHubRepo/$GitHubBranch/tools/deploy/$Filename"
+    
+    try {
+        Invoke-WebRequest -Uri $url -OutFile $localPath -UseBasicParsing
+        Write-Success "$Filename downloaded"
+        return $localPath
+    } catch {
+        if (Test-Path $localPath) {
+            Write-Step "Using cached $Filename (download failed, but cache available)"
+            return $localPath
+        }
+        throw "Failed to download $Filename and no cache available: $_"
+    }
+}
+
+# Download latest firmware from OTA server
+function Get-LatestFirmware {
+    $firmwarePath = Join-Path $WorkDir "firmware.bin"
+    $versionPath = Join-Path $WorkDir "firmware_version.txt"
+    
+    if ($OfflineMode -and (Test-Path $firmwarePath)) {
+        Write-Step "Using cached firmware (offline mode)"
+        return $firmwarePath
+    }
+    
+    Write-Step "Fetching latest firmware from OTA server..."
+    
+    try {
+        $manifest = Invoke-RestMethod -Uri "$OtaServer/ota/manifest" -Method Get
+        $version = $manifest.version
+        $firmwareUrl = $manifest.firmware.url
+        $expectedMd5 = $manifest.md5.ToLower()
+        
+        Write-Header "Latest Firmware: v$version"
+        Write-Step "Downloading firmware.bin ($(($manifest.size / 1MB).ToString('0.0')) MB)..."
+        
+        Invoke-WebRequest -Uri $firmwareUrl -OutFile $firmwarePath -UseBasicParsing
+        
+        # Verify MD5
+        $actualMd5 = (Get-FileHash -Path $firmwarePath -Algorithm MD5).Hash.ToLower()
+        if ($actualMd5 -ne $expectedMd5) {
+            throw "MD5 mismatch! Expected: $expectedMd5, Got: $actualMd5"
+        }
+        
+        # Save version info
+        @"
+Firmware Version: $version
+Downloaded: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')
+Source: $OtaServer
+MD5: $expectedMd5
+Size: $($manifest.size) bytes
+"@ | Set-Content -Path $versionPath
+        
+        Write-Success "Firmware v$version verified (MD5: $actualMd5)"
+        return $firmwarePath
+        
+    } catch {
+        if (Test-Path $firmwarePath) {
+            Write-Step "Using cached firmware (download failed, but cache available)"
+            return $firmwarePath
+        }
+        throw "Failed to download firmware and no cache available: $_"
+    }
+}
+
+# Main execution
+try {
+    Write-Header "Preparing Flash Files"
+    
+    # Download all required files
+    $bootloader = Get-StaticBinary "bootloader.bin"
+    $partitions = Get-StaticBinary "partitions.bin"
+    $bootApp0 = Get-StaticBinary "boot_app0.bin"
+    $firmware = Get-LatestFirmware
+    $esptool = Get-Esptool -Version $EsptoolVersion
+    
+    Write-Header "Detecting ESP32 Device"
+    
+    if (-not $Port) {
+        $Port = Detect-ESP32Port -Ports $ports
+    }
+    
+    if (-not $Port) {
+        Write-ErrorMsg "Could not auto-detect ESP32 device"
+        Write-Host "`nAvailable ports:" -ForegroundColor Yellow
+        if ($ports.Count -eq 0) {
+            Write-Host "  No serial ports found" -ForegroundColor Red
+            Write-Host "`nTroubleshooting:" -ForegroundColor Yellow
+            Write-Host "  1. Connect your ESP32 device via USB"
+            Write-Host "  2. Install USB drivers (CP210x or CH340)"
+            Write-Host "  3. Check Device Manager for COM ports"
+        } else {
+            $ports | Format-Table -AutoSize
+            Write-Host "Run with -Port COMx to specify manually`n" -ForegroundColor Yellow
+        }
+        exit 1
+    }
+    
+    Write-Success "Using port: $Port"
+    
+    Write-Header "Flashing ESP32"
+    Write-Host "  This may take 30-60 seconds...`n" -ForegroundColor DarkGray
+    
+    $arguments = @(
+        "--chip", "esp32s3",
+        "--port", $Port,
+        "--baud", "921600",
+        "--before", "default_reset",
+        "--after", "hard_reset",
+        "write_flash",
+        "--flash_mode", "qio",
+        "--flash_size", "16MB",
+        "0x0", $bootloader,
+        "0x8000", $partitions,
+        "0xe000", $bootApp0,
+        "0x10000", $firmware
+    )
+    
+    & $esptool @arguments
+    
+    if ($LASTEXITCODE -ne 0) {
+        throw "esptool reported exit code $LASTEXITCODE"
+    }
+    
+    Write-Host ""
+    Write-Success "Flash complete!"
+    Write-Header "Your device is ready!"
+    Write-Host "  You may now disconnect the USB cable.`n" -ForegroundColor Green
+    
+} catch {
+    Write-Host ""
+    Write-ErrorMsg "Flash failed: $_"
+    Write-Host "`nTroubleshooting:" -ForegroundColor Yellow
+    Write-Host "  1. Close any programs using the COM port (Arduino IDE, PuTTY, etc.)"
+    Write-Host "  2. Try a different USB cable or port"
+    Write-Host "  3. Press and hold BOOT button during flashing"
+    Write-Host "  4. Run with -Port COM3 to specify port manually`n"
+    exit 1
+}
