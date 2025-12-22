@@ -83,6 +83,113 @@ The standalone script caches downloaded files in `%LOCALAPPDATA%\BroncoControls\
 
 ## For Developers
 
+### ⚡ Quick Reference: Version Update Checklist
+
+```
+□ Update src/version_auto.h with new version
+□ Run: pio run
+□ Create: ota_functions/releases/1.2.X/
+□ Copy: firmware.bin to releases/1.2.X/
+□ Generate: manifest.json with MD5 hash
+□ Commit: git add . && git commit -m "vX.X.X: Description"
+□ Deploy: cd ota_functions && flyctl deploy --remote-only --no-cache
+□ Push: git push
+□ Test: $env:BRONCO_FORCE_DOWNLOAD='true'; .\BroncoFlasher.ps1
+```
+
+### 🚀 Creating and Deploying New Firmware Versions
+
+Follow this complete workflow when creating a new firmware version:
+
+#### 1. **Update Version Number**
+Edit [src/version_auto.h](../../src/version_auto.h):
+```cpp
+#pragma once
+// Version 1.2.X - Brief description of changes
+constexpr const char* APP_VERSION = "1.2.X";
+```
+
+#### 2. **Build Firmware**
+```powershell
+pio run
+```
+Verify build succeeds and note the firmware size.
+
+#### 3. **Create Release Directory**
+```powershell
+# Create version folder
+New-Item -ItemType Directory -Path "ota_functions\releases\1.2.X"
+
+# Copy firmware
+Copy-Item .pio\build\esp32s3box\firmware.bin ota_functions\releases\1.2.X\
+```
+
+#### 4. **Generate Manifest with MD5 Hash**
+```powershell
+cd ota_functions\releases\1.2.X
+
+# Calculate MD5
+$hash = (Get-FileHash firmware.bin -Algorithm MD5).Hash.ToLower()
+
+# Create manifest.json
+@"
+{
+  "version": "1.2.X",
+  "url": "https://image-optimizer-still-flower-1282.fly.dev/firmware/1.2.X/firmware.bin",
+  "size": $($(Get-Item firmware.bin).Length),
+  "md5": "$hash"
+}
+"@ | Out-File manifest.json -Encoding UTF8
+```
+
+#### 5. **Commit to Git**
+```powershell
+git add .
+git commit -m "v1.2.X: Description of changes"
+```
+
+#### 6. **Deploy to Fly.io OTA Server**
+```powershell
+cd ota_functions
+flyctl deploy --remote-only --no-cache
+```
+The `--no-cache` flag ensures fresh firmware is deployed, not cached versions.
+
+#### 7. **Push to GitHub**
+```powershell
+git push
+```
+
+#### 8. **Test the Update**
+```powershell
+# Force download latest firmware and flash
+$env:BRONCO_FORCE_DOWNLOAD='true'
+.\tools\deploy\BroncoFlasher.ps1
+```
+
+### 📦 Distribution Files Explained
+
+This directory provides **three different ways** to install firmware:
+
+1. **Install.zip** (427 bytes) - **For End Users**
+   - Tiny download containing `Install.bat`
+   - Downloads latest BroncoFlasher.ps1 script at runtime
+   - Always gets newest firmware from OTA server
+   - **Best for:** Most users, always up-to-date
+
+2. **BroncoFlasher.ps1** (15KB) - **For PowerShell Users**
+   - Standalone script with all features
+   - Downloads latest firmware automatically
+   - Caches files for 7 days
+   - Can be run with one-liner: `irm <url> | iex`
+   - **Best for:** Technical users, automation
+
+3. **BroncoFlasher.zip** (1.4MB) - **For Offline Use**
+   - Full package with firmware and bootloader files
+   - Works without internet (uses bundled firmware)
+   - Falls back to OTA if internet available
+   - **Best for:** Offline environments, unreliable internet
+
 ### Files in BroncoFlasher.zip
 
 - **bootloader.bin** - ESP32-S3 bootloader (required)
@@ -96,12 +203,37 @@ The standalone script caches downloaded files in `%LOCALAPPDATA%\BroncoControls\
 
 **Important:** The flash script automatically downloads the latest firmware from the OTA server before flashing. The firmware.bin in the ZIP is only used as a fallback if internet is unavailable.
 
-### Update Firmware in BroncoFlasher
-
-Use the `update_firmware.ps1` script to fetch the latest firmware from the OTA server:
+### 🛠️ BroncoFlasher.ps1 Advanced Options
 
 ```powershell
-# Download latest firmware only
+# Default: Auto-download latest and flash
+.\BroncoFlasher.ps1
+
+# List available COM ports
+.\BroncoFlasher.ps1 -ListPorts
+
+# Specify COM port manually
+.\BroncoFlasher.ps1 -Port COM3
+
+# Offline mode (use cached files only, no downloads)
+.\BroncoFlasher.ps1 -OfflineMode
+
+# Use custom OTA server
+.\BroncoFlasher.ps1 -OtaServer "https://custom-server.com"
+
+# Force fresh download (bypass cache)
+$env:BRONCO_FORCE_DOWNLOAD='true'
+.\BroncoFlasher.ps1
+```
+
+The script caches downloaded files in `%LOCALAPPDATA%\BroncoControls\flash-temp\` for 7 days.
+
+### Update BroncoFlasher.zip Package
+
+Use the `update_firmware.ps1` script to update the offline package:
+
+```powershell
+# Download latest firmware from OTA server
 .\update_firmware.ps1
 
 # Download and rebuild BroncoFlasher.zip
@@ -111,66 +243,7 @@ Use the `update_firmware.ps1` script to fetch the latest firmware from the OTA s
 .\update_firmware.ps1 -OtaServer "https://your-server.com" -RebuildZip
 ```
 
-This script:
-1. Fetches the latest firmware manifest from the OTA server
-2. Downloads the firmware binary
-3. Verifies MD5 hash
-4. Updates firmware.bin in the deploy directory
-5. (Optional) Rebuilds BroncoFlasher.zip with the new firmware
-
-### Flash Script Options
-Default: Auto-download latest firmware and flash
-.\flash_device.ps1
-
-# List available COM ports
-.\flash_device.ps1 -ListPorts
-
-# Flash using a specific COM port
-.\flash_device.ps1 -Port COM3
-
-# Skip OTA download and use local firmware.bin only
-.\flash_device.ps1 -SkipDownload
-
-# Flash with a custom firmware package path
-.\flash_device.ps1 -PackagePath "C:\path\to\firmware\folder" -SkipDownload
-
-# Use a custom OTA server
-.\flash_device.ps1
-# Download from custom OTA server
-.\flash_device.ps1 -DownloadLatest -OtaServer "https://custom-server.com"
-```
-
-### Build and Deploy Workflow
-
-1. **Build firmware:**
-   ```bash
-   pio run
-   ```
-
-2. **Copy firmware to OTA releases:**
-   ```powershell
-   Copy-Item .pio\build\esp32s3box\firmware.bin ota_functions\releases\1.2.x\
-   ```
-
-3. **Create manifest.json** (see ota_functions/releases/README.md)
-
-4. **Deploy to OTA server:**
-   ```bash
-   cd ota_functions
-   flyctl deploy --remote-only
-   ```
-
-5. **Update BroncoFlasher package:**
-   ```powershell
-   .\tools\deploy\update_firmware.ps1 -RebuildZip
-   ```
-
-6. **Upload to GitHub:**
-   ```bash
-   git add tools/deploy/BroncoFlasher.zip
-   git commit -m "Update BroncoFlasher to v1.2.x"
-   git push
-   ```
+This updates the bundled firmware.bin in BroncoFlasher.zip with the latest from the OTA server.
 
 ## OTA vs USB Flashing
 
