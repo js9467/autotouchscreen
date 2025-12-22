@@ -8,7 +8,7 @@ echo.
 echo Downloading installer...
 echo.
 
-PowerShell -NoProfile -ExecutionPolicy Bypass -Command "irm https://raw.githubusercontent.com/js9467/autotouchscreen/main/tools/deploy/BroncoFlasher.ps1 | iex"
+PowerShell -NoProfile -ExecutionPolicy Bypass -Command "$env:BRONCO_FORCE_DOWNLOAD='true'; irm https://raw.githubusercontent.com/js9467/autotouchscreen/main/tools/deploy/BroncoFlasher.ps1 | iex"
 
 if %errorlevel% neq 0 (
     echo.

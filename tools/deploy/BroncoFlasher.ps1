@@ -179,9 +179,11 @@ function Get-LatestFirmware {
         $firmwareUrl = $manifest.firmware.url
         $expectedMd5 = $manifest.md5.ToLower()
         
-        # Check if we have the latest version cached
+        # Check if we have the latest version cached (unless forced)
+        $forceDownload = $env:BRONCO_FORCE_DOWNLOAD -eq 'true'
         $needsDownload = $true
-        if (Test-Path $versionPath) {
+        
+        if (-not $forceDownload -and (Test-Path $versionPath)) {
             $cachedInfo = Get-Content $versionPath -Raw
             if ($cachedInfo -match "Firmware Version: (.+)") {
                 $cachedVersion = $matches[1]
