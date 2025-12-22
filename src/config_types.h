@@ -90,7 +90,7 @@ struct WifiConfig {
 
 struct OTAConfig {
     bool enabled = true;
-    bool auto_apply = true;
+    bool auto_apply = false;  // Manual updates - user must confirm
     std::string manifest_url = kOtaManifestUrl;
     std::string channel = "stable";
     std::uint32_t check_interval_minutes = 60;  // Minutes between background checks

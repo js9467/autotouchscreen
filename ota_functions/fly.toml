@@ -1,15 +1,12 @@
-# fly.toml app configuration file for image optimizer service
+# fly.toml app configuration file
 app = 'image-optimizer-still-flower-1282'
 primary_region = 'iad'
 
 [build]
-  dockerfile = './Dockerfile'
-  build_target = 'release'
-  [build.args]
-    BUILDCONTEXT = './ota_functions'
 
 [env]
   PORT = "8080"
+  OTA_RELEASES_DIR = "/app/releases"
 
 [http_service]
   internal_port = 8080
@@ -21,5 +18,4 @@ primary_region = 'iad'
 
 [[vm]]
   memory = '1gb'
-  cpu_kind = 'shared'
   cpus = 1

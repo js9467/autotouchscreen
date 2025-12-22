@@ -31,6 +31,9 @@ private:
     bool isNewerVersion(const std::string& remote_version) const;
     static int compareVersions(const std::string& lhs, const std::string& rhs);
     void setStatus(const std::string& status);
+    void showOtaScreen(const std::string& version);
+    void updateOtaProgress(uint8_t percent);
+    void hideOtaScreen();
 
     bool enabled_ = false;
     bool auto_apply_ = true;

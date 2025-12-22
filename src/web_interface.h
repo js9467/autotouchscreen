@@ -42,6 +42,7 @@ body {
 }
 .hero h1 { margin: 0; letter-spacing: 0.08em; font-size: 2rem; line-height: 1.1; max-width: min(460px, 70vw); overflow-wrap: anywhere; }
 .hero p { margin: 6px 0 0; color: var(--muted); }
+.version { font-size: 0.75rem; color: var(--muted); opacity: 0.7; margin-top: 4px; }
 .container { padding: 0 4vw 48px; }
 .tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
 .tab-btn {
@@ -182,6 +183,7 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); bo
 	<div>
 		<h1>CAN controls configurator</h1>
 		<p>Build, preview, and save the exact UI layout before flashing.</p>
+		<div class="version">Firmware v{{VERSION}}</div>
 	</div>
 	<div class="pill">Live builder</div>
 </div>

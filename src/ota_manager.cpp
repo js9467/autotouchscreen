@@ -5,6 +5,7 @@
 #include <HTTPClient.h>
 #include <Update.h>
 #include <WiFiClientSecure.h>
+#include <lvgl.h>
 
 #include <algorithm>
 #include <cctype>
@@ -324,6 +325,9 @@ bool OTAUpdateManager::downloadAndInstall(const ManifestInfo& manifest) {
     
     Serial.printf("[OTA] Starting download: %u bytes\n", content_length);
     
+    // Show OTA update screen
+    showOtaScreen(manifest.version);
+    
     while (stream->connected() && (content_length == 0 || written < content_length)) {
         size_t available = stream->available();
         if (available > 0) {
@@ -338,13 +342,13 @@ bool OTAUpdateManager::downloadAndInstall(const ManifestInfo& manifest) {
                 }
                 written += chunk_written;
                 
-                // Update progress every 5 seconds to reduce UI flicker
+                // Update progress bar every second
                 unsigned long now = millis();
-                if (now - last_update_ms >= 5000) {
+                if (now - last_update_ms >= 1000) {
                     if (content_length > 0) {
                         uint8_t progress = (written * 100) / content_length;
                         Serial.printf("[OTA] Progress: %u%% (%u/%u bytes)\n", progress, written, content_length);
-                        setStatus(std::string("downloading-") + manifest.version + "-" + std::to_string(progress));
+                        updateOtaProgress(progress);
                     }
                     last_update_ms = now;
                     yield(); // Allow other tasks to run
@@ -433,4 +437,77 @@ int OTAUpdateManager::compareVersions(const std::string& lhs, const std::string&
 void OTAUpdateManager::setStatus(const std::string& status) {
     last_status_ = status;
     Serial.printf("[OTA] %s\n", status.c_str());
+}
+
+// OTA update screen with progress bar
+static lv_obj_t* ota_screen = nullptr;
+static lv_obj_t* ota_bar = nullptr;
+static lv_obj_t* ota_label = nullptr;
+
+void OTAUpdateManager::showOtaScreen(const std::string& version) {
+    if (ota_screen != nullptr) {
+        return;  // Already showing
+    }
+
+    // Create fullscreen overlay
+    ota_screen = lv_obj_create(lv_scr_act());
+    lv_obj_set_size(ota_screen, LV_PCT(100), LV_PCT(100));
+    lv_obj_set_style_bg_color(ota_screen, lv_color_hex(0x1a1a1a), 0);
+    lv_obj_set_style_bg_opa(ota_screen, LV_OPA_COVER, 0);
+    lv_obj_set_style_border_width(ota_screen, 0, 0);
+    lv_obj_center(ota_screen);
+    
+    // Title
+    lv_obj_t* title = lv_label_create(ota_screen);
+    lv_label_set_text(title, "Updating Firmware");
+    lv_obj_set_style_text_color(title, lv_color_hex(0xffffff), 0);
+    lv_obj_set_style_text_font(title, &lv_font_montserrat_24, 0);
+    lv_obj_align(title, LV_ALIGN_CENTER, 0, -60);
+    
+    // Version label
+    ota_label = lv_label_create(ota_screen);
+    std::string msg = "Version " + version;
+    lv_label_set_text(ota_label, msg.c_str());
+    lv_obj_set_style_text_color(ota_label, lv_color_hex(0xaaaaaa), 0);
+    lv_obj_set_style_text_font(ota_label, &lv_font_montserrat_16, 0);
+    lv_obj_align(ota_label, LV_ALIGN_CENTER, 0, -20);
+    
+    // Progress bar
+    ota_bar = lv_bar_create(ota_screen);
+    lv_obj_set_size(ota_bar, 280, 20);
+    lv_obj_align(ota_bar, LV_ALIGN_CENTER, 0, 20);
+    lv_obj_set_style_bg_color(ota_bar, lv_color_hex(0x333333), LV_PART_MAIN);
+    lv_obj_set_style_bg_color(ota_bar, lv_color_hex(0x00a8e8), LV_PART_INDICATOR);
+    lv_bar_set_value(ota_bar, 0, LV_ANIM_OFF);
+    lv_bar_set_range(ota_bar, 0, 100);
+    
+    // Percent label
+    lv_obj_t* percent = lv_label_create(ota_screen);
+    lv_label_set_text(percent, "0%");
+    lv_obj_set_style_text_color(percent, lv_color_hex(0xaaaaaa), 0);
+    lv_obj_align(percent, LV_ALIGN_CENTER, 0, 50);
+    
+    lv_obj_move_foreground(ota_screen);
+}
+
+void OTAUpdateManager::updateOtaProgress(uint8_t percent) {
+    if (ota_bar != nullptr) {
+        lv_bar_set_value(ota_bar, percent, LV_ANIM_OFF);
+        
+        // Update percent text
+        lv_obj_t* percent_label = lv_obj_get_child(ota_screen, 3);
+        if (percent_label) {
+            std::string text = std::to_string(percent) + "%";
+            lv_label_set_text(percent_label, text.c_str());
+        }
+    }
+}
+
+void OTAUpdateManager::hideOtaScreen() {
+    if (ota_screen != nullptr) {
+        lv_obj_del(ota_screen);
+        ota_screen = nullptr;
+        ota_bar = nullptr;
+        ota_label = nullptr;
+    }
 }

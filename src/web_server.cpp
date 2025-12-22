@@ -7,6 +7,7 @@
 
 #include "config_manager.h"
 #include "ui_builder.h"
+#include "version_auto.h"
 #include "web_interface.h"
 
 namespace {
@@ -186,7 +187,10 @@ void WebServerManager::setupRoutes() {
     
     // Main configuration page
     server_.on("/", HTTP_GET, [](AsyncWebServerRequest* request) {
-        AsyncWebServerResponse* response = request->beginResponse_P(200, "text/html", WEB_INTERFACE_HTML);
+        // Generate HTML with version embedded
+        String html = FPSTR(WEB_INTERFACE_HTML);
+        html.replace("{{VERSION}}", APP_VERSION);
+        AsyncWebServerResponse* response = request->beginResponse(200, "text/html", html.c_str());
         response->addHeader("Cache-Control", "no-cache, no-store, must-revalidate, max-age=0");
         response->addHeader("Pragma", "no-cache");
         response->addHeader("Expires", "0");

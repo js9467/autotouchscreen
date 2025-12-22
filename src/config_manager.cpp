@@ -111,19 +111,14 @@ bool ConfigManager::begin() {
         needs_save = true;
     }
 
-    // Set version to APP_VERSION if empty OR if stored version is older
-    if (config_.version.empty() || compareVersions(APP_VERSION, config_.version) > 0) {
-        if (!config_.version.empty()) {
-            Serial.printf("[ConfigManager] Updating stored version %s -> %s\n", 
-                         config_.version.c_str(), APP_VERSION);
-        } else {
-            Serial.printf("[ConfigManager] Initializing version to %s\n", APP_VERSION);
-        }
+    // Always use APP_VERSION as the source of truth
+    if (config_.version != APP_VERSION) {
+        Serial.printf("[ConfigManager] Syncing version: %s -> %s\n", 
+                     config_.version.c_str(), APP_VERSION);
         config_.version = APP_VERSION;
         needs_save = true;
     } else {
-        Serial.printf("[ConfigManager] Using stored version: %s (APP_VERSION=%s)\n", 
-                     config_.version.c_str(), APP_VERSION);
+        Serial.printf("[ConfigManager] Version: %s\n", APP_VERSION);
     }
 
     // Always force OTA URL to the managed Fly.io endpoint

@@ -1166,7 +1166,7 @@ void UIBuilder::createInfoModal() {
         lv_obj_set_style_bg_opa(card, LV_OPA_COVER, 0);
         lv_obj_set_style_radius(card, UITheme::RADIUS_MD, 0);
         lv_obj_set_style_pad_all(card, UITheme::SPACE_SM, 0);
-        lv_obj_set_style_min_height(card, 80, 0);
+        lv_obj_set_style_min_height(card, 100, 0);  // Increased from 80 to 100 for better content display
         lv_obj_set_flex_flow(card, LV_FLEX_FLOW_COLUMN);
         lv_obj_set_flex_align(card, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
         lv_obj_set_flex_grow(card, 1);
