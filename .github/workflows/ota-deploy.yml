@@ -79,7 +79,7 @@ jobs:
           EOF
 
       - name: Install Flyctl
-        uses: superfly/flyctl-actions/setup-flyctl@v2
+        uses: superfly/flyctl-actions/setup-flyctl@v1
 
       - name: Deploy OTA service
         env:
