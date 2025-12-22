@@ -1071,12 +1071,13 @@ void UIBuilder::createInfoModal() {
     lv_obj_set_style_border_width(info_modal_bg_, 0, 0);
     lv_obj_add_flag(info_modal_bg_, LV_OBJ_FLAG_HIDDEN);
     lv_obj_add_flag(info_modal_bg_, LV_OBJ_FLAG_CLICKABLE);
-    lv_obj_add_event_cb(info_modal_bg_, infoModalCloseEvent, LV_EVENT_CLICKED, nullptr);
+    lv_obj_add_event_cb(info_modal_bg_, infoModalBackdropEvent, LV_EVENT_CLICKED, nullptr);
     lv_obj_move_foreground(info_modal_bg_);  // Ensure modal is on top
 
-    // Modal content box - larger to fit time controls
+    // Modal content box widened for dual-column layout
     info_modal_ = lv_obj_create(info_modal_bg_);
-    lv_obj_set_size(info_modal_, 520, 420);
+    lv_obj_set_width(info_modal_, 560);
+    lv_obj_set_height(info_modal_, LV_SIZE_CONTENT);
     lv_obj_center(info_modal_);
     lv_obj_set_style_bg_color(info_modal_, lv_color_hex(0x2A2A2A), 0);
     lv_obj_set_style_bg_opa(info_modal_, LV_OPA_COVER, 0);
@@ -1090,6 +1091,7 @@ void UIBuilder::createInfoModal() {
     lv_obj_set_style_pad_gap(info_modal_, UITheme::SPACE_SM, 0);
     lv_obj_add_flag(info_modal_, LV_OBJ_FLAG_CLICKABLE);  // Block clicks from reaching background
     lv_obj_clear_flag(info_modal_, LV_OBJ_FLAG_SCROLLABLE);  // Modal content shouldn't close on click
+    lv_obj_clear_flag(info_modal_, LV_OBJ_FLAG_EVENT_BUBBLE);
 
     // Title
     lv_obj_t* title = lv_label_create(info_modal_);
@@ -1098,24 +1100,73 @@ void UIBuilder::createInfoModal() {
     lv_obj_set_style_text_color(title, lv_color_hex(0xFFFFFF), 0);
     lv_obj_set_style_text_opa(title, LV_OPA_COVER, 0);
 
+    // Dedicated actions row keeps Update button visible even if content scrolls
+    lv_obj_t* action_row = lv_obj_create(info_modal_);
+    lv_obj_remove_style_all(action_row);
+    lv_obj_set_width(action_row, lv_pct(100));
+    lv_obj_set_flex_flow(action_row, LV_FLEX_FLOW_ROW);
+    lv_obj_set_flex_align(action_row, LV_FLEX_ALIGN_END, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_set_style_pad_all(action_row, 0, 0);
+
+    ota_primary_button_ = lv_btn_create(action_row);
+    lv_obj_set_height(ota_primary_button_, 44);
+    lv_obj_set_style_bg_color(ota_primary_button_, UITheme::COLOR_ACCENT, 0);
+    lv_obj_set_style_bg_opa(ota_primary_button_, LV_OPA_COVER, 0);
+    lv_obj_set_style_radius(ota_primary_button_, UITheme::RADIUS_MD, 0);
+    lv_obj_set_style_border_width(ota_primary_button_, 0, 0);
+    lv_obj_set_style_shadow_width(ota_primary_button_, 12, 0);
+    lv_obj_set_style_shadow_color(ota_primary_button_, lv_color_hex(0x000000), 0);
+    lv_obj_set_style_shadow_opa(ota_primary_button_, LV_OPA_20, 0);
+    lv_obj_add_event_cb(ota_primary_button_, otaUpdateButtonEvent, LV_EVENT_CLICKED, nullptr);
+
+    ota_primary_button_label_ = lv_label_create(ota_primary_button_);
+    lv_label_set_text(ota_primary_button_label_, "Update Now");
+    lv_obj_set_style_text_font(ota_primary_button_label_, UITheme::FONT_BODY, 0);
+    lv_obj_set_style_text_color(ota_primary_button_label_, lv_color_hex(0x000000), 0);
+    lv_obj_center(ota_primary_button_label_);
+
+    // Columns keep everything visible without scrolling
+    lv_obj_t* modal_body = lv_obj_create(info_modal_);
+    lv_obj_remove_style_all(modal_body);
+    lv_obj_set_width(modal_body, lv_pct(100));
+    lv_obj_set_flex_flow(modal_body, LV_FLEX_FLOW_ROW);
+    lv_obj_set_style_pad_all(modal_body, 0, 0);
+    lv_obj_set_style_pad_gap(modal_body, UITheme::SPACE_SM, 0);
+    lv_obj_set_flex_align(modal_body, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
+    lv_obj_clear_flag(modal_body, LV_OBJ_FLAG_SCROLLABLE);
+
+    auto createColumn = [&](lv_obj_t* parent) {
+        lv_obj_t* column = lv_obj_create(parent);
+        lv_obj_remove_style_all(column);
+        lv_obj_set_width(column, lv_pct(50));
+        lv_obj_set_style_pad_all(column, 0, 0);
+        lv_obj_set_style_pad_gap(column, UITheme::SPACE_SM, 0);
+        lv_obj_set_flex_flow(column, LV_FLEX_FLOW_COLUMN);
+        lv_obj_set_flex_grow(column, 1);
+        lv_obj_clear_flag(column, LV_OBJ_FLAG_SCROLLABLE);
+        return column;
+    };
+
+    lv_obj_t* left_column = createColumn(modal_body);
+    lv_obj_t* right_column = createColumn(modal_body);
+
     // Compact stat cards keep layout stable
-    lv_obj_t* stats_row = lv_obj_create(info_modal_);
+    lv_obj_t* stats_row = lv_obj_create(left_column);
     lv_obj_remove_style_all(stats_row);
-    lv_obj_set_width(stats_row, 500);
-    lv_obj_set_flex_flow(stats_row, LV_FLEX_FLOW_ROW_WRAP);
+    lv_obj_set_width(stats_row, lv_pct(100));
+    lv_obj_set_flex_flow(stats_row, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_style_pad_gap(stats_row, UITheme::SPACE_SM, 0);
     lv_obj_set_style_pad_all(stats_row, 0, 0);
 
     auto createStatCard = [&](const char* label_text, const char* default_value, lv_obj_t** value_slot) {
         lv_obj_t* card = lv_obj_create(stats_row);
         lv_obj_remove_style_all(card);
+        lv_obj_set_width(card, lv_pct(100));
         lv_obj_set_style_bg_color(card, lv_color_hex(0x1c1c1c), 0);
         lv_obj_set_style_bg_opa(card, LV_OPA_COVER, 0);
         lv_obj_set_style_radius(card, UITheme::RADIUS_MD, 0);
         lv_obj_set_style_pad_all(card, UITheme::SPACE_SM, 0);
-        lv_obj_set_style_min_width(card, 150, 0);
-        lv_obj_set_style_max_width(card, 240, 0);
-        lv_obj_set_style_min_height(card, 74, 0);
+        lv_obj_set_style_min_height(card, 80, 0);
         lv_obj_set_flex_flow(card, LV_FLEX_FLOW_COLUMN);
         lv_obj_set_flex_align(card, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
         lv_obj_set_flex_grow(card, 1);
@@ -1128,7 +1179,7 @@ void UIBuilder::createInfoModal() {
         lv_obj_t* value = lv_label_create(card);
         lv_obj_set_style_text_font(value, &lv_font_montserrat_18, 0);
         lv_obj_set_style_text_color(value, UITheme::COLOR_TEXT_PRIMARY, 0);
-        lv_label_set_long_mode(value, LV_LABEL_LONG_CLIP);
+        lv_label_set_long_mode(value, LV_LABEL_LONG_WRAP);
         lv_obj_set_width(value, lv_pct(100));
         lv_label_set_text(value, default_value);
         if (value_slot) {
@@ -1142,10 +1193,14 @@ void UIBuilder::createInfoModal() {
     createStatCard("Firmware", version_default, &version_label_);
     refreshVersionLabel();
 
+    if (info_ip_label_) {
+        lv_label_set_long_mode(info_ip_label_, LV_LABEL_LONG_WRAP);
+    }
+
     // Diagnostics bars
-    lv_obj_t* diagnostics_section = lv_obj_create(info_modal_);
+    lv_obj_t* diagnostics_section = lv_obj_create(left_column);
     lv_obj_remove_style_all(diagnostics_section);
-    lv_obj_set_width(diagnostics_section, 500);
+    lv_obj_set_width(diagnostics_section, lv_pct(100));
     lv_obj_set_flex_flow(diagnostics_section, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_style_pad_all(diagnostics_section, 0, 0);
     lv_obj_set_style_pad_gap(diagnostics_section, UITheme::SPACE_XS, 0);
@@ -1180,7 +1235,6 @@ void UIBuilder::createInfoModal() {
     };
 
     createBarRow("Network health", &network_status_bar_);
-    createBarRow("Update readiness", &ota_status_bar_);
 
     diagnostics_label_ = lv_label_create(diagnostics_section);
     lv_label_set_text(diagnostics_label_, "No recent errors");
@@ -1188,13 +1242,56 @@ void UIBuilder::createInfoModal() {
     lv_obj_set_style_text_color(diagnostics_label_, UITheme::COLOR_TEXT_SECONDARY, 0);
     diag_priority_ = DiagnosticsPriority::NORMAL;
 
+    // OTA update controls live in the left column so they are immediately visible
+    lv_obj_t* ota_card = lv_obj_create(left_column);
+    lv_obj_remove_style_all(ota_card);
+    lv_obj_set_width(ota_card, lv_pct(100));
+    lv_obj_set_style_bg_color(ota_card, lv_color_hex(0x1c1c1c), 0);
+    lv_obj_set_style_bg_opa(ota_card, LV_OPA_COVER, 0);
+    lv_obj_set_style_radius(ota_card, UITheme::RADIUS_MD, 0);
+    lv_obj_set_style_pad_all(ota_card, UITheme::SPACE_SM, 0);
+    lv_obj_set_style_pad_gap(ota_card, UITheme::SPACE_XS, 0);
+    lv_obj_set_flex_flow(ota_card, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_flex_align(ota_card, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
+
+    lv_obj_t* ota_heading = lv_label_create(ota_card);
+    lv_label_set_text(ota_heading, "Software Updates");
+    lv_obj_set_style_text_font(ota_heading, UITheme::FONT_BODY, 0);
+    lv_obj_set_style_text_color(ota_heading, lv_color_hex(0xFFFFFF), 0);
+
+    ota_status_label_ = lv_label_create(ota_card);
+    lv_label_set_long_mode(ota_status_label_, LV_LABEL_LONG_WRAP);
+    lv_obj_set_width(ota_status_label_, lv_pct(100));
+    lv_obj_set_style_text_font(ota_status_label_, UITheme::FONT_BODY, 0);
+    lv_obj_set_style_text_color(ota_status_label_, lv_color_hex(0xFFFFFF), 0);
+
+    lv_obj_t* ota_bar_label = lv_label_create(ota_card);
+    lv_label_set_text(ota_bar_label, "Status");
+    lv_obj_set_style_text_font(ota_bar_label, &lv_font_montserrat_12, 0);
+    lv_obj_set_style_text_color(ota_bar_label, UITheme::COLOR_TEXT_SECONDARY, 0);
+
+    ota_status_bar_ = lv_bar_create(ota_card);
+    lv_bar_set_range(ota_status_bar_, 0, 100);
+    lv_obj_set_width(ota_status_bar_, lv_pct(100));
+    lv_obj_set_height(ota_status_bar_, 10);
+    lv_obj_set_style_bg_color(ota_status_bar_, lv_color_hex(0x262626), LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(ota_status_bar_, LV_OPA_COVER, LV_PART_MAIN);
+    lv_obj_set_style_radius(ota_status_bar_, 4, LV_PART_MAIN);
+    lv_obj_set_style_bg_color(ota_status_bar_, UITheme::COLOR_ACCENT, LV_PART_INDICATOR);
+    lv_obj_set_style_bg_opa(ota_status_bar_, LV_OPA_COVER, LV_PART_INDICATOR);
+    lv_obj_set_style_radius(ota_status_bar_, 4, LV_PART_INDICATOR);
+
+    ota_status_text_ = OTAUpdateManager::instance().lastStatus();
+    refreshOtaStatusLabel();
+
     // Brightness controls
-    lv_obj_t* brightness_row = lv_obj_create(info_modal_);
+    lv_obj_t* brightness_row = lv_obj_create(right_column);
     lv_obj_remove_style_all(brightness_row);
     lv_obj_set_flex_flow(brightness_row, LV_FLEX_FLOW_ROW);
+    lv_obj_set_flex_align(brightness_row, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
     lv_obj_set_style_pad_gap(brightness_row, UITheme::SPACE_SM, 0);
     lv_obj_set_style_pad_all(brightness_row, 0, 0);
-    lv_obj_set_width(brightness_row, 500);
+    lv_obj_set_width(brightness_row, lv_pct(100));
 
     lv_obj_t* brightness_label = lv_label_create(brightness_row);
     lv_label_set_text(brightness_label, "Brightness");
@@ -1203,7 +1300,8 @@ void UIBuilder::createInfoModal() {
     brightness_slider_ = lv_slider_create(brightness_row);
     lv_slider_set_range(brightness_slider_, 0, 100);
     lv_slider_set_value(brightness_slider_, config_ ? config_->display.brightness : 100, LV_ANIM_OFF);
-    lv_obj_set_width(brightness_slider_, 260);
+    lv_obj_set_width(brightness_slider_, LV_SIZE_CONTENT);
+    lv_obj_set_flex_grow(brightness_slider_, 1);
     lv_obj_add_event_cb(brightness_slider_, brightnessSliderEvent, LV_EVENT_VALUE_CHANGED, nullptr);
     lv_obj_add_event_cb(brightness_slider_, brightnessSliderEvent, LV_EVENT_RELEASED, nullptr);
 
@@ -1213,52 +1311,10 @@ void UIBuilder::createInfoModal() {
     lv_label_set_text(brightness_value_label_, pct_buf);
     lv_obj_set_style_text_font(brightness_value_label_, UITheme::FONT_BODY, 0);
 
-    // OTA controls
-    lv_obj_t* ota_section = lv_obj_create(info_modal_);
-    lv_obj_remove_style_all(ota_section);
-    lv_obj_set_flex_flow(ota_section, LV_FLEX_FLOW_COLUMN);
-    lv_obj_set_style_pad_all(ota_section, 0, 0);
-    lv_obj_set_style_pad_gap(ota_section, UITheme::SPACE_XS, 0);
-    lv_obj_set_width(ota_section, 500);
-
-    lv_obj_t* ota_header = lv_obj_create(ota_section);
-    lv_obj_remove_style_all(ota_header);
-    lv_obj_set_width(ota_header, lv_pct(100));
-    lv_obj_set_flex_flow(ota_header, LV_FLEX_FLOW_ROW);
-    lv_obj_set_flex_align(ota_header, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
-    lv_obj_set_style_pad_all(ota_header, 0, 0);
-    lv_obj_set_style_pad_gap(ota_header, UITheme::SPACE_SM, 0);
-
-    lv_obj_t* ota_heading = lv_label_create(ota_header);
-    lv_label_set_text(ota_heading, "Software Updates");
-    lv_obj_set_style_text_font(ota_heading, UITheme::FONT_BODY, 0);
-    lv_obj_set_style_text_color(ota_heading, lv_color_hex(0xFFFFFF), 0);
-    lv_obj_set_style_flex_grow(ota_heading, 1, 0);
-
-    ota_update_btn_ = lv_btn_create(ota_header);
-    lv_obj_set_size(ota_update_btn_, 160, 40);
-    lv_obj_set_style_bg_color(ota_update_btn_, lv_color_hex(0xFFA500), 0);
-    lv_obj_set_style_radius(ota_update_btn_, UITheme::RADIUS_MD, 0);
-    lv_obj_add_event_cb(ota_update_btn_, otaCheckButtonEvent, LV_EVENT_CLICKED, nullptr);
-
-    lv_obj_t* ota_btn_label = lv_label_create(ota_update_btn_);
-    lv_label_set_text(ota_btn_label, "Check Now");
-    lv_obj_set_style_text_font(ota_btn_label, UITheme::FONT_BODY, 0);
-    lv_obj_center(ota_btn_label);
-
-    ota_status_label_ = lv_label_create(ota_section);
-    lv_label_set_long_mode(ota_status_label_, LV_LABEL_LONG_CLIP);
-    lv_obj_set_width(ota_status_label_, lv_pct(100));
-    lv_obj_set_style_text_font(ota_status_label_, UITheme::FONT_BODY, 0);
-    lv_obj_set_style_text_color(ota_status_label_, lv_color_hex(0xFFFFFF), 0);
-
-    ota_status_text_ = OTAUpdateManager::instance().lastStatus();
-    refreshOtaStatusLabel();
-
     // Close button
     lv_obj_t* close_row = lv_obj_create(info_modal_);
     lv_obj_remove_style_all(close_row);
-    lv_obj_set_width(close_row, 500);
+    lv_obj_set_width(close_row, lv_pct(100));
     lv_obj_set_flex_flow(close_row, LV_FLEX_FLOW_ROW);
     lv_obj_set_flex_align(close_row, LV_FLEX_ALIGN_END, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
     lv_obj_set_style_pad_all(close_row, 0, 0);
@@ -1319,6 +1375,7 @@ void UIBuilder::hideInfoModal() {
 }
 
 void UIBuilder::updateOtaStatus(const std::string& status) {
+    Serial.printf("[UI] updateOtaStatus called with: %s\n", status.c_str());
     ota_status_text_ = status.empty() ? "idle" : status;
     refreshOtaStatusLabel();
 }
@@ -1328,6 +1385,7 @@ void UIBuilder::refreshOtaStatusLabel() {
         return;
     }
     const std::string friendly = humanizeOtaStatus(ota_status_text_);
+    Serial.printf("[UI] Setting status label to: %s (from: %s)\n", friendly.c_str(), ota_status_text_.c_str());
     lv_label_set_text(ota_status_label_, friendly.c_str());
     lv_obj_set_style_text_color(ota_status_label_, colorForOtaStatus(ota_status_text_), 0);
     refreshOtaStatusBar();
@@ -1337,6 +1395,8 @@ void UIBuilder::refreshOtaStatusLabel() {
     } else if (diag_priority_ != DiagnosticsPriority::ERROR) {
         setDiagnosticsMessage("No recent errors", DiagnosticsPriority::NORMAL, true);
     }
+
+    updateOtaActionState();
 }
 
 std::string UIBuilder::humanizeOtaStatus(const std::string& status) const {
@@ -1357,7 +1417,19 @@ std::string UIBuilder::humanizeOtaStatus(const std::string& status) const {
     if (status == "manifest-channel-mismatch") return "No update available on this channel";
     if (startsWith(status, "update-available-")) return std::string("Update available: ") + status.substr(18);
     if (startsWith(status, "updated-to-")) return std::string("Updated to ") + status.substr(11);
-    if (startsWith(status, "downloading-")) return std::string("Downloading ") + status.substr(12);
+    if (startsWith(status, "downloading-")) {
+        // Extract version and optional progress: "downloading-1.1.2" or "downloading-1.1.2-75"
+        std::string remainder = status.substr(12);
+        size_t dash_pos = remainder.find_last_of('-');
+        if (dash_pos != std::string::npos && dash_pos > 0) {
+            // Has progress percentage
+            std::string version = remainder.substr(0, dash_pos);
+            std::string progress = remainder.substr(dash_pos + 1);
+            return std::string("Downloading ") + version + " (" + progress + "%)";
+        } else {
+            return std::string("Downloading ") + remainder;
+        }
+    }
     if (startsWith(status, "manifest-http-")) return std::string("Manifest download failed (HTTP ") + status.substr(14) + ")";
     if (startsWith(status, "firmware-http-")) return std::string("Firmware download failed (HTTP ") + status.substr(14) + ")";
     if (startsWith(status, "manifest-parse-")) return std::string("Manifest parse error: ") + status.substr(15);
@@ -1404,14 +1476,28 @@ lv_color_t UIBuilder::colorForOtaStatus(const std::string& status) const {
 }
 
 void UIBuilder::refreshNetworkStatusLabel() {
+    const bool sta_ready = last_sta_connected_ && !last_sta_ip_.empty() && last_sta_ip_ != "0.0.0.0";
+    const bool ap_ready = !last_ap_ip_.empty() && last_ap_ip_ != "0.0.0.0";
+
     if (info_ip_label_) {
-        const char* ip_value = "Not connected";
-        if (last_sta_connected_ && !last_sta_ip_.empty() && last_sta_ip_ != "0.0.0.0") {
-            ip_value = last_sta_ip_.c_str();
-        } else if (!last_ap_ip_.empty() && last_ap_ip_ != "0.0.0.0") {
-            ip_value = last_ap_ip_.c_str();
+        std::string ip_text;
+        if (sta_ready) {
+            ip_text.append("LAN  ");
+            ip_text.append(last_sta_ip_);
         }
-        lv_label_set_text(info_ip_label_, ip_value);
+        if (ap_ready) {
+            if (!ip_text.empty()) {
+                ip_text.push_back('\n');
+            }
+            ip_text.append("AP   ");
+            ip_text.append(last_ap_ip_);
+        }
+
+        if (ip_text.empty()) {
+            ip_text = "Not connected";
+        }
+
+        lv_label_set_text(info_ip_label_, ip_text.c_str());
     }
 
     if (network_status_label_) {
@@ -1447,8 +1533,20 @@ void UIBuilder::refreshVersionLabel() {
     if (!version_label_) {
         return;
     }
-    const char* version_text = (APP_VERSION && APP_VERSION[0]) ? APP_VERSION : "--";
-    lv_label_set_text(version_label_, version_text);
+    std::string version_text;
+    const DeviceConfig& cfg = ConfigManager::instance().getConfig();
+    Serial.printf("[UI] refreshVersionLabel - config.version='%s', APP_VERSION='%s'\n", 
+                  cfg.version.c_str(), APP_VERSION ? APP_VERSION : "null");
+    // Show APP_VERSION (actual firmware version) not config.version (stored metadata)
+    if (APP_VERSION && APP_VERSION[0]) {
+        version_text = APP_VERSION;
+    } else if (!cfg.version.empty()) {
+        version_text = cfg.version;
+    } else {
+        version_text = "--";
+    }
+    Serial.printf("[UI] Setting version label to: '%s'\n", version_text.c_str());
+    lv_label_set_text(version_label_, version_text.c_str());
 }
 
 void UIBuilder::refreshNetworkStatusIndicators() {
@@ -1486,6 +1584,50 @@ void UIBuilder::refreshOtaStatusBar() {
         return;
     }
     lv_bar_set_value(ota_status_bar_, otaStatusProgress(ota_status_text_), LV_ANIM_OFF);
+}
+
+void UIBuilder::updateOtaActionState() {
+    if (!ota_primary_button_ || !ota_primary_button_label_) {
+        return;
+    }
+
+    Serial.printf("[UI] updateOtaActionState for status: %s\n", ota_status_text_.c_str());
+    std::string label_text = "Update Now";
+    bool disable = false;
+
+    if (ota_status_text_ == "manual-check-requested") {
+        label_text = "Checking...";
+        disable = true;
+        ota_primary_action_ = OtaAction::BLOCKED;
+    } else if (startsWith(ota_status_text_, "downloading-")) {
+        label_text = "Downloading...";
+        disable = true;
+        ota_primary_action_ = OtaAction::BLOCKED;
+    } else if (ota_status_text_ == "waiting-for-wifi") {
+        label_text = "Waiting for Wi-Fi";
+        disable = true;
+        ota_primary_action_ = OtaAction::BLOCKED;
+    } else if (startsWith(ota_status_text_, "update-available-")) {
+        label_text = "Install Update";
+        ota_primary_action_ = OtaAction::INSTALL;
+    } else if (ota_status_text_ == "up-to-date" || startsWith(ota_status_text_, "updated-to-")) {
+        label_text = "Check Again";
+        ota_primary_action_ = OtaAction::CHECK_ONLY;
+    } else if (isOtaStatusError(ota_status_text_)) {
+        label_text = "Retry Update";
+        ota_primary_action_ = OtaAction::INSTALL;
+    } else {
+        ota_primary_action_ = OtaAction::INSTALL;
+    }
+
+    if (disable) {
+        lv_obj_add_state(ota_primary_button_, LV_STATE_DISABLED);
+    } else {
+        lv_obj_clear_state(ota_primary_button_, LV_STATE_DISABLED);
+    }
+
+    Serial.printf("[UI] Setting button text to: %s (action=%d, disabled=%d)\n", label_text.c_str(), (int)ota_primary_action_, disable);
+    lv_label_set_text(ota_primary_button_label_, label_text.c_str());
 }
 
 bool UIBuilder::startsWith(const std::string& text, const char* prefix) {
@@ -1552,15 +1694,35 @@ void UIBuilder::settingsButtonEvent(lv_event_t* e) {
     UIBuilder::instance().showInfoModal();
 }
 
-void UIBuilder::otaCheckButtonEvent(lv_event_t* e) {
+void UIBuilder::otaUpdateButtonEvent(lv_event_t* e) {
+    Serial.printf("[UI] OTA button event received, code=%d\n", lv_event_get_code(e));
     if (lv_event_get_code(e) != LV_EVENT_CLICKED) {
         return;
     }
-    Serial.println("[UI] Manual OTA check requested");
-    OTAUpdateManager::instance().triggerImmediateCheck();
-    UIBuilder::instance().updateOtaStatus("manual-check-requested");
+    Serial.printf("[UI] OTA button CLICKED\n");
+    UIBuilder& ui = UIBuilder::instance();
+    if (ui.ota_primary_action_ == OtaAction::BLOCKED) {
+        Serial.printf("[UI] OTA action is BLOCKED, ignoring\n");
+        return;
+    }
+    Serial.printf("[UI] OTA action: %d (0=blocked, 1=check, 2=install)\n", (int)ui.ota_primary_action_);
+    OTAUpdateManager& ota = OTAUpdateManager::instance();
+    const bool install_now = (ui.ota_primary_action_ == OtaAction::INSTALL);
+    Serial.printf("[UI] Calling triggerImmediateCheck with install_now=%d\n", install_now);
+    ota.triggerImmediateCheck(install_now);
+    ui.updateOtaStatus(ota.lastStatus());
+    ui.resetSleepTimer();
+    Serial.printf("[UI] OTA button handler complete\n");
 }
+
 void UIBuilder::infoModalCloseEvent(lv_event_t* e) {
+    if (lv_event_get_code(e) != LV_EVENT_CLICKED) {
+        return;
+    }
+    UIBuilder::instance().hideInfoModal();
+}
+
+void UIBuilder::infoModalBackdropEvent(lv_event_t* e) {
     if (lv_event_get_code(e) != LV_EVENT_CLICKED) {
         return;
     }

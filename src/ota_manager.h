@@ -11,7 +11,7 @@ public:
 
     void begin();
     void loop(const WifiStatusSnapshot& wifi_status);
-    void triggerImmediateCheck();
+    void triggerImmediateCheck(bool install_now = false);
     const std::string& lastStatus() const { return last_status_; }
 
 private:
@@ -26,7 +26,7 @@ private:
     };
 
     bool fetchManifest(ManifestInfo& manifest);
-    bool applyManifest(const ManifestInfo& manifest);
+    bool applyManifest(const ManifestInfo& manifest, bool force_install);
     bool downloadAndInstall(const ManifestInfo& manifest);
     bool isNewerVersion(const std::string& remote_version) const;
     static int compareVersions(const std::string& lhs, const std::string& rhs);
@@ -40,5 +40,6 @@ private:
     std::uint32_t last_check_ms_ = 0;
     bool wifi_ready_ = false;
     bool pending_manual_check_ = false;
+    bool manual_install_requested_ = false;
     std::string last_status_ = "idle";
 };

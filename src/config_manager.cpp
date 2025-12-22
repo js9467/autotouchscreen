@@ -12,7 +12,6 @@
 
 namespace {
 constexpr const char* kConfigPath = "/config.json";
-constexpr const char* kDefaultManifestUrl = "https://image-optimizer-still-flower-1282.fly.dev/ota/manifest";
 
 template <typename T>
 T clampValue(T value, T min_value, T max_value) {
@@ -112,17 +111,25 @@ bool ConfigManager::begin() {
         needs_save = true;
     }
 
-    if (config_.version != APP_VERSION) {
-        Serial.printf("[ConfigManager] Bumping stored version %s -> %s\n",
-                      config_.version.c_str(), APP_VERSION);
+    // Set version to APP_VERSION if empty OR if stored version is older
+    if (config_.version.empty() || compareVersions(APP_VERSION, config_.version) > 0) {
+        if (!config_.version.empty()) {
+            Serial.printf("[ConfigManager] Updating stored version %s -> %s\n", 
+                         config_.version.c_str(), APP_VERSION);
+        } else {
+            Serial.printf("[ConfigManager] Initializing version to %s\n", APP_VERSION);
+        }
         config_.version = APP_VERSION;
         needs_save = true;
+    } else {
+        Serial.printf("[ConfigManager] Using stored version: %s (APP_VERSION=%s)\n", 
+                     config_.version.c_str(), APP_VERSION);
     }
 
-    // Migrate old OTA URL to new endpoint
-    if (config_.ota.manifest_url == "https://updates.bronco-controls.com/manifest.json") {
-        Serial.println("[ConfigManager] Migrating OTA URL to Fly.io endpoint");
-        config_.ota.manifest_url = defaults.ota.manifest_url;
+    // Always force OTA URL to the managed Fly.io endpoint
+    if (config_.ota.manifest_url != kOtaManifestUrl) {
+        Serial.println("[ConfigManager] Forcing OTA manifest URL to Fly.io endpoint");
+        config_.ota.manifest_url = kOtaManifestUrl;
         needs_save = true;
     }
 
@@ -131,6 +138,37 @@ bool ConfigManager::begin() {
     }
 
     return true;
+}
+
+int ConfigManager::compareVersions(const std::string& lhs, const std::string& rhs) {
+    auto tokenize = [](const std::string& value) {
+        std::vector<int> parts;
+        std::string token;
+        for (char c : value) {
+            if (c == '.' || c == '-' || c == '_') {
+                if (!token.empty()) {
+                    parts.push_back(std::atoi(token.c_str()));
+                    token.clear();
+                }
+                if (c == '-' || c == '_') break;
+            } else if (std::isdigit(static_cast<unsigned char>(c))) {
+                token.push_back(c);
+            }
+        }
+        if (!token.empty()) {
+            parts.push_back(std::atoi(token.c_str()));
+        }
+        while (parts.size() < 3) parts.push_back(0);
+        return parts;
+    };
+
+    const std::vector<int> lhs_parts = tokenize(lhs);
+    const std::vector<int> rhs_parts = tokenize(rhs);
+    for (std::size_t i = 0; i < 3; ++i) {
+        if (lhs_parts[i] > rhs_parts[i]) return 1;
+        if (lhs_parts[i] < rhs_parts[i]) return -1;
+    }
+    return 0;
 }
 
 bool ConfigManager::save() const {
@@ -224,7 +262,7 @@ DeviceConfig ConfigManager::buildDefaultConfig() const {
 
     cfg.ota.enabled = true;
     cfg.ota.auto_apply = true;
-    cfg.ota.manifest_url = kDefaultManifestUrl;
+    cfg.ota.manifest_url = kOtaManifestUrl;
     cfg.ota.channel = "stable";
     cfg.ota.check_interval_minutes = 60;
 
@@ -544,11 +582,11 @@ bool ConfigManager::decodeConfig(JsonVariantConst json, DeviceConfig& target, st
         }
     }
 
+    target.ota.manifest_url = kOtaManifestUrl;  // OTA endpoint is centrally managed
     JsonObjectConst ota = json["ota"];
     if (!ota.isNull()) {
         target.ota.enabled = ota["enabled"] | target.ota.enabled;
         target.ota.auto_apply = ota["auto_apply"] | target.ota.auto_apply;
-        target.ota.manifest_url = safeString(ota["manifest_url"], target.ota.manifest_url);
         target.ota.channel = safeString(ota["channel"], target.ota.channel);
         const std::uint32_t interval = ota["check_interval_minutes"] | target.ota.check_interval_minutes;
         target.ota.check_interval_minutes = clampValue<std::uint32_t>(interval, 5u, 1440u);

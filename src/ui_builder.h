@@ -53,10 +53,12 @@ private:
     lv_color_t colorForOtaStatus(const std::string& status) const;
     void refreshNetworkStatusIndicators();
     void refreshOtaStatusBar();
+    void updateOtaActionState();
     static bool startsWith(const std::string& text, const char* prefix);
     bool isOtaStatusError(const std::string& status) const;
     uint8_t otaStatusProgress(const std::string& status) const;
     enum class DiagnosticsPriority : std::uint8_t { NORMAL = 0, WARNING = 1, ERROR = 2 };
+    enum class OtaAction : std::uint8_t { INSTALL = 0, CHECK_ONLY = 1, BLOCKED = 2 };
     void setDiagnosticsMessage(const std::string& text, DiagnosticsPriority priority, bool force);
     void refreshNetworkStatusLabel();
     std::string connectionStatusText() const;
@@ -66,10 +68,11 @@ private:
     static void navButtonEvent(lv_event_t* e);
     static void actionButtonEvent(lv_event_t* e);
     static void settingsButtonEvent(lv_event_t* e);
+    static void otaUpdateButtonEvent(lv_event_t* e);
     static void infoModalCloseEvent(lv_event_t* e);
+    static void infoModalBackdropEvent(lv_event_t* e);
     static void brightnessSliderEvent(lv_event_t* e);
     static void modalActivityEvent(lv_event_t* e);
-    static void otaCheckButtonEvent(lv_event_t* e);
     static lv_color_t colorFromHex(const std::string& hex, lv_color_t fallback);
 
     const DeviceConfig* config_ = nullptr;
@@ -92,7 +95,8 @@ private:
     lv_obj_t* network_status_label_ = nullptr;
     lv_obj_t* version_label_ = nullptr;
     lv_obj_t* ota_status_label_ = nullptr;
-    lv_obj_t* ota_update_btn_ = nullptr;
+    lv_obj_t* ota_primary_button_ = nullptr;
+    lv_obj_t* ota_primary_button_label_ = nullptr;
     lv_obj_t* info_ip_label_ = nullptr;
     lv_obj_t* network_status_bar_ = nullptr;
     lv_obj_t* ota_status_bar_ = nullptr;
@@ -121,5 +125,6 @@ private:
     lv_img_dsc_t sleep_logo_dsc_{};
     bool sleep_logo_ready_ = false;
     std::string ota_status_text_ = "idle";
+    OtaAction ota_primary_action_ = OtaAction::INSTALL;
     DiagnosticsPriority diag_priority_ = DiagnosticsPriority::NORMAL;
 };

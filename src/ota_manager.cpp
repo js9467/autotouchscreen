@@ -116,6 +116,12 @@ void OTAUpdateManager::loop(const WifiStatusSnapshot& wifi_status) {
 
     if (!wifi_status.sta_connected) {
         wifi_ready_ = false;
+        if (pending_manual_check_ || manual_install_requested_) {
+            Serial.printf("[OTA] Manual check blocked: WiFi STA not connected\n");
+            pending_manual_check_ = false;
+            manual_install_requested_ = false;
+            setStatus("waiting-for-wifi");
+        }
         return;
     }
 
@@ -123,27 +129,51 @@ void OTAUpdateManager::loop(const WifiStatusSnapshot& wifi_status) {
         wifi_ready_ = true;
         pending_manual_check_ = true;  // First connection triggers immediate check
         setStatus("wifi-ready");
+        Serial.printf("[OTA] WiFi now ready\n");
     }
 
     const std::uint32_t now = millis();
     const bool due = (last_check_ms_ == 0) || (now - last_check_ms_ >= check_interval_ms_);
+    
+    if (pending_manual_check_) {
+        Serial.printf("[OTA] Processing pending manual check\n");
+    }
+    
     if (!due && !pending_manual_check_) {
         return;
     }
 
+    Serial.printf("[OTA] Starting OTA check (due=%d, manual=%d)\n", due, pending_manual_check_);
     pending_manual_check_ = false;
     last_check_ms_ = now;
 
     ManifestInfo manifest;
     if (!fetchManifest(manifest)) {
+        manual_install_requested_ = false;
         return;
     }
 
-    applyManifest(manifest);
+    applyManifest(manifest, manual_install_requested_);
+    manual_install_requested_ = false;
 }
 
-void OTAUpdateManager::triggerImmediateCheck() {
+void OTAUpdateManager::triggerImmediateCheck(bool install_now) {
+    Serial.printf("[OTA] triggerImmediateCheck called, install_now=%d, enabled=%d, wifi_ready=%d\n", 
+                  install_now, enabled_, wifi_ready_);
+    if (!enabled_) {
+        setStatus("disabled");
+        manual_install_requested_ = false;
+        return;
+    }
     pending_manual_check_ = true;
+    if (install_now) {
+        manual_install_requested_ = true;
+    }
+    if (wifi_ready_) {
+        setStatus("manual-check-requested");
+    } else {
+        setStatus("waiting-for-wifi");
+    }
 }
 
 bool OTAUpdateManager::fetchManifest(ManifestInfo& manifest) {
@@ -151,6 +181,31 @@ bool OTAUpdateManager::fetchManifest(ManifestInfo& manifest) {
         setStatus("manifest-url-empty");
         return false;
     }
+
+    // Test DNS resolution
+    Serial.printf("[OTA] Testing DNS for: %s\n", "image-optimizer-still-flower-1282.fly.dev");
+    IPAddress ip;
+    if (!WiFi.hostByName("image-optimizer-still-flower-1282.fly.dev", ip)) {
+        Serial.println("[OTA] DNS resolution failed - checking network status");
+        Serial.printf("[OTA] WiFi Status: %d\n", WiFi.status());
+        Serial.printf("[OTA] Local IP: %s\n", WiFi.localIP().toString().c_str());
+        Serial.printf("[OTA] Gateway: %s\n", WiFi.gatewayIP().toString().c_str());
+        Serial.printf("[OTA] DNS: %s\n", WiFi.dnsIP().toString().c_str());
+        
+        // Try resolving a known good domain
+        IPAddress test_ip;
+        bool can_resolve_google = WiFi.hostByName("www.google.com", test_ip);
+        Serial.printf("[OTA] Can resolve google.com: %s\n", can_resolve_google ? "YES" : "NO");
+        
+        if (!can_resolve_google) {
+            setStatus("manifest-dns-failed-no-internet");
+            return false;
+        } else {
+            setStatus("manifest-dns-failed-fly-dev");
+            return false;
+        }
+    }
+    Serial.printf("[OTA] DNS resolved to: %s\n", ip.toString().c_str());
 
     HTTPClient http;
     WiFiClientSecure secure_client;
@@ -202,7 +257,7 @@ bool OTAUpdateManager::fetchManifest(ManifestInfo& manifest) {
     return true;
 }
 
-bool OTAUpdateManager::applyManifest(const ManifestInfo& manifest) {
+bool OTAUpdateManager::applyManifest(const ManifestInfo& manifest, bool force_install) {
     if (!expected_channel_.empty() && !manifest.channel.empty() && manifest.channel != expected_channel_) {
         setStatus("manifest-channel-mismatch");
         return false;
@@ -213,7 +268,7 @@ bool OTAUpdateManager::applyManifest(const ManifestInfo& manifest) {
         return true;
     }
 
-    if (!auto_apply_) {
+    if (!auto_apply_ && !force_install) {
         setStatus(std::string("update-available-") + manifest.version);
         return true;
     }
@@ -261,9 +316,52 @@ bool OTAUpdateManager::downloadAndInstall(const ManifestInfo& manifest) {
         }
     }
 
+    // Download in chunks to allow UI updates and show progress
     WiFiClient* stream = http.getStreamPtr();
-    const size_t written = Update.writeStream(*stream);
+    size_t written = 0;
+    uint8_t buffer[1024];
+    unsigned long last_update_ms = millis();
+    
+    Serial.printf("[OTA] Starting download: %u bytes\n", content_length);
+    
+    while (stream->connected() && (content_length == 0 || written < content_length)) {
+        size_t available = stream->available();
+        if (available > 0) {
+            size_t to_read = (available > sizeof(buffer)) ? sizeof(buffer) : available;
+            size_t read_bytes = stream->readBytes(buffer, to_read);
+            
+            if (read_bytes > 0) {
+                size_t chunk_written = Update.write(buffer, read_bytes);
+                if (chunk_written != read_bytes) {
+                    Serial.printf("[OTA] Write failed: expected %u, wrote %u\n", read_bytes, chunk_written);
+                    break;
+                }
+                written += chunk_written;
+                
+                // Update progress every 5 seconds to reduce UI flicker
+                unsigned long now = millis();
+                if (now - last_update_ms >= 5000) {
+                    if (content_length > 0) {
+                        uint8_t progress = (written * 100) / content_length;
+                        Serial.printf("[OTA] Progress: %u%% (%u/%u bytes)\n", progress, written, content_length);
+                        setStatus(std::string("downloading-") + manifest.version + "-" + std::to_string(progress));
+                    }
+                    last_update_ms = now;
+                    yield(); // Allow other tasks to run
+                }
+            }
+        } else {
+            delay(1);
+        }
+        
+        // Timeout check
+        if (content_length > 0 && written >= content_length) {
+            break;
+        }
+    }
+    
     http.end();
+    Serial.printf("[OTA] Download complete: %u bytes\n", written);
 
     if (written == 0) {
         setStatus("firmware-empty");

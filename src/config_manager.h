@@ -27,6 +27,7 @@ private:
     bool loadFromStorage();
     bool writeToStorage(const std::string& json) const;
     DeviceConfig buildDefaultConfig() const;
+    static int compareVersions(const std::string& lhs, const std::string& rhs);
     bool decodeConfig(JsonVariantConst json, DeviceConfig& target, std::string& error) const;
     void encodeConfig(const DeviceConfig& source, DynamicJsonDocument& doc) const;
 };

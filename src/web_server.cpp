@@ -51,11 +51,20 @@ WebServerManager::WebServerManager()
     : server_(80) {}
 
 void WebServerManager::begin() {
+    static bool dns_configured = false;
     if (!events_registered_) {
         WiFi.onEvent([this](WiFiEvent_t event, WiFiEventInfo_t info) {
             if (event == ARDUINO_EVENT_WIFI_STA_GOT_IP) {
                 sta_connected_ = true;
                 sta_ip_ = WiFi.localIP();
+                // Set DNS servers AFTER getting IP to prevent DHCP from overwriting
+                // Only do this once to avoid triggering more events
+                if (!dns_configured) {
+                    WiFi.config(WiFi.localIP(), WiFi.gatewayIP(), WiFi.subnetMask(), 
+                               IPAddress(8, 8, 8, 8), IPAddress(1, 1, 1, 1));
+                    dns_configured = true;
+                    Serial.println("[WiFi] DNS configured to 8.8.8.8 (primary) and 1.1.1.1 (secondary)");
+                }
                 Serial.printf("[WebServer] Station connected: %s\n", sta_ip_.toString().c_str());
             } else if (event == ARDUINO_EVENT_WIFI_STA_DISCONNECTED) {
                 sta_connected_ = false;

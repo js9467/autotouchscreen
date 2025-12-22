@@ -10,6 +10,9 @@
 constexpr std::size_t MAX_PAGES = 20;
 constexpr std::size_t MAX_BUTTONS_PER_PAGE = 12;
 
+inline constexpr const char kOtaManifestUrl[] =
+    "https://image-optimizer-still-flower-1282.fly.dev/ota/manifest";
+
 struct CanFrameConfig {
     bool enabled = false;
     std::uint32_t pgn = 0x00FF00;  // Default to proprietary B frame
@@ -88,7 +91,7 @@ struct WifiConfig {
 struct OTAConfig {
     bool enabled = true;
     bool auto_apply = true;
-    std::string manifest_url = "https://image-optimizer-still-flower-1282.fly.dev/ota/manifest";
+    std::string manifest_url = kOtaManifestUrl;
     std::string channel = "stable";
     std::uint32_t check_interval_minutes = 60;  // Minutes between background checks
 };
