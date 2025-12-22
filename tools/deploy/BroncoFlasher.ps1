@@ -105,25 +105,36 @@ function Get-Esptool {
     $downloadUrl = "https://github.com/espressif/esptool/releases/download/$Version/esptool-$Version-win64.zip"
     $tempZip = Join-Path $env:TEMP "esptool-$([guid]::NewGuid()).zip"
     
-    try {
-        Invoke-WebRequest -Uri $downloadUrl -OutFile $tempZip -UseBasicParsing
-        
-        if (Test-Path $esptoolDir) {
-            Remove-Item $esptoolDir -Recurse -Force
+    $maxRetries = 3
+    for ($i = 1; $i -le $maxRetries; $i++) {
+        try {
+            if ($i -gt 1) {
+                Write-Step "Retry $i of $maxRetries..."
+                Start-Sleep -Seconds 2
+            }
+            
+            Invoke-WebRequest -Uri $downloadUrl -OutFile $tempZip -UseBasicParsing -TimeoutSec 30
+            
+            if (Test-Path $esptoolDir) {
+                Remove-Item $esptoolDir -Recurse -Force
+            }
+            New-Item -ItemType Directory -Path $esptoolDir -Force | Out-Null
+            Expand-Archive -Path $tempZip -DestinationPath $esptoolDir -Force
+            Remove-Item $tempZip -Force
+            
+            $tool = Get-ChildItem -Path $esptoolDir -Filter esptool.exe -Recurse | Select-Object -First 1
+            if (-not $tool) {
+                throw "esptool.exe not found after extraction"
+            }
+            
+            Write-Success "esptool downloaded"
+            return $tool.FullName
+            
+        } catch {
+            if ($i -eq $maxRetries) {
+                throw "Failed to download esptool after $maxRetries attempts: $_"
+            }
         }
-        New-Item -ItemType Directory -Path $esptoolDir -Force | Out-Null
-        Expand-Archive -Path $tempZip -DestinationPath $esptoolDir -Force
-        Remove-Item $tempZip -Force
-        
-        $tool = Get-ChildItem -Path $esptoolDir -Filter esptool.exe -Recurse | Select-Object -First 1
-        if (-not $tool) {
-            throw "esptool.exe not found after extraction"
-        }
-        
-        Write-Success "esptool downloaded"
-        return $tool.FullName
-    } catch {
-        throw "Failed to download esptool: $_"
     }
 }
 
