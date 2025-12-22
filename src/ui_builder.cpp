@@ -1142,6 +1142,52 @@ void UIBuilder::createInfoModal() {
     createStatCard("Firmware", version_default, &version_label_);
     refreshVersionLabel();
 
+    // Diagnostics bars
+    lv_obj_t* diagnostics_section = lv_obj_create(info_modal_);
+    lv_obj_remove_style_all(diagnostics_section);
+    lv_obj_set_width(diagnostics_section, 500);
+    lv_obj_set_flex_flow(diagnostics_section, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_style_pad_all(diagnostics_section, 0, 0);
+    lv_obj_set_style_pad_gap(diagnostics_section, UITheme::SPACE_XS, 0);
+
+    auto createBarRow = [&](const char* label_text, lv_obj_t** bar_slot) {
+        lv_obj_t* row = lv_obj_create(diagnostics_section);
+        lv_obj_remove_style_all(row);
+        lv_obj_set_width(row, lv_pct(100));
+        lv_obj_set_flex_flow(row, LV_FLEX_FLOW_COLUMN);
+        lv_obj_set_style_pad_all(row, 0, 0);
+        lv_obj_set_style_pad_gap(row, UITheme::SPACE_XS, 0);
+
+        lv_obj_t* heading = lv_label_create(row);
+        lv_label_set_text(heading, label_text);
+        lv_obj_set_style_text_font(heading, &lv_font_montserrat_12, 0);
+        lv_obj_set_style_text_color(heading, UITheme::COLOR_TEXT_SECONDARY, 0);
+
+        lv_obj_t* bar = lv_bar_create(row);
+        lv_bar_set_range(bar, 0, 100);
+        lv_bar_set_value(bar, 0, LV_ANIM_OFF);
+        lv_obj_set_width(bar, lv_pct(100));
+        lv_obj_set_height(bar, 10);
+        lv_obj_set_style_bg_color(bar, lv_color_hex(0x262626), LV_PART_MAIN);
+        lv_obj_set_style_bg_opa(bar, LV_OPA_COVER, LV_PART_MAIN);
+        lv_obj_set_style_radius(bar, 4, LV_PART_MAIN);
+        lv_obj_set_style_bg_color(bar, UITheme::COLOR_ACCENT, LV_PART_INDICATOR);
+        lv_obj_set_style_bg_opa(bar, LV_OPA_COVER, LV_PART_INDICATOR);
+        lv_obj_set_style_radius(bar, 4, LV_PART_INDICATOR);
+        if (bar_slot) {
+            *bar_slot = bar;
+        }
+    };
+
+    createBarRow("Network health", &network_status_bar_);
+    createBarRow("Update readiness", &ota_status_bar_);
+
+    diagnostics_label_ = lv_label_create(diagnostics_section);
+    lv_label_set_text(diagnostics_label_, "No recent errors");
+    lv_obj_set_style_text_font(diagnostics_label_, UITheme::FONT_BODY, 0);
+    lv_obj_set_style_text_color(diagnostics_label_, UITheme::COLOR_TEXT_SECONDARY, 0);
+    diag_priority_ = DiagnosticsPriority::NORMAL;
+
     // Brightness controls
     lv_obj_t* brightness_row = lv_obj_create(info_modal_);
     lv_obj_remove_style_all(brightness_row);
@@ -1284,6 +1330,13 @@ void UIBuilder::refreshOtaStatusLabel() {
     const std::string friendly = humanizeOtaStatus(ota_status_text_);
     lv_label_set_text(ota_status_label_, friendly.c_str());
     lv_obj_set_style_text_color(ota_status_label_, colorForOtaStatus(ota_status_text_), 0);
+    refreshOtaStatusBar();
+
+    if (isOtaStatusError(ota_status_text_)) {
+        setDiagnosticsMessage(friendly, DiagnosticsPriority::ERROR, true);
+    } else if (diag_priority_ != DiagnosticsPriority::ERROR) {
+        setDiagnosticsMessage("No recent errors", DiagnosticsPriority::NORMAL, true);
+    }
 }
 
 std::string UIBuilder::humanizeOtaStatus(const std::string& status) const {
@@ -1366,6 +1419,8 @@ void UIBuilder::refreshNetworkStatusLabel() {
         lv_label_set_text(network_status_label_, status_text.c_str());
         lv_obj_set_style_text_color(network_status_label_, connectionStatusColor(), 0);
     }
+
+    refreshNetworkStatusIndicators();
 }
 
 std::string UIBuilder::connectionStatusText() const {
@@ -1394,6 +1449,99 @@ void UIBuilder::refreshVersionLabel() {
     }
     const char* version_text = (APP_VERSION && APP_VERSION[0]) ? APP_VERSION : "--";
     lv_label_set_text(version_label_, version_text);
+}
+
+void UIBuilder::refreshNetworkStatusIndicators() {
+    if (!network_status_bar_) {
+        return;
+    }
+
+    const bool sta_ready = last_sta_connected_ && !last_sta_ip_.empty() && last_sta_ip_ != "0.0.0.0";
+    const bool ap_ready = !last_ap_ip_.empty() && last_ap_ip_ != "0.0.0.0";
+
+    uint8_t value = 5;
+    if (sta_ready) {
+        value = 100;
+    } else if (ap_ready) {
+        value = 60;
+    }
+    lv_bar_set_value(network_status_bar_, value, LV_ANIM_OFF);
+
+    if (sta_ready) {
+        if (diag_priority_ == DiagnosticsPriority::WARNING) {
+            setDiagnosticsMessage("No recent errors", DiagnosticsPriority::NORMAL, true);
+        }
+        return;
+    }
+
+    if (ap_ready) {
+        setDiagnosticsMessage("STA offline - AP fallback active", DiagnosticsPriority::WARNING, false);
+    } else {
+        setDiagnosticsMessage("Wi-Fi offline", DiagnosticsPriority::WARNING, false);
+    }
+}
+
+void UIBuilder::refreshOtaStatusBar() {
+    if (!ota_status_bar_) {
+        return;
+    }
+    lv_bar_set_value(ota_status_bar_, otaStatusProgress(ota_status_text_), LV_ANIM_OFF);
+}
+
+bool UIBuilder::startsWith(const std::string& text, const char* prefix) {
+    return text.rfind(prefix, 0) == 0;
+}
+
+bool UIBuilder::isOtaStatusError(const std::string& status) const {
+    return startsWith(status, "manifest-") || startsWith(status, "firmware-") ||
+           startsWith(status, "update-begin-") || startsWith(status, "update-end-") ||
+           status == "md5-invalid" || status == "firmware-empty";
+}
+
+uint8_t UIBuilder::otaStatusProgress(const std::string& status) const {
+    if (status.empty() || status == "idle") {
+        return 10;
+    }
+    if (status == "disabled") {
+        return 0;
+    }
+    if (status == "waiting-for-wifi") {
+        return 15;
+    }
+    if (status == "wifi-ready" || status == "manual-check-requested") {
+        return 35;
+    }
+    if (startsWith(status, "update-available-")) {
+        return 45;
+    }
+    if (startsWith(status, "downloading-")) {
+        return 70;
+    }
+    if (startsWith(status, "updated-to-") || status == "up-to-date") {
+        return 100;
+    }
+    return isOtaStatusError(status) ? 5 : 30;
+}
+
+void UIBuilder::setDiagnosticsMessage(const std::string& text,
+                                      DiagnosticsPriority priority,
+                                      bool force) {
+    if (!diagnostics_label_) {
+        return;
+    }
+    if (!force && static_cast<int>(priority) < static_cast<int>(diag_priority_)) {
+        return;
+    }
+    diag_priority_ = priority;
+    lv_label_set_text(diagnostics_label_, text.c_str());
+
+    lv_color_t color = UITheme::COLOR_TEXT_SECONDARY;
+    if (priority == DiagnosticsPriority::WARNING) {
+        color = UITheme::COLOR_ACCENT;
+    } else if (priority == DiagnosticsPriority::ERROR) {
+        color = UITheme::COLOR_ERROR;
+    }
+    lv_obj_set_style_text_color(diagnostics_label_, color, 0);
 }
 
 void UIBuilder::settingsButtonEvent(lv_event_t* e) {

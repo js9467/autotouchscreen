@@ -51,6 +51,13 @@ private:
     void refreshOtaStatusLabel();
     std::string humanizeOtaStatus(const std::string& status) const;
     lv_color_t colorForOtaStatus(const std::string& status) const;
+    void refreshNetworkStatusIndicators();
+    void refreshOtaStatusBar();
+    static bool startsWith(const std::string& text, const char* prefix);
+    bool isOtaStatusError(const std::string& status) const;
+    uint8_t otaStatusProgress(const std::string& status) const;
+    enum class DiagnosticsPriority : std::uint8_t { NORMAL = 0, WARNING = 1, ERROR = 2 };
+    void setDiagnosticsMessage(const std::string& text, DiagnosticsPriority priority, bool force);
     void refreshNetworkStatusLabel();
     std::string connectionStatusText() const;
     lv_color_t connectionStatusColor() const;
@@ -87,6 +94,9 @@ private:
     lv_obj_t* ota_status_label_ = nullptr;
     lv_obj_t* ota_update_btn_ = nullptr;
     lv_obj_t* info_ip_label_ = nullptr;
+    lv_obj_t* network_status_bar_ = nullptr;
+    lv_obj_t* ota_status_bar_ = nullptr;
+    lv_obj_t* diagnostics_label_ = nullptr;
     lv_obj_t* sleep_overlay_ = nullptr;
     lv_obj_t* sleep_image_ = nullptr;
     lv_timer_t* sleep_timer_ = nullptr;
@@ -111,4 +121,5 @@ private:
     lv_img_dsc_t sleep_logo_dsc_{};
     bool sleep_logo_ready_ = false;
     std::string ota_status_text_ = "idle";
+    DiagnosticsPriority diag_priority_ = DiagnosticsPriority::NORMAL;
 };

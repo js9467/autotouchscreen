@@ -121,7 +121,28 @@ Both scripts print friendly progress and stop with a non-zero exit on failure so
 
 ---
 
-## 6. Provisioning experience for recipients
+## 6. Automate Fly deployments with GitHub Actions
+
+The repository now includes `.github/workflows/ota-deploy.yml`, which keeps the Fly OTA service in sync with the latest release.
+
+**Triggering the workflow**
+- Automatically runs when a GitHub release is published (uses the release tag as the version).
+- Can be started manually via *Actions → OTA Deploy → Run workflow*; supply `version` (e.g., `1.1.1`).
+
+**What it does**
+1. Builds the ESP32-S3 firmware with PlatformIO.
+2. Creates `ota_functions/releases/<version>/firmware.bin` and `manifest.json` (size + MD5 calculated on the fly).
+3. Deploys the updated `releases/` directory to Fly by invoking `flyctl deploy`.
+
+**One-time setup**
+- Add `FLY_API_TOKEN` to the repo secrets (`Settings → Secrets and variables → Actions`). Generate the token with `fly auth token` on a trusted machine.
+- (Optional) Keep tagging releases with `vX.Y.Z` so the workflow can derive semantic versions automatically.
+
+Once configured, every published release (or manual dispatch) refreshes the Fly app, so devices that query `https://image-optimizer-still-flower-1282.fly.dev/ota/manifest` always see the newest firmware without any local scripting.
+
+---
+
+## 7. Provisioning experience for recipients
 1. Recipient connects the unit with USB and runs the script (no PlatformIO or drivers required).
 2. Firmware boots into AP+STA mode, showing `CAN-Control` SSID plus captive portal.
 3. They join the AP, provide Wi-Fi credentials via the built-in web UI, and the device switches to their network.
@@ -131,7 +152,7 @@ The outcome: shipping teams only need to send the prepared ZIP + short instructi
 
 ---
 
-## 7. Hosting and monitoring tips
+## 8. Hosting and monitoring tips
 - Keep at least one previous firmware artifact accessible so you can roll users back by updating the manifest to the earlier version.
 - Serve manifests and binaries over HTTPS when possible; the client accepts HTTP for lab setups but logs that TLS is disabled.
 - Version naming should follow `major.minor.patch` so semantic comparison behaves as expected.
@@ -140,7 +161,7 @@ The outcome: shipping teams only need to send the prepared ZIP + short instructi
 
 ---
 
-## 8. Future enhancements
+## 9. Future enhancements
 - Add a UI “Check for updates” button that calls `OTAUpdateManager::triggerImmediateCheck()`.
 - Extend the manifest format with release notes or minimum required config schema versions so the device can warn operators before applying incompatible builds.
 - Digitally sign manifests and embed a root certificate in firmware for end-to-end authenticity.
