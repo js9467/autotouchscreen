@@ -1165,8 +1165,8 @@ void UIBuilder::createInfoModal() {
         lv_obj_set_style_bg_color(card, lv_color_hex(0x1c1c1c), 0);
         lv_obj_set_style_bg_opa(card, LV_OPA_COVER, 0);
         lv_obj_set_style_radius(card, UITheme::RADIUS_MD, 0);
-        lv_obj_set_style_pad_all(card, UITheme::SPACE_SM, 0);
-        lv_obj_set_style_min_height(card, 100, 0);  // Increased from 80 to 100 for better content display
+        lv_obj_set_style_pad_all(card, 6, 0);  // Reduced padding
+        lv_obj_set_style_min_height(card, 55, 0);  // Compact height
         lv_obj_set_flex_flow(card, LV_FLEX_FLOW_COLUMN);
         lv_obj_set_flex_align(card, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
         lv_obj_set_flex_grow(card, 1);
@@ -1177,7 +1177,7 @@ void UIBuilder::createInfoModal() {
         lv_label_set_text(heading, label_text);
 
         lv_obj_t* value = lv_label_create(card);
-        lv_obj_set_style_text_font(value, &lv_font_montserrat_18, 0);
+        lv_obj_set_style_text_font(value, &lv_font_montserrat_14, 0);  // Smaller font
         lv_obj_set_style_text_color(value, UITheme::COLOR_TEXT_PRIMARY, 0);
         lv_label_set_long_mode(value, LV_LABEL_LONG_WRAP);
         lv_obj_set_width(value, lv_pct(100));
