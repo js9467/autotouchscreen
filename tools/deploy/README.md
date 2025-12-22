@@ -4,24 +4,44 @@ This directory contains tools for flashing firmware to ESP32-S3-Box devices and 
 
 ## Quick Start for End Users
 
-### ⚡ **Easiest Method: Single-File Flasher (RECOMMENDED)**
+### ⚡ **Easiest Method: One-Click Installer (RECOMMENDED)**
 
-**Download one file, no extraction needed:**
+**Just double-click to flash:**
 
-1. **Download:** [BroncoFlasher.ps1](https://github.com/js9467/autotouchscreen/raw/main/tools/deploy/BroncoFlasher.ps1)
-2. **Right-click → "Run with PowerShell"**
-3. Done! The script auto-downloads everything needed and flashes your device.
+1. **Download:** Right-click → Save Link As: [BroncoFlasher.cmd](https://github.com/js9467/autotouchscreen/raw/main/tools/deploy/BroncoFlasher.cmd)
+   - Or visit the link and your browser will download it automatically
+
+2. **Double-click the downloaded file** to run it
+
+3. Done! The installer auto-downloads everything and flashes your device.
 
 **What it does:**
 - Downloads latest firmware from OTA server
 - Downloads bootloader files from GitHub  
 - Auto-detects your ESP32 device
 - Flashes everything automatically
-- Caches files for faster subsequent flashes
+- No PowerShell execution policy issues
+- Just one double-click!
 
-**First time?** PowerShell may block the script. Run this once:
+**Note:** Chrome/Edge may warn "This type of file can harm your computer" - click "Keep" to download. This is normal for .cmd files.
+
+---
+
+### 🔧 **Advanced: PowerShell Script**
+
+For users who prefer PowerShell or need custom options:
+
+**Download:** Right-click → Save Link As: [BroncoFlasher.ps1](https://github.com/js9467/autotouchscreen/raw/main/tools/deploy/BroncoFlasher.ps1)
+
 ```powershell
-Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned
+# List available COM ports
+.\BroncoFlasher.ps1 -ListPorts
+
+# Specify COM port manually
+.\BroncoFlasher.ps1 -Port COM3
+
+# Offline mode (use cached files)
+.\BroncoFlasher.ps1 -OfflineMode
 ```
 
 ---
