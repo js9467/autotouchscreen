@@ -6,14 +6,15 @@ This directory contains tools for flashing firmware to ESP32-S3-Box devices and 
 
 ### ⚡ **Easiest Method: One-Click Installer (RECOMMENDED)**
 
-**Just double-click to flash:**
+**Download and run - that's it!**
 
-1. **Download:** Right-click → Save Link As: [BroncoFlasher.cmd](https://github.com/js9467/autotouchscreen/raw/main/tools/deploy/BroncoFlasher.cmd)
-   - Or visit the link and your browser will download it automatically
+1. **Download the installer:** [BroncoFlasher-Installer.zip](https://github.com/js9467/autotouchscreen/raw/main/tools/deploy/BroncoFlasher-Installer.zip)
 
-2. **Double-click the downloaded file** to run it
+2. **Extract the ZIP** - you'll get one file: `BroncoFlasher.cmd`
 
-3. Done! The installer auto-downloads everything and flashes your device.
+3. **Double-click `BroncoFlasher.cmd`** to flash your device
+
+The installer auto-downloads everything (latest firmware, bootloader files, esptool) and flashes your ESP32 device automatically.
 
 **What it does:**
 - Downloads latest firmware from OTA server
