@@ -144,10 +144,13 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); bo
 .preview-header.inline-right { flex-direction: row-reverse; }
 .preview-header .title-wrap { flex: 1; display: flex; flex-direction: column; gap: 4px; min-width: 0; width: 100%; }
 .preview-header .title-wrap > * { word-break: break-word; overflow-wrap: anywhere; }
-.preview-logo { width: auto; height: 48px; max-width: 160px; border-radius: 10px; background: transparent; flex-shrink: 0; transition: height 0.2s ease, width 0.2s ease; border: 1px dashed var(--border); overflow: hidden; }
-.preview-logo img { width: 100%; height: 100%; object-fit: contain; display: block; border-radius: inherit; image-rendering: pixelated; }
+.preview-logo { width: auto; height: 48px; max-width: 160px; border-radius: 10px; background: transparent; flex-shrink: 0; transition: height 0.2s ease, width 0.2s ease; border: 1px dashed var(--border); overflow: hidden; cursor: move; position: relative; resize: both; }
+.preview-logo:hover { border: 2px dashed var(--accent); box-shadow: 0 0 8px rgba(255, 157, 46, 0.3); }
+.preview-logo img { width: 100%; height: 100%; object-fit: contain; display: block; border-radius: inherit; image-rendering: pixelated; pointer-events: none; }
+.preview-header .title-wrap { cursor: move; transition: opacity 0.2s; }
+.preview-header .title-wrap:hover { opacity: 0.8; }
 .row.align-center { align-items: center; gap: 12px; }
-.preview-nav { display: flex; gap: 8px; padding: 10px 12px; flex-wrap: wrap; background: var(--panel); border-bottom: 1px solid var(--border); margin-bottom: 12px; }
+.preview-nav { display: flex; gap: 8px; padding: 10px 12px; flex-wrap: wrap; background: var(--panel); margin-bottom: 12px; }
 .preview-nav .pill {
 	cursor: grab;
 	white-space: normal;
@@ -360,13 +363,8 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); bo
 		<div class="layout" style="margin-top:16px;">
 			<div class="card">
 				<h3>🖼️ Image Assets</h3>
-				<div style="background: #fff3cd; border: 1px solid #ffc107; border-radius: 8px; padding: 12px; margin-bottom: 16px;">
-					<strong>⚠️ Important:</strong> Use <code>prepare_images.py</code> to optimize images before uploading.<br>
-					<span class="muted">Large images may cause device crashes. Keep files under 50KB each.</span><br>
-					<span class="muted">Example: <code>python prepare_images.py mylogo.png output.png header</code></span>
-				</div>
 				
-				<h4>Header Logo (48x48px recommended)</h4>
+				<h4>Header Logo</h4>
 				<div class="grid">
 					<div class="row">
 						<input id="header-logo-upload" type="file" accept="image/*" />
@@ -2277,6 +2275,81 @@ document.addEventListener('DOMContentLoaded',()=>{
 	
 	const sleepUpload = document.getElementById('sleep-logo-upload');
 	if (sleepUpload) sleepUpload.addEventListener('change', (e) => handleImageUpload(e, 'sleep'));
+	
+	// Enable drag-and-drop for logo and header text positioning
+	const headerEl = document.getElementById('preview-header');
+	const logoEl = headerEl?.querySelector('.preview-logo');
+	const titleWrap = headerEl?.querySelector('.title-wrap');
+	
+	let draggedElement = null;
+	let dragStartX = 0;
+	let dragStartY = 0;
+	
+	if (logoEl) {
+		// Make logo draggable for repositioning
+		logoEl.setAttribute('draggable', 'true');
+		logoEl.addEventListener('dragstart', (e) => {
+			draggedElement = logoEl;
+			logoEl.style.opacity = '0.5';
+			e.dataTransfer.effectAllowed = 'move';
+		});
+		logoEl.addEventListener('dragend', (e) => {
+			logoEl.style.opacity = '1';
+			draggedElement = null;
+		});
+		
+		// Allow resizing by dragging corners (using CSS resize property)
+		// When user resizes, update the config
+		let resizeObserver = new ResizeObserver(() => {
+			const newHeight = logoEl.offsetHeight;
+			if (config.header && Math.abs(newHeight - (config.header.logo_size || 48)) > 2) {
+				config.header.logo_size = newHeight;
+				document.getElementById('header-logo-size').value = newHeight;
+			}
+		});
+		resizeObserver.observe(logoEl);
+	}
+	
+	if (titleWrap) {
+		// Make title draggable
+		titleWrap.setAttribute('draggable', 'true');
+		titleWrap.addEventListener('dragstart', (e) => {
+			draggedElement = titleWrap;
+			titleWrap.style.opacity = '0.5';
+			e.dataTransfer.effectAllowed = 'move';
+		});
+		titleWrap.addEventListener('dragend', (e) => {
+			titleWrap.style.opacity = '1';
+			draggedElement = null;
+		});
+	}
+	
+	if (headerEl) {
+		headerEl.addEventListener('dragover', (e) => {
+			e.preventDefault();
+			e.dataTransfer.dropEffect = 'move';
+		});
+		
+		headerEl.addEventListener('drop', (e) => {
+			e.preventDefault();
+			if (!draggedElement) return;
+			
+			// Swap positions of logo and title
+			if (draggedElement === logoEl) {
+				const placement = config.header?.logo_position || 'stacked';
+				if (placement === 'inline-left') {
+					config.header.logo_position = 'inline-right';
+				} else if (placement === 'inline-right') {
+					config.header.logo_position = 'inline-left';
+				} else {
+					// Toggle between inline layouts
+					config.header.logo_position = 'inline-right';
+				}
+				document.getElementById('header-logo-position').value = config.header.logo_position;
+				updateHeaderPreview();
+			}
+		});
+	}
 	
 	wireThemeInputs();
 });
