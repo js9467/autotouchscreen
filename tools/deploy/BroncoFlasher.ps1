@@ -101,6 +101,11 @@ function Get-Esptool {
         return $esptoolExe
     }
     
+    # Check for any cached esptool version
+    $cachedEsptool = Get-ChildItem -Path "$env:LOCALAPPDATA\BroncoControls" -Filter "esptool-*" -Directory -ErrorAction SilentlyContinue | 
+        ForEach-Object { Get-ChildItem -Path $_.FullName -Filter "esptool.exe" -Recurse -ErrorAction SilentlyContinue } | 
+        Select-Object -First 1
+    
     Write-Step "Downloading esptool $Version..."
     $downloadUrl = "https://github.com/espressif/esptool/releases/download/$Version/esptool-$Version-win64.zip"
     $tempZip = Join-Path $env:TEMP "esptool-$([guid]::NewGuid()).zip"
@@ -132,7 +137,11 @@ function Get-Esptool {
             
         } catch {
             if ($i -eq $maxRetries) {
-                throw "Failed to download esptool after $maxRetries attempts: $_"
+                if ($cachedEsptool) {
+                    Write-Step "Using cached esptool (download failed, but cache available)"
+                    return $cachedEsptool.FullName
+                }
+                throw "Failed to download esptool after $maxRetries attempts and no cache available: $_"
             }
         }
     }
