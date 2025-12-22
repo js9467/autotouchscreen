@@ -275,6 +275,22 @@ try {
     
     Write-Success "Using port: $Port"
     
+    Write-Header "Erasing Flash"
+    Write-Host "  This ensures a clean installation...`n" -ForegroundColor DarkGray
+    
+    $eraseArgs = @(
+        "--chip", "esp32s3",
+        "--port", $Port,
+        "--baud", "921600",
+        "erase_flash"
+    )
+    
+    & $esptool @eraseArgs
+    
+    if ($LASTEXITCODE -ne 0) {
+        throw "Flash erase failed with exit code $LASTEXITCODE"
+    }
+    
     Write-Header "Flashing ESP32"
     Write-Host "  This may take 30-60 seconds...`n" -ForegroundColor DarkGray
     
