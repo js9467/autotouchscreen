@@ -301,7 +301,58 @@ try {
     
     Write-Host ""
     Write-Success "Flash complete!"
-    Write-Header "Your device is ready!"
+    
+    # Monitor serial for IP address and open browser
+    Write-Header "Monitoring Device Startup"
+    Write-Step "Waiting for device to boot and connect to WiFi..."
+    Write-Host "  (This will timeout after 30 seconds if no WiFi is configured)`n" -ForegroundColor DarkGray
+    
+    try {
+        Start-Sleep -Seconds 2  # Wait for device to reset
+        
+        $serialPort = New-Object System.IO.Ports.SerialPort $Port, 115200
+        $serialPort.Open()
+        
+        $timeout = 30
+        $startTime = Get-Date
+        $ipAddress = $null
+        
+        while (((Get-Date) - $startTime).TotalSeconds -lt $timeout) {
+            if ($serialPort.BytesToRead -gt 0) {
+                $line = $serialPort.ReadLine()
+                Write-Host "  $line" -ForegroundColor DarkGray
+                
+                # Look for station IP (WiFi connected)
+                if ($line -match 'Station connected:\s*(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})') {
+                    $ipAddress = $matches[1]
+                    break
+                }
+                # Fallback to AP IP if no station connection
+                if (!$ipAddress -and $line -match 'AP ready at\s*(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})') {
+                    $ipAddress = $matches[1]
+                }
+            }
+            Start-Sleep -Milliseconds 100
+        }
+        
+        $serialPort.Close()
+        
+        if ($ipAddress) {
+            Write-Success "Device connected! IP: $ipAddress"
+            Write-Host "`n  Opening web interface in browser..." -ForegroundColor Green
+            Start-Process "http://$ipAddress"
+            Write-Host "`n  Web interface: http://$ipAddress" -ForegroundColor Cyan
+        } else {
+            Write-Host "`n  No WiFi connection detected (timeout)" -ForegroundColor Yellow
+            Write-Host "  Configure WiFi on device, then access web interface at device IP`n" -ForegroundColor Yellow
+        }
+        
+    } catch {
+        Write-Host "`n  Could not monitor serial output: $_" -ForegroundColor Yellow
+        Write-Host "  Device is ready - configure WiFi to access web interface`n" -ForegroundColor Yellow
+    }
+    
+    Write-Header "Setup Complete!"
     Write-Host "  You may now disconnect the USB cable.`n" -ForegroundColor Green
     
 } catch {
