@@ -33,6 +33,21 @@ void UIBuilder::begin() {
     loadSleepIcon();
     setBrightness(config_->display.brightness);
     createBaseScreen();
+    if (!dim_overlay_) {
+        lv_disp_t* disp = lv_disp_get_default();
+        lv_coord_t screen_w = disp ? lv_disp_get_hor_res(disp) : 800;
+        lv_coord_t screen_h = disp ? lv_disp_get_ver_res(disp) : 480;
+
+        dim_overlay_ = lv_obj_create(lv_layer_top());
+        lv_obj_remove_style_all(dim_overlay_);
+        lv_obj_set_size(dim_overlay_, screen_w, screen_h);
+        lv_obj_set_pos(dim_overlay_, 0, 0);
+        lv_obj_add_flag(dim_overlay_, LV_OBJ_FLAG_IGNORE_LAYOUT);
+        lv_obj_clear_flag(dim_overlay_, LV_OBJ_FLAG_SCROLLABLE);
+        lv_obj_clear_flag(dim_overlay_, LV_OBJ_FLAG_CLICKABLE);
+        lv_obj_set_style_bg_color(dim_overlay_, lv_color_hex(0x000000), 0);
+        lv_obj_set_style_bg_opa(dim_overlay_, LV_OPA_TRANSP, 0);
+    }
     createInfoModal();
 
     if (config_ && !config_->pages.empty()) {
@@ -1125,7 +1140,7 @@ void UIBuilder::createInfoModal() {
     lv_obj_set_style_text_color(ota_primary_button_label_, lv_color_hex(0x000000), 0);
     lv_obj_center(ota_primary_button_label_);
 
-    // Scrollable modal body container
+    // Modal body container (fixed, non-scroll)
     lv_obj_t* modal_body = lv_obj_create(info_modal_);
     lv_obj_remove_style_all(modal_body);
     lv_obj_set_width(modal_body, lv_pct(100));
@@ -1134,8 +1149,9 @@ void UIBuilder::createInfoModal() {
     lv_obj_set_style_pad_all(modal_body, 0, 0);
     lv_obj_set_style_pad_gap(modal_body, 10, 0);
     lv_obj_set_flex_align(modal_body, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
-    lv_obj_set_scroll_dir(modal_body, LV_DIR_VER);  // Enable vertical scrolling
-    lv_obj_set_scrollbar_mode(modal_body, LV_SCROLLBAR_MODE_AUTO);
+    lv_obj_clear_flag(modal_body, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scroll_dir(modal_body, LV_DIR_NONE);
+    lv_obj_set_scrollbar_mode(modal_body, LV_SCROLLBAR_MODE_OFF);
 
     auto createColumn = [&](lv_obj_t* parent) {
         lv_obj_t* column = lv_obj_create(parent);
@@ -1152,127 +1168,103 @@ void UIBuilder::createInfoModal() {
     lv_obj_t* left_column = createColumn(modal_body);
     lv_obj_t* right_column = createColumn(modal_body);
 
-    // Compact stat cards keep layout stable
-    lv_obj_t* stats_row = lv_obj_create(left_column);
-    lv_obj_remove_style_all(stats_row);
-    lv_obj_set_width(stats_row, lv_pct(100));
-    lv_obj_set_flex_flow(stats_row, LV_FLEX_FLOW_COLUMN);
-    lv_obj_set_style_pad_gap(stats_row, 6, 0);
-    lv_obj_set_style_pad_all(stats_row, 0, 0);
-
-    auto createStatCard = [&](const char* label_text, const char* default_value, lv_obj_t** value_slot) {
-        lv_obj_t* card = lv_obj_create(stats_row);
+    auto createCard = [&](lv_obj_t* parent, const char* heading_text) {
+        lv_obj_t* card = lv_obj_create(parent);
         lv_obj_remove_style_all(card);
         lv_obj_set_width(card, lv_pct(100));
         lv_obj_set_style_bg_color(card, lv_color_hex(0x1c1c1c), 0);
         lv_obj_set_style_bg_opa(card, LV_OPA_COVER, 0);
         lv_obj_set_style_radius(card, 8, 0);
-        lv_obj_set_style_pad_all(card, 8, 0);
-        lv_obj_set_height(card, LV_SIZE_CONTENT);
+        lv_obj_set_style_pad_all(card, 10, 0);
+        lv_obj_set_style_pad_gap(card, 6, 0);
         lv_obj_set_flex_flow(card, LV_FLEX_FLOW_COLUMN);
         lv_obj_set_flex_align(card, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
-        lv_obj_set_style_pad_gap(card, 4, 0);
 
         lv_obj_t* heading = lv_label_create(card);
-        lv_obj_set_style_text_font(heading, &lv_font_montserrat_12, 0);
-        lv_obj_set_style_text_color(heading, UITheme::COLOR_TEXT_SECONDARY, 0);
-        lv_label_set_text(heading, label_text);
-
-        lv_obj_t* value = lv_label_create(card);
-        lv_obj_set_style_text_font(value, &lv_font_montserrat_14, 0);
-        lv_obj_set_style_text_color(value, UITheme::COLOR_TEXT_PRIMARY, 0);
-        lv_label_set_long_mode(value, LV_LABEL_LONG_WRAP);
-        lv_obj_set_width(value, lv_pct(100));
-        lv_label_set_text(value, default_value);
-        if (value_slot) {
-            *value_slot = value;
-        }
+        lv_label_set_text(heading, heading_text);
+        lv_obj_set_style_text_font(heading, &lv_font_montserrat_14, 0);
+        lv_obj_set_style_text_color(heading, lv_color_hex(0xFFFFFF), 0);
+        return card;
     };
 
-    createStatCard("Connectivity", "Checking...", &network_status_label_);
-    createStatCard("IP Address", "Not connected", &info_ip_label_);
-    const char* version_default = (APP_VERSION && APP_VERSION[0]) ? APP_VERSION : "--";
-    createStatCard("Firmware", version_default, &version_label_);
-    refreshVersionLabel();
-
-    if (info_ip_label_) {
-        lv_label_set_long_mode(info_ip_label_, LV_LABEL_LONG_WRAP);
-    }
-
-    // Diagnostics section - more compact
-    lv_obj_t* diagnostics_section = lv_obj_create(left_column);
-    lv_obj_remove_style_all(diagnostics_section);
-    lv_obj_set_width(diagnostics_section, lv_pct(100));
-    lv_obj_set_flex_flow(diagnostics_section, LV_FLEX_FLOW_COLUMN);
-    lv_obj_set_style_pad_all(diagnostics_section, 0, 0);
-    lv_obj_set_style_pad_gap(diagnostics_section, 4, 0);
-
-    auto createBarRow = [&](const char* label_text, lv_obj_t** bar_slot) {
-        lv_obj_t* row = lv_obj_create(diagnostics_section);
+    auto createKeyValue = [&](lv_obj_t* parent, const char* key, const char* default_value, lv_obj_t** value_slot) {
+        lv_obj_t* row = lv_obj_create(parent);
         lv_obj_remove_style_all(row);
         lv_obj_set_width(row, lv_pct(100));
         lv_obj_set_flex_flow(row, LV_FLEX_FLOW_COLUMN);
         lv_obj_set_style_pad_all(row, 0, 0);
-        lv_obj_set_style_pad_gap(row, 3, 0);
+        lv_obj_set_style_pad_gap(row, 2, 0);
 
-        lv_obj_t* heading = lv_label_create(row);
-        lv_label_set_text(heading, label_text);
-        lv_obj_set_style_text_font(heading, &lv_font_montserrat_12, 0);
-        lv_obj_set_style_text_color(heading, UITheme::COLOR_TEXT_SECONDARY, 0);
+        lv_obj_t* k = lv_label_create(row);
+        lv_label_set_text(k, key);
+        lv_obj_set_style_text_font(k, &lv_font_montserrat_12, 0);
+        lv_obj_set_style_text_color(k, UITheme::COLOR_TEXT_SECONDARY, 0);
 
-        lv_obj_t* bar = lv_bar_create(row);
-        lv_bar_set_range(bar, 0, 100);
-        lv_bar_set_value(bar, 0, LV_ANIM_OFF);
-        lv_obj_set_width(bar, lv_pct(100));
-        lv_obj_set_height(bar, 8);
-        lv_obj_set_style_bg_color(bar, lv_color_hex(0x262626), LV_PART_MAIN);
-        lv_obj_set_style_bg_opa(bar, LV_OPA_COVER, LV_PART_MAIN);
-        lv_obj_set_style_radius(bar, 4, LV_PART_MAIN);
-        lv_obj_set_style_bg_color(bar, UITheme::COLOR_ACCENT, LV_PART_INDICATOR);
-        lv_obj_set_style_bg_opa(bar, LV_OPA_COVER, LV_PART_INDICATOR);
-        lv_obj_set_style_radius(bar, 4, LV_PART_INDICATOR);
-        if (bar_slot) {
-            *bar_slot = bar;
+        lv_obj_t* v = lv_label_create(row);
+        lv_label_set_text(v, default_value);
+        lv_obj_set_width(v, lv_pct(100));
+        lv_label_set_long_mode(v, LV_LABEL_LONG_WRAP);
+        lv_obj_set_style_text_font(v, &lv_font_montserrat_14, 0);
+        lv_obj_set_style_text_color(v, UITheme::COLOR_TEXT_PRIMARY, 0);
+
+        if (value_slot) {
+            *value_slot = v;
         }
     };
 
-    createBarRow("Network health", &network_status_bar_);
+    // System card (no scrolling, compact)
+    lv_obj_t* system_card = createCard(left_column, "System");
+    createKeyValue(system_card, "Connectivity", "Checking...", &network_status_label_);
+    createKeyValue(system_card, "IP Address", "Not connected", &info_ip_label_);
+    const char* version_default = (APP_VERSION && APP_VERSION[0]) ? APP_VERSION : "--";
+    createKeyValue(system_card, "Firmware", version_default, &version_label_);
+    refreshVersionLabel();
 
-    diagnostics_label_ = lv_label_create(diagnostics_section);
+    // Network health bar + diagnostics
+    lv_obj_t* bar_row = lv_obj_create(system_card);
+    lv_obj_remove_style_all(bar_row);
+    lv_obj_set_width(bar_row, lv_pct(100));
+    lv_obj_set_flex_flow(bar_row, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_style_pad_all(bar_row, 0, 0);
+    lv_obj_set_style_pad_gap(bar_row, 3, 0);
+
+    lv_obj_t* bar_heading = lv_label_create(bar_row);
+    lv_label_set_text(bar_heading, "Network health");
+    lv_obj_set_style_text_font(bar_heading, &lv_font_montserrat_12, 0);
+    lv_obj_set_style_text_color(bar_heading, UITheme::COLOR_TEXT_SECONDARY, 0);
+
+    network_status_bar_ = lv_bar_create(bar_row);
+    lv_bar_set_range(network_status_bar_, 0, 100);
+    lv_bar_set_value(network_status_bar_, 0, LV_ANIM_OFF);
+    lv_obj_set_width(network_status_bar_, lv_pct(100));
+    lv_obj_set_height(network_status_bar_, 8);
+    lv_obj_set_style_bg_color(network_status_bar_, lv_color_hex(0x262626), LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(network_status_bar_, LV_OPA_COVER, LV_PART_MAIN);
+    lv_obj_set_style_radius(network_status_bar_, 4, LV_PART_MAIN);
+    lv_obj_set_style_bg_color(network_status_bar_, UITheme::COLOR_ACCENT, LV_PART_INDICATOR);
+    lv_obj_set_style_bg_opa(network_status_bar_, LV_OPA_COVER, LV_PART_INDICATOR);
+    lv_obj_set_style_radius(network_status_bar_, 4, LV_PART_INDICATOR);
+
+    diagnostics_label_ = lv_label_create(system_card);
     lv_label_set_text(diagnostics_label_, "No recent errors");
     lv_obj_set_style_text_font(diagnostics_label_, &lv_font_montserrat_12, 0);
     lv_obj_set_style_text_color(diagnostics_label_, UITheme::COLOR_TEXT_SECONDARY, 0);
     diag_priority_ = DiagnosticsPriority::NORMAL;
 
-    // OTA update card - more compact
-    lv_obj_t* ota_card = lv_obj_create(left_column);
-    lv_obj_remove_style_all(ota_card);
-    lv_obj_set_width(ota_card, lv_pct(100));
-    lv_obj_set_style_bg_color(ota_card, lv_color_hex(0x1c1c1c), 0);
-    lv_obj_set_style_bg_opa(ota_card, LV_OPA_COVER, 0);
-    lv_obj_set_style_radius(ota_card, 8, 0);
-    lv_obj_set_style_pad_all(ota_card, 10, 0);
-    lv_obj_set_style_pad_gap(ota_card, 6, 0);
-    lv_obj_set_flex_flow(ota_card, LV_FLEX_FLOW_COLUMN);
-    lv_obj_set_flex_align(ota_card, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
-
-    lv_obj_t* ota_heading = lv_label_create(ota_card);
-    lv_label_set_text(ota_heading, "Software Updates");
-    lv_obj_set_style_text_font(ota_heading, &lv_font_montserrat_14, 0);
-    lv_obj_set_style_text_color(ota_heading, lv_color_hex(0xFFFFFF), 0);
-
-    ota_status_label_ = lv_label_create(ota_card);
+    // Updates card
+    lv_obj_t* updates_card = createCard(left_column, "Updates");
+    ota_status_label_ = lv_label_create(updates_card);
     lv_label_set_long_mode(ota_status_label_, LV_LABEL_LONG_WRAP);
     lv_obj_set_width(ota_status_label_, lv_pct(100));
     lv_obj_set_style_text_font(ota_status_label_, &lv_font_montserrat_12, 0);
     lv_obj_set_style_text_color(ota_status_label_, lv_color_hex(0xFFFFFF), 0);
 
-    lv_obj_t* ota_bar_label = lv_label_create(ota_card);
+    lv_obj_t* ota_bar_label = lv_label_create(updates_card);
     lv_label_set_text(ota_bar_label, "Progress");
     lv_obj_set_style_text_font(ota_bar_label, &lv_font_montserrat_12, 0);
     lv_obj_set_style_text_color(ota_bar_label, UITheme::COLOR_TEXT_SECONDARY, 0);
 
-    ota_status_bar_ = lv_bar_create(ota_card);
+    ota_status_bar_ = lv_bar_create(updates_card);
     lv_bar_set_range(ota_status_bar_, 0, 100);
     lv_obj_set_width(ota_status_bar_, lv_pct(100));
     lv_obj_set_height(ota_status_bar_, 8);
@@ -1795,13 +1787,9 @@ void UIBuilder::setBrightness(uint8_t percent) {
     const bool changed = cfg.display.brightness != percent;
     cfg.display.brightness = percent;
 
-    // Set hardware brightness via PWM backlight on GPIO6
-    if (panel && panel->getBacklight()) {
-        panel->getBacklight()->setBrightness(percent);
-        Serial.printf("[UI] Brightness set to %u%%\n", percent);
-    } else {
-        Serial.println("[UI] Warning: Backlight control not available");
-    }
+    // Software dimming overlay (avoids PWM/backlight pin conflicts that can corrupt the display)
+    applySoftBrightness(percent);
+    Serial.printf("[UI] Brightness set to %u%% (software dim)\n", percent);
 
     if (brightness_slider_ && lv_slider_get_value(brightness_slider_) != percent) {
         lv_slider_set_value(brightness_slider_, percent, LV_ANIM_OFF);
@@ -1815,6 +1803,18 @@ void UIBuilder::setBrightness(uint8_t percent) {
     if (changed) {
         ConfigManager::instance().save();
     }
+}
+
+void UIBuilder::applySoftBrightness(uint8_t percent) {
+    if (!dim_overlay_) {
+        return;
+    }
+    // 100% => fully visible (0 opacity overlay)
+    // 0%   => fully dimmed (opaque black overlay)
+    const uint8_t inv = static_cast<uint8_t>(100 - std::min<uint8_t>(100, percent));
+    const lv_opa_t opa = static_cast<lv_opa_t>((static_cast<uint32_t>(inv) * 255u) / 100u);
+    lv_obj_set_style_bg_opa(dim_overlay_, opa, 0);
+    lv_obj_move_foreground(dim_overlay_);
 }
 
 void UIBuilder::loadSleepIcon() {
