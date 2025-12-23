@@ -10,7 +10,7 @@
 constexpr std::size_t MAX_PAGES = 20;
 constexpr std::size_t MAX_BUTTONS_PER_PAGE = 12;
 
-inline constexpr const char kOtaManifestUrl[] =
+constexpr const char kOtaManifestUrl[] =
     "https://image-optimizer-still-flower-1282.fly.dev/ota/manifest";
 
 struct CanFrameConfig {

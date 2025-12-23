@@ -40,7 +40,6 @@ private:
     void resetSleepTimer();
     void showSleepOverlay();
     void hideSleepOverlay();
-    void setBrightness(uint8_t percent);
     const lv_img_dsc_t* iconForId(const std::string& id) const;
     const lv_font_t* fontFromName(const std::string& name) const;
     const lv_font_t* navLabelFontForText(const std::string& text) const;
