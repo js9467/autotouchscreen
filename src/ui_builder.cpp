@@ -1215,9 +1215,9 @@ void UIBuilder::createInfoModal() {
     lv_obj_set_grid_cell(system_card, LV_GRID_ALIGN_STRETCH, 0, 1, LV_GRID_ALIGN_STRETCH, 0, 1);
     createKeyValue(system_card, "Connectivity", "Checking...", &network_status_label_);
     createKeyValue(system_card, "IP Address", "Not connected", &info_ip_label_);
-    createKeyValue(system_card, "Wi-Fi Network", "Not connected", &settings_wifi_label_);
+    createKeyValue(system_card, "Connected Network", "Not connected", &settings_wifi_label_);
     const char* version_default = (APP_VERSION && APP_VERSION[0]) ? APP_VERSION : "--";
-    createKeyValue(system_card, "Version", version_default, &version_label_);
+    createKeyValue(system_card, "Firmware Version", version_default, &version_label_);
     refreshVersionLabel();
 
     // Network health bar + diagnostics
@@ -1584,6 +1584,17 @@ void UIBuilder::refreshNetworkStatusLabel() {
         std::string wifi_text = "Not connected";
         if (last_sta_connected_) {
             wifi_text = last_sta_ssid_.empty() ? "Hidden network" : last_sta_ssid_;
+        } else if (!last_ap_ip_.empty() && last_ap_ip_ != "0.0.0.0") {
+            std::string ap_ssid;
+            if (config_) {
+                ap_ssid = config_->wifi.ap.ssid;
+            } else {
+                ap_ssid = ConfigManager::instance().getConfig().wifi.ap.ssid;
+            }
+            if (ap_ssid.empty()) {
+                ap_ssid = "CAN-Control";
+            }
+            wifi_text = "AP: " + ap_ssid;
         }
         if (cached_settings_wifi_text_ != wifi_text) {
             cached_settings_wifi_text_ = wifi_text;
