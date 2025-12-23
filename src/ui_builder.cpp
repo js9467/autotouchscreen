@@ -1599,7 +1599,10 @@ void UIBuilder::refreshNetworkStatusIndicators() {
     } else if (ap_ready) {
         value = 60;
     }
-    lv_bar_set_value(network_status_bar_, value, LV_ANIM_OFF);
+    if (cached_network_bar_value_ != value) {
+        cached_network_bar_value_ = value;
+        lv_bar_set_value(network_status_bar_, value, LV_ANIM_OFF);
+    }
 
     if (sta_ready) {
         if (diag_priority_ == DiagnosticsPriority::WARNING) {
@@ -1619,7 +1622,11 @@ void UIBuilder::refreshOtaStatusBar() {
     if (!ota_status_bar_) {
         return;
     }
-    lv_bar_set_value(ota_status_bar_, otaStatusProgress(ota_status_text_), LV_ANIM_OFF);
+    const int32_t value = otaStatusProgress(ota_status_text_);
+    if (cached_ota_bar_value_ != value) {
+        cached_ota_bar_value_ = value;
+        lv_bar_set_value(ota_status_bar_, value, LV_ANIM_OFF);
+    }
 }
 
 void UIBuilder::updateOtaActionState() {
@@ -1627,7 +1634,6 @@ void UIBuilder::updateOtaActionState() {
         return;
     }
 
-    Serial.printf("[UI] updateOtaActionState for status: %s\n", ota_status_text_.c_str());
     std::string label_text = "Update Now";
     bool disable = false;
 
@@ -1657,13 +1663,21 @@ void UIBuilder::updateOtaActionState() {
     }
 
     if (disable) {
-        lv_obj_add_state(ota_primary_button_, LV_STATE_DISABLED);
+        if (!cached_ota_button_disabled_) {
+            cached_ota_button_disabled_ = true;
+            lv_obj_add_state(ota_primary_button_, LV_STATE_DISABLED);
+        }
     } else {
-        lv_obj_clear_state(ota_primary_button_, LV_STATE_DISABLED);
+        if (cached_ota_button_disabled_) {
+            cached_ota_button_disabled_ = false;
+            lv_obj_clear_state(ota_primary_button_, LV_STATE_DISABLED);
+        }
     }
 
-    Serial.printf("[UI] Setting button text to: %s (action=%d, disabled=%d)\n", label_text.c_str(), (int)ota_primary_action_, disable);
-    lv_label_set_text(ota_primary_button_label_, label_text.c_str());
+    if (cached_ota_button_text_ != label_text) {
+        cached_ota_button_text_ = label_text;
+        lv_label_set_text(ota_primary_button_label_, cached_ota_button_text_.c_str());
+    }
 }
 
 bool UIBuilder::startsWith(const std::string& text, const char* prefix) {
@@ -1840,6 +1854,13 @@ void UIBuilder::applySoftBrightness(uint8_t percent) {
     if (!dim_overlay_) {
         return;
     }
+
+    percent = clampBrightness(percent);
+    if (last_soft_brightness_percent_ == percent) {
+        return;
+    }
+    last_soft_brightness_percent_ = percent;
+
     // 100% => fully visible (0 opacity overlay)
     // 0%   => fully dimmed (opaque black overlay)
     const uint8_t inv = static_cast<uint8_t>(100 - std::min<uint8_t>(100, percent));

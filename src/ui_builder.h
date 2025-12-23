@@ -135,10 +135,16 @@ private:
     std::string cached_ota_friendly_text_;
     std::string cached_diag_text_;
     std::string cached_brightness_text_;
+    std::string cached_ota_button_text_;
+
+    int32_t cached_network_bar_value_ = -1;
+    int32_t cached_ota_bar_value_ = -1;
+    bool cached_ota_button_disabled_ = false;
 
     // Brightness throttling
     uint32_t last_brightness_preview_ms_ = 0;
     uint8_t last_brightness_preview_percent_ = 100;
+    uint8_t last_soft_brightness_percent_ = 255;
     std::vector<uint8_t> sleep_icon_buffer_;  // Kept for compatibility
     lv_img_dsc_t sleep_logo_dsc_{};
     bool sleep_logo_ready_ = false;
