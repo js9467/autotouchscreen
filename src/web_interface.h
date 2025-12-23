@@ -1715,16 +1715,17 @@ function renderWifiList(){
 async function refreshStatus(){
 	const statusContainer = document.getElementById('status');
 	if(!statusContainer) return;
-	const firmwareVersion = statusContainer.dataset.version || '—';
 	try{
 		const res = await fetch('/api/status');
 		const status = await res.json();
+		const firmwareVersion = status.firmware_version || statusContainer.dataset.version || '—';
 		statusContainer.innerHTML = `
 			<div class="status-chip"><span>Firmware</span>v${firmwareVersion}</div>
 			<div class="status-chip"><span>AP IP</span>${status.ap_ip || 'N/A'}</div>
 			<div class="status-chip"><span>Station IP</span>${status.sta_ip || '—'}</div>
 		`;
 	}catch(err){
+		const firmwareVersion = statusContainer.dataset.version || '—';
 		statusContainer.innerHTML = `
 			<div class="status-chip"><span>Firmware</span>v${firmwareVersion}</div>
 			<div class="status-chip"><span>AP IP</span>Unavailable</div>
