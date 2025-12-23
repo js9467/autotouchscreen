@@ -218,10 +218,52 @@ void loop() {
             } else {
                 Serial.println("[CMD] Usage: b <0-100> or brightness <0-100>");
             }
+        } else if (cmd == "blinfo") {
+            Serial.println("\n=== Backlight Info ===");
+#ifdef ESP_PANEL_LCD_IO_BL
+            Serial.printf("ESP_PANEL_LCD_IO_BL = %d\n", (int)ESP_PANEL_LCD_IO_BL);
+#endif
+#ifdef ESP_PANEL_LCD_BL_USE_PWM
+            Serial.printf("ESP_PANEL_LCD_BL_USE_PWM = %d\n", (int)ESP_PANEL_LCD_BL_USE_PWM);
+#endif
+#ifdef ESP_PANEL_LCD_BL_PWM_FREQ_HZ
+            Serial.printf("ESP_PANEL_LCD_BL_PWM_FREQ_HZ = %d\n", (int)ESP_PANEL_LCD_BL_PWM_FREQ_HZ);
+#endif
+#ifdef ESP_PANEL_LCD_SPI_IO_CS
+            Serial.printf("ESP_PANEL_LCD_SPI_IO_CS = %d\n", (int)ESP_PANEL_LCD_SPI_IO_CS);
+#endif
+#ifdef ESP_PANEL_LCD_SPI_IO_MOSI
+            Serial.printf("ESP_PANEL_LCD_SPI_IO_MOSI = %d\n", (int)ESP_PANEL_LCD_SPI_IO_MOSI);
+#endif
+            if (panel && panel->getBacklight()) {
+                Serial.println("Backlight object: present");
+            } else {
+                Serial.println("Backlight object: NOT available");
+            }
+            Serial.println("Tip: if BL pin overlaps LCD pins, PWM changes can garble the display.");
+            Serial.println("======================\n");
+        } else if (cmd.startsWith("btest")) {
+            Serial.println("[CMD] Brightness test: 100 -> 0 -> 100");
+            for (int value = 100; value >= 0; value -= 10) {
+                lvgl_port_lock(-1);
+                UIBuilder::instance().setBrightness(static_cast<uint8_t>(value));
+                lvgl_port_unlock();
+                Serial.printf("[CMD] b=%d%%\n", value);
+                delay(400);
+            }
+            for (int value = 0; value <= 100; value += 10) {
+                lvgl_port_lock(-1);
+                UIBuilder::instance().setBrightness(static_cast<uint8_t>(value));
+                lvgl_port_unlock();
+                Serial.printf("[CMD] b=%d%%\n", value);
+                delay(400);
+            }
         } else if (cmd == "help" || cmd == "?") {
             Serial.println("\n=== Serial Commands ===");
             Serial.println("b <0-100>        - Set brightness (e.g., 'b 50')");
             Serial.println("brightness <0-100> - Set brightness");
+            Serial.println("blinfo           - Print backlight pin/PWM info");
+            Serial.println("btest            - Step brightness 100->0->100");
             Serial.println("help or ?        - Show this help");
             Serial.println("======================\n");
         } else if (cmd.length() > 0) {
