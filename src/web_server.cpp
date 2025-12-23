@@ -389,8 +389,12 @@ WifiStatusSnapshot WebServerManager::getStatusSnapshot() const {
     WifiStatusSnapshot snapshot;
     snapshot.ap_ip = ap_ip_;
     snapshot.sta_ip = sta_ip_;
-    snapshot.sta_connected = sta_connected_;
-    snapshot.sta_ssid = sta_ssid_;
+    snapshot.sta_connected = sta_connected_ || (WiFi.status() == WL_CONNECTED);
+    if (!sta_ssid_.empty()) {
+        snapshot.sta_ssid = sta_ssid_;
+    } else if (snapshot.sta_connected) {
+        snapshot.sta_ssid = WiFi.SSID().c_str();
+    }
     return snapshot;
 }
 
