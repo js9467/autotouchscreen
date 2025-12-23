@@ -1,3 +1,3 @@
 #pragma once
-// Version 1.2.21 - Merge pull request #12 from js9467/codex/restore-brightness-slider-and-fix-modal-s25w0n
-constexpr const char* APP_VERSION = "1.2.21";
+// Version 1.2.22 - Merge pull request #13 from js9467/codex/adjust-brightness-slider-size-and-layout
+constexpr const char* APP_VERSION = "1.2.22";
