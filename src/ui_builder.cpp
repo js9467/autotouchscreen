@@ -1215,9 +1215,9 @@ void UIBuilder::createInfoModal() {
     lv_obj_set_grid_cell(system_card, LV_GRID_ALIGN_STRETCH, 0, 1, LV_GRID_ALIGN_STRETCH, 0, 1);
     createKeyValue(system_card, "Connectivity", "Checking...", &network_status_label_);
     createKeyValue(system_card, "IP Address", "Not connected", &info_ip_label_);
-    createKeyValue(system_card, "Wi-Fi Network", "Not connected", &settings_wifi_label_);
+    createKeyValue(system_card, "Connected Network", "Not connected", &settings_wifi_label_);
     const char* version_default = (APP_VERSION && APP_VERSION[0]) ? APP_VERSION : "--";
-    createKeyValue(system_card, "Version", version_default, &version_label_);
+    createKeyValue(system_card, "Firmware Version", version_default, &version_label_);
     refreshVersionLabel();
 
     // Network health bar + diagnostics
