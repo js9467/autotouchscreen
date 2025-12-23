@@ -1172,6 +1172,36 @@ void UIBuilder::createInfoModal() {
     lv_obj_set_style_text_font(settings_brightness_label_, &lv_font_montserrat_16, 0);
     lv_obj_set_style_text_color(settings_brightness_label_, UITheme::COLOR_TEXT_SECONDARY, 0);
 
+    lv_obj_t* settings_brightness_row = lv_obj_create(meta_row);
+    lv_obj_remove_style_all(settings_brightness_row);
+    lv_obj_set_width(settings_brightness_row, lv_pct(100));
+    lv_obj_set_flex_flow(settings_brightness_row, LV_FLEX_FLOW_ROW);
+    lv_obj_set_flex_align(settings_brightness_row, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_set_style_pad_gap(settings_brightness_row, 8, 0);
+    lv_obj_set_style_pad_all(settings_brightness_row, 0, 0);
+
+    settings_brightness_slider_ = lv_slider_create(settings_brightness_row);
+    lv_slider_set_range(settings_brightness_slider_, kMinBrightnessPercent, 100);
+    const uint8_t quick_brightness = clampBrightness(config_ ? config_->display.brightness : 100);
+    lv_slider_set_value(settings_brightness_slider_, quick_brightness, LV_ANIM_OFF);
+    lv_obj_set_width(settings_brightness_slider_, LV_SIZE_CONTENT);
+    lv_obj_set_flex_grow(settings_brightness_slider_, 1);
+    lv_obj_set_height(settings_brightness_slider_, 16);
+    lv_obj_clear_flag(settings_brightness_slider_, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_add_flag(settings_brightness_slider_, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_set_style_bg_color(settings_brightness_slider_, lv_color_hex(0x404040), LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(settings_brightness_slider_, LV_OPA_COVER, LV_PART_MAIN);
+    lv_obj_set_style_radius(settings_brightness_slider_, 8, LV_PART_MAIN);
+    lv_obj_set_style_bg_color(settings_brightness_slider_, UITheme::COLOR_ACCENT, LV_PART_INDICATOR);
+    lv_obj_set_style_bg_opa(settings_brightness_slider_, LV_OPA_COVER, LV_PART_INDICATOR);
+    lv_obj_set_style_radius(settings_brightness_slider_, 8, LV_PART_INDICATOR);
+    lv_obj_set_style_bg_color(settings_brightness_slider_, lv_color_hex(0xFFFFFF), LV_PART_KNOB);
+    lv_obj_set_style_bg_opa(settings_brightness_slider_, LV_OPA_COVER, LV_PART_KNOB);
+    lv_obj_set_style_radius(settings_brightness_slider_, LV_RADIUS_CIRCLE, LV_PART_KNOB);
+    lv_obj_set_style_pad_all(settings_brightness_slider_, -4, LV_PART_KNOB);
+    lv_obj_add_event_cb(settings_brightness_slider_, brightnessSliderEvent, LV_EVENT_VALUE_CHANGED, nullptr);
+    lv_obj_add_event_cb(settings_brightness_slider_, brightnessSliderEvent, LV_EVENT_RELEASED, nullptr);
+
     settings_version_label_ = lv_label_create(meta_row);
     lv_label_set_text(settings_version_label_, "Version: --");
     lv_obj_set_width(settings_version_label_, lv_pct(100));
@@ -1921,6 +1951,9 @@ void UIBuilder::setBrightnessInternal(uint8_t percent, bool persist) {
 
     if (brightness_slider_ && lv_slider_get_value(brightness_slider_) != percent) {
         lv_slider_set_value(brightness_slider_, percent, LV_ANIM_OFF);
+    }
+    if (settings_brightness_slider_ && lv_slider_get_value(settings_brightness_slider_) != percent) {
+        lv_slider_set_value(settings_brightness_slider_, percent, LV_ANIM_OFF);
     }
     if (brightness_value_label_) {
         char pct_buf[8];
