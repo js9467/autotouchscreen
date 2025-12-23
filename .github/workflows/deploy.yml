@@ -8,6 +8,9 @@ on:
       - '.github/**'
       - '**.md'
 
+permissions:
+  contents: write
+
 env:
   FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
 
