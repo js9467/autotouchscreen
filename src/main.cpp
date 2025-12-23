@@ -129,8 +129,9 @@ void setup() {
     ESP_IOExpander* expander = new ESP_IOExpander_CH422G(I2C_MASTER_NUM, ESP_IO_EXPANDER_I2C_CH422G_ADDRESS_000);
     expander->init();
     expander->begin();
-    expander->multiPinMode(TP_RST | LCD_BL | LCD_RST | SD_CS | USB_SEL, OUTPUT);
-    expander->multiDigitalWrite(TP_RST | LCD_BL | LCD_RST | SD_CS, HIGH);
+    // Note: LCD_BL (GPIO2 on expander) is NOT set here - backlight is controlled via PWM on GPIO6
+    expander->multiPinMode(TP_RST | LCD_RST | SD_CS | USB_SEL, OUTPUT);
+    expander->multiDigitalWrite(TP_RST | LCD_RST | SD_CS, HIGH);
     expander->digitalWrite(USB_SEL, LOW);
     panel->addIOExpander(expander);
 

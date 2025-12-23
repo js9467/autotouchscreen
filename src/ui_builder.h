@@ -127,4 +127,5 @@ private:
     std::string ota_status_text_ = "idle";
     OtaAction ota_primary_action_ = OtaAction::INSTALL;
     DiagnosticsPriority diag_priority_ = DiagnosticsPriority::NORMAL;
+    bool info_modal_visible_ = false;
 };

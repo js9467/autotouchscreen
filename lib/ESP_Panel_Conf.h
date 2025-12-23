@@ -128,7 +128,20 @@
 #define ESP_PANEL_LCD_TOUCH_INT_LEVEL       (0)
 
 /*-------------------------------- Backlight Related --------------------------------*/
-#define ESP_PANEL_USE_BL                    (0)  // Controlled via IO expander
+#define ESP_PANEL_USE_BL                    (1)  // Enable PWM backlight control
+
+#if ESP_PANEL_USE_BL
+    // Use PWM (LEDC) for backlight control instead of IO expander
+    #define ESP_PANEL_LCD_BL_USE_PWM        (1)
+    
+    #define ESP_PANEL_LCD_BL_IO             (6)      // GPIO6 for PWM backlight
+    #define ESP_PANEL_LCD_BL_ON             (1)      // 1: high level turns on backlight
+    
+    #if ESP_PANEL_LCD_BL_USE_PWM
+        #define ESP_PANEL_LCD_BL_PWM_FREQ_HZ    (23000)  // 23kHz for better noise reduction
+        #define ESP_PANEL_LCD_BL_PWM_DUTY_RES   (8)      // 8-bit resolution (0-255)
+    #endif
+#endif
 
 /*-------------------------------- Others --------------------------------*/
 #define ESP_PANEL_CHECK_RESULT_ASSERT       (0)
