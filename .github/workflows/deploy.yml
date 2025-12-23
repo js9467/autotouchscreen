@@ -3,10 +3,21 @@ name: Build and Deploy Firmware
 on:
   push:
     branches: [ main ]
+    paths:
+      - 'src/**'
+      - 'lib/**'
+      - 'include/**'
+      - 'data/**'
+      - 'platformio.ini'
+      - 'boards/**'
+      - 'tools/**'
     paths-ignore:
-      - 'ota_functions/releases/**'
-      - '.github/**'
       - '**.md'
+  workflow_dispatch:
+
+concurrency:
+  group: firmware-main
+  cancel-in-progress: true
 
 permissions:
   contents: write
@@ -16,6 +27,7 @@ env:
 
 jobs:
   build-and-deploy:
+    if: github.actor != 'github-actions[bot]' && !contains(github.event.head_commit.message, '[skip ci]')
     runs-on: ubuntu-latest
     
     steps:
@@ -29,6 +41,17 @@ jobs:
       uses: actions/setup-python@v5
       with:
         python-version: '3.11'
+        cache: 'pip'
+
+    - name: Cache PlatformIO
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.platformio
+          .pio/libdeps
+        key: ${{ runner.os }}-platformio-${{ hashFiles('platformio.ini') }}
+        restore-keys: |
+          ${{ runner.os }}-platformio-
     
     - name: Install PlatformIO
       run: |
@@ -109,12 +132,12 @@ jobs:
         git push
     
     - name: Install Flyctl
-      uses: superfly/flyctl-actions/setup-flyctl@master
+      uses: superfly/flyctl-actions/setup-flyctl@v1
     
     - name: Deploy to Fly.io
       working-directory: ./ota_functions
       run: |
-        flyctl deploy --remote-only --no-cache
+        flyctl deploy --remote-only
     
     - name: Verify deployment
       run: |

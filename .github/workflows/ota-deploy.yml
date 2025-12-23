@@ -41,6 +41,17 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+          cache: 'pip'
+
+      - name: Cache PlatformIO
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.platformio
+            .pio/libdeps
+          key: ${{ runner.os }}-platformio-${{ hashFiles('platformio.ini') }}
+          restore-keys: |
+            ${{ runner.os }}-platformio-
 
       - name: Install PlatformIO
         run: pip install platformio
@@ -90,4 +101,5 @@ jobs:
             exit 1
           fi
           flyctl auth login --access-token "$FLY_API_TOKEN"
+          cd ota_functions
           flyctl deploy --remote-only
