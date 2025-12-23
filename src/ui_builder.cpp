@@ -1253,7 +1253,7 @@ void UIBuilder::createInfoModal() {
 
         lv_obj_t* k = lv_label_create(row);
         lv_label_set_text(k, key);
-        lv_obj_set_style_text_font(k, &lv_font_montserrat_13, 0);
+        lv_obj_set_style_text_font(k, &lv_font_montserrat_12, 0);
         lv_obj_set_style_text_color(k, UITheme::COLOR_TEXT_SECONDARY, 0);
 
         lv_obj_t* v = lv_label_create(row);
@@ -1357,7 +1357,7 @@ void UIBuilder::createInfoModal() {
     lv_label_set_text(brightness_hint, "Min brightness is limited so you can always see this screen.");
     lv_obj_set_width(brightness_hint, lv_pct(100));
     lv_label_set_long_mode(brightness_hint, LV_LABEL_LONG_WRAP);
-    lv_obj_set_style_text_font(brightness_hint, &lv_font_montserrat_13, 0);
+    lv_obj_set_style_text_font(brightness_hint, &lv_font_montserrat_12, 0);
     lv_obj_set_style_text_color(brightness_hint, UITheme::COLOR_TEXT_SECONDARY, 0);
 
     // Updates section (bottom, spans full width)
@@ -1366,12 +1366,12 @@ void UIBuilder::createInfoModal() {
     ota_status_label_ = lv_label_create(updates_card);
     lv_label_set_long_mode(ota_status_label_, LV_LABEL_LONG_WRAP);
     lv_obj_set_width(ota_status_label_, lv_pct(100));
-    lv_obj_set_style_text_font(ota_status_label_, &lv_font_montserrat_13, 0);
+    lv_obj_set_style_text_font(ota_status_label_, &lv_font_montserrat_12, 0);
     lv_obj_set_style_text_color(ota_status_label_, lv_color_hex(0xFFFFFF), 0);
 
     lv_obj_t* ota_bar_label = lv_label_create(updates_card);
     lv_label_set_text(ota_bar_label, "Progress");
-    lv_obj_set_style_text_font(ota_bar_label, &lv_font_montserrat_13, 0);
+    lv_obj_set_style_text_font(ota_bar_label, &lv_font_montserrat_12, 0);
     lv_obj_set_style_text_color(ota_bar_label, UITheme::COLOR_TEXT_SECONDARY, 0);
 
     ota_status_bar_ = lv_bar_create(updates_card);
