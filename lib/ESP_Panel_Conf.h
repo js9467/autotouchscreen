@@ -129,13 +129,12 @@
 
 /*-------------------------------- Backlight Related --------------------------------*/
 #define ESP_PANEL_USE_BL                    (1)  // Enable PWM backlight control
+#define ESP_PANEL_LCD_BL_IO                 (6)  // GPIO6 for PWM backlight
+#define ESP_PANEL_LCD_BL_ON                 (1)  // 1: high level turns on backlight
 
 #if ESP_PANEL_USE_BL
-    // Use PWM (LEDC) for backlight control instead of IO expander
+    // Use PWM (LEDC) for brightness control
     #define ESP_PANEL_LCD_BL_USE_PWM        (1)
-    
-    #define ESP_PANEL_LCD_BL_IO             (6)      // GPIO6 for PWM backlight
-    #define ESP_PANEL_LCD_BL_ON             (1)      // 1: high level turns on backlight
     
     #if ESP_PANEL_LCD_BL_USE_PWM
         #define ESP_PANEL_LCD_BL_PWM_FREQ_HZ    (23000)  // 23kHz for better noise reduction
