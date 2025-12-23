@@ -1077,9 +1077,13 @@ const lv_img_dsc_t* UIBuilder::iconForId(const std::string& id) const {
 }
 
 void UIBuilder::createInfoModal() {
+    lv_disp_t* disp = lv_disp_get_default();
+    lv_coord_t screen_w = disp ? lv_disp_get_hor_res(disp) : 800;
+    lv_coord_t screen_h = disp ? lv_disp_get_ver_res(disp) : 480;
+
     // Modal background (covers entire screen, dark overlay)
     info_modal_bg_ = lv_obj_create(base_screen_);
-    lv_obj_set_size(info_modal_bg_, 800, 480);
+    lv_obj_set_size(info_modal_bg_, screen_w, screen_h);
     lv_obj_set_pos(info_modal_bg_, 0, 0);
     lv_obj_set_style_bg_color(info_modal_bg_, lv_color_hex(0x000000), 0);
     lv_obj_set_style_bg_opa(info_modal_bg_, LV_OPA_70, 0);
@@ -1089,10 +1093,10 @@ void UIBuilder::createInfoModal() {
     lv_obj_add_event_cb(info_modal_bg_, infoModalBackdropEvent, LV_EVENT_CLICKED, nullptr);
     lv_obj_move_foreground(info_modal_bg_);  // Ensure modal is on top
 
-    // Modal content box - compact design with fixed max height
+    // Modal content box - fixed, no-scroll layout sized to the screen
     info_modal_ = lv_obj_create(info_modal_bg_);
-    lv_obj_set_width(info_modal_, 700);
-    lv_obj_set_height(info_modal_, 420);  // Fixed height to prevent excessive growth
+    lv_obj_set_width(info_modal_, screen_w - 40);
+    lv_obj_set_height(info_modal_, screen_h - 40);
     lv_obj_center(info_modal_);
     lv_obj_set_style_bg_color(info_modal_, lv_color_hex(0x2A2A2A), 0);
     lv_obj_set_style_bg_opa(info_modal_, LV_OPA_COVER, 0);
@@ -1100,7 +1104,7 @@ void UIBuilder::createInfoModal() {
     lv_obj_set_style_border_color(info_modal_, lv_color_hex(0xFFA500), 0);
     lv_obj_set_style_border_opa(info_modal_, LV_OPA_COVER, 0);
     lv_obj_set_style_radius(info_modal_, 16, 0);
-    lv_obj_set_style_pad_all(info_modal_, 14, 0);
+    lv_obj_set_style_pad_all(info_modal_, 12, 0);
     lv_obj_set_flex_flow(info_modal_, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_flex_align(info_modal_, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
     lv_obj_set_style_pad_gap(info_modal_, 8, 0);
@@ -1111,7 +1115,7 @@ void UIBuilder::createInfoModal() {
     // Title - smaller for compact design
     lv_obj_t* title = lv_label_create(info_modal_);
     lv_label_set_text(title, "Settings");
-    lv_obj_set_style_text_font(title, &lv_font_montserrat_20, 0);
+    lv_obj_set_style_text_font(title, &lv_font_montserrat_18, 0);
     lv_obj_set_style_text_color(title, lv_color_hex(0xFFFFFF), 0);
     lv_obj_set_style_text_opa(title, LV_OPA_COVER, 0);
 
@@ -1140,33 +1144,21 @@ void UIBuilder::createInfoModal() {
     lv_obj_set_style_text_color(ota_primary_button_label_, lv_color_hex(0x000000), 0);
     lv_obj_center(ota_primary_button_label_);
 
-    // Modal body container (fixed, non-scroll)
+    // Modal body container (fixed grid; no scrolling)
     lv_obj_t* modal_body = lv_obj_create(info_modal_);
     lv_obj_remove_style_all(modal_body);
     lv_obj_set_width(modal_body, lv_pct(100));
     lv_obj_set_flex_grow(modal_body, 1);  // Take available space
-    lv_obj_set_flex_flow(modal_body, LV_FLEX_FLOW_ROW);
     lv_obj_set_style_pad_all(modal_body, 0, 0);
     lv_obj_set_style_pad_gap(modal_body, 10, 0);
-    lv_obj_set_flex_align(modal_body, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
     lv_obj_clear_flag(modal_body, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_set_scroll_dir(modal_body, LV_DIR_NONE);
     lv_obj_set_scrollbar_mode(modal_body, LV_SCROLLBAR_MODE_OFF);
 
-    auto createColumn = [&](lv_obj_t* parent) {
-        lv_obj_t* column = lv_obj_create(parent);
-        lv_obj_remove_style_all(column);
-        lv_obj_set_width(column, lv_pct(49));
-        lv_obj_set_height(column, LV_SIZE_CONTENT);
-        lv_obj_set_style_pad_all(column, 0, 0);
-        lv_obj_set_style_pad_gap(column, 8, 0);
-        lv_obj_set_flex_flow(column, LV_FLEX_FLOW_COLUMN);
-        lv_obj_clear_flag(column, LV_OBJ_FLAG_SCROLLABLE);
-        return column;
-    };
-
-    lv_obj_t* left_column = createColumn(modal_body);
-    lv_obj_t* right_column = createColumn(modal_body);
+    lv_obj_set_layout(modal_body, LV_LAYOUT_GRID);
+    static lv_coord_t grid_cols[] = { LV_GRID_FR(1), LV_GRID_FR(1), LV_GRID_TEMPLATE_LAST };
+    static lv_coord_t grid_rows[] = { LV_GRID_FR(1), LV_GRID_FR(1), LV_GRID_TEMPLATE_LAST };
+    lv_obj_set_grid_dsc_array(modal_body, grid_cols, grid_rows);
 
     auto createCard = [&](lv_obj_t* parent, const char* heading_text) {
         lv_obj_t* card = lv_obj_create(parent);
@@ -1212,8 +1204,9 @@ void UIBuilder::createInfoModal() {
         }
     };
 
-    // System card (no scrolling, compact)
-    lv_obj_t* system_card = createCard(left_column, "System");
+    // System card (top-left)
+    lv_obj_t* system_card = createCard(modal_body, "System");
+    lv_obj_set_grid_cell(system_card, LV_GRID_ALIGN_STRETCH, 0, 1, LV_GRID_ALIGN_STRETCH, 0, 1);
     createKeyValue(system_card, "Connectivity", "Checking...", &network_status_label_);
     createKeyValue(system_card, "IP Address", "Not connected", &info_ip_label_);
     const char* version_default = (APP_VERSION && APP_VERSION[0]) ? APP_VERSION : "--";
@@ -1251,8 +1244,61 @@ void UIBuilder::createInfoModal() {
     lv_obj_set_style_text_color(diagnostics_label_, UITheme::COLOR_TEXT_SECONDARY, 0);
     diag_priority_ = DiagnosticsPriority::NORMAL;
 
-    // Updates card
-    lv_obj_t* updates_card = createCard(left_column, "Updates");
+    // Brightness card (top-right)
+    lv_obj_t* brightness_card = createCard(modal_body, "Display");
+    lv_obj_set_grid_cell(brightness_card, LV_GRID_ALIGN_STRETCH, 1, 1, LV_GRID_ALIGN_STRETCH, 0, 1);
+
+    lv_obj_t* brightness_row = lv_obj_create(brightness_card);
+    lv_obj_remove_style_all(brightness_row);
+    lv_obj_set_flex_flow(brightness_row, LV_FLEX_FLOW_ROW);
+    lv_obj_set_flex_align(brightness_row, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_set_style_pad_gap(brightness_row, 10, 0);
+    lv_obj_set_style_pad_all(brightness_row, 0, 0);
+    lv_obj_set_width(brightness_row, lv_pct(100));
+
+    brightness_slider_ = lv_slider_create(brightness_row);
+    lv_slider_set_range(brightness_slider_, kMinBrightnessPercent, 100);
+    const uint8_t initial_brightness = clampBrightness(config_ ? config_->display.brightness : 100);
+    lv_slider_set_value(brightness_slider_, initial_brightness, LV_ANIM_OFF);
+    lv_obj_set_width(brightness_slider_, LV_SIZE_CONTENT);
+    lv_obj_set_flex_grow(brightness_slider_, 1);
+    lv_obj_set_height(brightness_slider_, 16);
+    lv_obj_clear_flag(brightness_slider_, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_add_flag(brightness_slider_, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_set_style_bg_color(brightness_slider_, lv_color_hex(0x404040), LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(brightness_slider_, LV_OPA_COVER, LV_PART_MAIN);
+    lv_obj_set_style_radius(brightness_slider_, 8, LV_PART_MAIN);
+    lv_obj_set_style_bg_color(brightness_slider_, UITheme::COLOR_ACCENT, LV_PART_INDICATOR);
+    lv_obj_set_style_bg_opa(brightness_slider_, LV_OPA_COVER, LV_PART_INDICATOR);
+    lv_obj_set_style_radius(brightness_slider_, 8, LV_PART_INDICATOR);
+    lv_obj_set_style_bg_color(brightness_slider_, lv_color_hex(0xFFFFFF), LV_PART_KNOB);
+    lv_obj_set_style_bg_opa(brightness_slider_, LV_OPA_COVER, LV_PART_KNOB);
+    lv_obj_set_style_radius(brightness_slider_, LV_RADIUS_CIRCLE, LV_PART_KNOB);
+    lv_obj_set_style_pad_all(brightness_slider_, -4, LV_PART_KNOB);
+    lv_obj_add_event_cb(brightness_slider_, brightnessSliderEvent, LV_EVENT_VALUE_CHANGED, nullptr);
+    lv_obj_add_event_cb(brightness_slider_, brightnessSliderEvent, LV_EVENT_RELEASED, nullptr);
+
+    brightness_value_label_ = lv_label_create(brightness_row);
+    {
+        char pct_buf[8];
+        snprintf(pct_buf, sizeof(pct_buf), "%u%%", static_cast<unsigned>(initial_brightness));
+        cached_brightness_text_ = pct_buf;
+        lv_label_set_text(brightness_value_label_, cached_brightness_text_.c_str());
+    }
+    lv_obj_set_style_text_font(brightness_value_label_, &lv_font_montserrat_14, 0);
+    lv_obj_set_style_text_color(brightness_value_label_, UITheme::COLOR_ACCENT, 0);
+    lv_obj_set_width(brightness_value_label_, 45);
+
+    lv_obj_t* brightness_hint = lv_label_create(brightness_card);
+    lv_label_set_text(brightness_hint, "Min brightness is limited so you can always see this screen.");
+    lv_obj_set_width(brightness_hint, lv_pct(100));
+    lv_label_set_long_mode(brightness_hint, LV_LABEL_LONG_WRAP);
+    lv_obj_set_style_text_font(brightness_hint, &lv_font_montserrat_12, 0);
+    lv_obj_set_style_text_color(brightness_hint, UITheme::COLOR_TEXT_SECONDARY, 0);
+
+    // Updates card (bottom, spans full width)
+    lv_obj_t* updates_card = createCard(modal_body, "Updates");
+    lv_obj_set_grid_cell(updates_card, LV_GRID_ALIGN_STRETCH, 0, 2, LV_GRID_ALIGN_STRETCH, 1, 1);
     ota_status_label_ = lv_label_create(updates_card);
     lv_label_set_long_mode(ota_status_label_, LV_LABEL_LONG_WRAP);
     lv_obj_set_width(ota_status_label_, lv_pct(100));
@@ -1278,64 +1324,6 @@ void UIBuilder::createInfoModal() {
     ota_status_text_ = OTAUpdateManager::instance().lastStatus();
     refreshOtaStatusLabel();
 
-    // Brightness control card
-    lv_obj_t* brightness_card = lv_obj_create(right_column);
-    lv_obj_remove_style_all(brightness_card);
-    lv_obj_set_width(brightness_card, lv_pct(100));
-    lv_obj_set_style_bg_color(brightness_card, lv_color_hex(0x1c1c1c), 0);
-    lv_obj_set_style_bg_opa(brightness_card, LV_OPA_COVER, 0);
-    lv_obj_set_style_radius(brightness_card, 8, 0);
-    lv_obj_set_style_pad_all(brightness_card, 10, 0);
-    lv_obj_set_style_pad_gap(brightness_card, 6, 0);
-    lv_obj_set_flex_flow(brightness_card, LV_FLEX_FLOW_COLUMN);
-    lv_obj_set_flex_align(brightness_card, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
-
-    lv_obj_t* brightness_heading = lv_label_create(brightness_card);
-    lv_label_set_text(brightness_heading, "Display Brightness");
-    lv_obj_set_style_text_font(brightness_heading, &lv_font_montserrat_14, 0);
-    lv_obj_set_style_text_color(brightness_heading, lv_color_hex(0xFFFFFF), 0);
-
-    lv_obj_t* brightness_row = lv_obj_create(brightness_card);
-    lv_obj_remove_style_all(brightness_row);
-    lv_obj_set_flex_flow(brightness_row, LV_FLEX_FLOW_ROW);
-    lv_obj_set_flex_align(brightness_row, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
-    lv_obj_set_style_pad_gap(brightness_row, 10, 0);
-    lv_obj_set_style_pad_all(brightness_row, 0, 0);
-    lv_obj_set_width(brightness_row, lv_pct(100));
-
-    brightness_slider_ = lv_slider_create(brightness_row);
-    lv_slider_set_range(brightness_slider_, 0, 100);
-    lv_slider_set_value(brightness_slider_, config_ ? config_->display.brightness : 100, LV_ANIM_OFF);
-    lv_obj_set_width(brightness_slider_, LV_SIZE_CONTENT);
-    lv_obj_set_flex_grow(brightness_slider_, 1);
-    lv_obj_set_height(brightness_slider_, 16);
-    // Ensure slider is interactive
-    lv_obj_clear_flag(brightness_slider_, LV_OBJ_FLAG_SCROLLABLE);
-    lv_obj_add_flag(brightness_slider_, LV_OBJ_FLAG_CLICKABLE);
-    // Style the slider track
-    lv_obj_set_style_bg_color(brightness_slider_, lv_color_hex(0x404040), LV_PART_MAIN);
-    lv_obj_set_style_bg_opa(brightness_slider_, LV_OPA_COVER, LV_PART_MAIN);
-    lv_obj_set_style_radius(brightness_slider_, 8, LV_PART_MAIN);
-    // Style the slider indicator (filled part)
-    lv_obj_set_style_bg_color(brightness_slider_, UITheme::COLOR_ACCENT, LV_PART_INDICATOR);
-    lv_obj_set_style_bg_opa(brightness_slider_, LV_OPA_COVER, LV_PART_INDICATOR);
-    lv_obj_set_style_radius(brightness_slider_, 8, LV_PART_INDICATOR);
-    // Style the slider knob
-    lv_obj_set_style_bg_color(brightness_slider_, lv_color_hex(0xFFFFFF), LV_PART_KNOB);
-    lv_obj_set_style_bg_opa(brightness_slider_, LV_OPA_COVER, LV_PART_KNOB);
-    lv_obj_set_style_radius(brightness_slider_, LV_RADIUS_CIRCLE, LV_PART_KNOB);
-    lv_obj_set_style_pad_all(brightness_slider_, -4, LV_PART_KNOB);
-    lv_obj_add_event_cb(brightness_slider_, brightnessSliderEvent, LV_EVENT_VALUE_CHANGED, nullptr);
-    lv_obj_add_event_cb(brightness_slider_, brightnessSliderEvent, LV_EVENT_RELEASED, nullptr);
-
-    brightness_value_label_ = lv_label_create(brightness_row);
-    char pct_buf[8];
-    snprintf(pct_buf, sizeof(pct_buf), "%u%%", static_cast<unsigned>(config_ ? config_->display.brightness : 100));
-    lv_label_set_text(brightness_value_label_, pct_buf);
-    lv_obj_set_style_text_font(brightness_value_label_, &lv_font_montserrat_14, 0);
-    lv_obj_set_style_text_color(brightness_value_label_, UITheme::COLOR_ACCENT, 0);
-    lv_obj_set_width(brightness_value_label_, 45);  // Fixed width for alignment
-
     // Close button - smaller and centered
     lv_obj_t* close_row = lv_obj_create(info_modal_);
     lv_obj_remove_style_all(close_row);
@@ -1357,7 +1345,7 @@ void UIBuilder::createInfoModal() {
 
     // Sleep overlay (hidden until timeout)
     sleep_overlay_ = lv_obj_create(info_modal_bg_);
-    lv_obj_set_size(sleep_overlay_, 800, 480);
+    lv_obj_set_size(sleep_overlay_, screen_w, screen_h);
     lv_obj_set_pos(sleep_overlay_, 0, 0);
     lv_obj_set_style_bg_color(sleep_overlay_, lv_color_hex(0x000000), 0);
     lv_obj_set_style_bg_opa(sleep_overlay_, LV_OPA_90, 0);
@@ -1402,9 +1390,14 @@ void UIBuilder::hideInfoModal() {
 }
 
 void UIBuilder::updateOtaStatus(const std::string& status) {
-    Serial.printf("[UI] updateOtaStatus called with: %s\n", status.c_str());
-    ota_status_text_ = status.empty() ? "idle" : status;
-    refreshOtaStatusLabel();
+    const std::string next = status.empty() ? "idle" : status;
+    if (next == ota_status_text_) {
+        return;
+    }
+    ota_status_text_ = next;
+    if (info_modal_visible_) {
+        refreshOtaStatusLabel();
+    }
 }
 
 void UIBuilder::refreshOtaStatusLabel() {
@@ -1412,8 +1405,10 @@ void UIBuilder::refreshOtaStatusLabel() {
         return;
     }
     const std::string friendly = humanizeOtaStatus(ota_status_text_);
-    Serial.printf("[UI] Setting status label to: %s (from: %s)\n", friendly.c_str(), ota_status_text_.c_str());
-    lv_label_set_text(ota_status_label_, friendly.c_str());
+    if (cached_ota_friendly_text_ != friendly) {
+        cached_ota_friendly_text_ = friendly;
+        lv_label_set_text(ota_status_label_, cached_ota_friendly_text_.c_str());
+    }
     lv_obj_set_style_text_color(ota_status_label_, colorForOtaStatus(ota_status_text_), 0);
     refreshOtaStatusBar();
 
@@ -1532,12 +1527,18 @@ void UIBuilder::refreshNetworkStatusLabel() {
             ip_text = "Not connected";
         }
 
-        lv_label_set_text(info_ip_label_, ip_text.c_str());
+        if (cached_ip_text_ != ip_text) {
+            cached_ip_text_ = ip_text;
+            lv_label_set_text(info_ip_label_, cached_ip_text_.c_str());
+        }
     }
 
     if (network_status_label_) {
         const std::string status_text = connectionStatusText();
-        lv_label_set_text(network_status_label_, status_text.c_str());
+        if (cached_network_status_text_ != status_text) {
+            cached_network_status_text_ = status_text;
+            lv_label_set_text(network_status_label_, cached_network_status_text_.c_str());
+        }
         lv_obj_set_style_text_color(network_status_label_, connectionStatusColor(), 0);
     }
 
@@ -1570,8 +1571,6 @@ void UIBuilder::refreshVersionLabel() {
     }
     std::string version_text;
     const DeviceConfig& cfg = ConfigManager::instance().getConfig();
-    Serial.printf("[UI] refreshVersionLabel - config.version='%s', APP_VERSION='%s'\n", 
-                  cfg.version.c_str(), APP_VERSION ? APP_VERSION : "null");
     // Show APP_VERSION (actual firmware version) not config.version (stored metadata)
     if (APP_VERSION && APP_VERSION[0]) {
         version_text = APP_VERSION;
@@ -1580,8 +1579,10 @@ void UIBuilder::refreshVersionLabel() {
     } else {
         version_text = "--";
     }
-    Serial.printf("[UI] Setting version label to: '%s'\n", version_text.c_str());
-    lv_label_set_text(version_label_, version_text.c_str());
+    if (cached_version_text_ != version_text) {
+        cached_version_text_ = version_text;
+        lv_label_set_text(version_label_, cached_version_text_.c_str());
+    }
 }
 
 void UIBuilder::refreshNetworkStatusIndicators() {
@@ -1710,7 +1711,10 @@ void UIBuilder::setDiagnosticsMessage(const std::string& text,
         return;
     }
     diag_priority_ = priority;
-    lv_label_set_text(diagnostics_label_, text.c_str());
+    if (cached_diag_text_ != text) {
+        cached_diag_text_ = text;
+        lv_label_set_text(diagnostics_label_, cached_diag_text_.c_str());
+    }
 
     lv_color_t color = UITheme::COLOR_TEXT_SECONDARY;
     if (priority == DiagnosticsPriority::WARNING) {
@@ -1769,9 +1773,56 @@ void UIBuilder::brightnessSliderEvent(lv_event_t* e) {
         return;
     }
     lv_obj_t* slider = lv_event_get_target(e);
+    UIBuilder& ui = UIBuilder::instance();
     uint8_t value = static_cast<uint8_t>(lv_slider_get_value(slider));
-    UIBuilder::instance().setBrightness(value);
+    value = ui.clampBrightness(value);
+
+    if (lv_event_get_code(e) == LV_EVENT_VALUE_CHANGED) {
+        const uint32_t now = millis();
+        // Throttle preview updates to reduce redraw/flicker while dragging.
+        if (value == ui.last_brightness_preview_percent_ && (now - ui.last_brightness_preview_ms_) < 250U) {
+            ui.resetSleepTimer();
+            return;
+        }
+        if ((now - ui.last_brightness_preview_ms_) >= 50U) {
+            ui.last_brightness_preview_ms_ = now;
+            ui.last_brightness_preview_percent_ = value;
+            ui.setBrightnessInternal(value, false);
+        }
+    } else {
+        // Commit on release (single flash write)
+        ui.setBrightnessInternal(value, true);
+    }
     UIBuilder::instance().resetSleepTimer();
+}
+
+uint8_t UIBuilder::clampBrightness(uint8_t percent) const {
+    return static_cast<uint8_t>(std::clamp<uint8_t>(percent, kMinBrightnessPercent, 100));
+}
+
+void UIBuilder::setBrightnessInternal(uint8_t percent, bool persist) {
+    percent = clampBrightness(percent);
+    DeviceConfig& cfg = ConfigManager::instance().getConfig();
+    const bool changed = cfg.display.brightness != percent;
+    cfg.display.brightness = percent;
+
+    applySoftBrightness(percent);
+
+    if (brightness_slider_ && lv_slider_get_value(brightness_slider_) != percent) {
+        lv_slider_set_value(brightness_slider_, percent, LV_ANIM_OFF);
+    }
+    if (brightness_value_label_) {
+        char pct_buf[8];
+        snprintf(pct_buf, sizeof(pct_buf), "%u%%", static_cast<unsigned>(percent));
+        if (cached_brightness_text_ != pct_buf) {
+            cached_brightness_text_ = pct_buf;
+            lv_label_set_text(brightness_value_label_, cached_brightness_text_.c_str());
+        }
+    }
+
+    if (persist && changed) {
+        ConfigManager::instance().save();
+    }
 }
 
 void UIBuilder::modalActivityEvent(lv_event_t* e) {
@@ -1782,27 +1833,7 @@ void UIBuilder::modalActivityEvent(lv_event_t* e) {
 }
 
 void UIBuilder::setBrightness(uint8_t percent) {
-    percent = std::min<uint8_t>(100, percent);
-    DeviceConfig& cfg = ConfigManager::instance().getConfig();
-    const bool changed = cfg.display.brightness != percent;
-    cfg.display.brightness = percent;
-
-    // Software dimming overlay (avoids PWM/backlight pin conflicts that can corrupt the display)
-    applySoftBrightness(percent);
-    Serial.printf("[UI] Brightness set to %u%% (software dim)\n", percent);
-
-    if (brightness_slider_ && lv_slider_get_value(brightness_slider_) != percent) {
-        lv_slider_set_value(brightness_slider_, percent, LV_ANIM_OFF);
-    }
-    if (brightness_value_label_) {
-        char pct_buf[8];
-        snprintf(pct_buf, sizeof(pct_buf), "%u%%", static_cast<unsigned>(percent));
-        lv_label_set_text(brightness_value_label_, pct_buf);
-    }
-
-    if (changed) {
-        ConfigManager::instance().save();
-    }
+    setBrightnessInternal(percent, true);
 }
 
 void UIBuilder::applySoftBrightness(uint8_t percent) {
@@ -1814,7 +1845,6 @@ void UIBuilder::applySoftBrightness(uint8_t percent) {
     const uint8_t inv = static_cast<uint8_t>(100 - std::min<uint8_t>(100, percent));
     const lv_opa_t opa = static_cast<lv_opa_t>((static_cast<uint32_t>(inv) * 255u) / 100u);
     lv_obj_set_style_bg_opa(dim_overlay_, opa, 0);
-    lv_obj_move_foreground(dim_overlay_);
 }
 
 void UIBuilder::loadSleepIcon() {

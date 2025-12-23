@@ -26,6 +26,10 @@ public:
 private:
     UIBuilder() = default;
 
+    static constexpr uint8_t kMinBrightnessPercent = 10;
+    uint8_t clampBrightness(uint8_t percent) const;
+    void setBrightnessInternal(uint8_t percent, bool persist);
+
     void createBaseScreen();
     void buildNavigation();
     void buildEmptyState();
@@ -123,6 +127,18 @@ private:
     std::string last_ap_ip_ = "";
     std::string last_sta_ip_ = "";
     bool last_sta_connected_ = false;
+
+    // Cached UI text to avoid redundant label updates (reduces flicker)
+    std::string cached_network_status_text_;
+    std::string cached_ip_text_;
+    std::string cached_version_text_;
+    std::string cached_ota_friendly_text_;
+    std::string cached_diag_text_;
+    std::string cached_brightness_text_;
+
+    // Brightness throttling
+    uint32_t last_brightness_preview_ms_ = 0;
+    uint8_t last_brightness_preview_percent_ = 100;
     std::vector<uint8_t> sleep_icon_buffer_;  // Kept for compatibility
     lv_img_dsc_t sleep_logo_dsc_{};
     bool sleep_logo_ready_ = false;
