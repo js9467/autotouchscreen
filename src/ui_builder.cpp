@@ -1121,7 +1121,7 @@ void UIBuilder::createInfoModal() {
     lv_obj_set_style_pad_all(info_modal_, 12, 0);
     lv_obj_set_flex_flow(info_modal_, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_flex_align(info_modal_, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
-    lv_obj_set_style_pad_gap(info_modal_, 8, 0);
+    lv_obj_set_style_pad_gap(info_modal_, 10, 0);
     lv_obj_add_flag(info_modal_, LV_OBJ_FLAG_CLICKABLE);  // Block clicks from reaching background
     lv_obj_clear_flag(info_modal_, LV_OBJ_FLAG_SCROLLABLE);  // No scrolling on main container
     lv_obj_clear_flag(info_modal_, LV_OBJ_FLAG_EVENT_BUBBLE);
@@ -1129,7 +1129,7 @@ void UIBuilder::createInfoModal() {
     // Title - smaller for compact design
     lv_obj_t* title = lv_label_create(info_modal_);
     lv_label_set_text(title, "Settings");
-    lv_obj_set_style_text_font(title, &lv_font_montserrat_18, 0);
+    lv_obj_set_style_text_font(title, &lv_font_montserrat_20, 0);
     lv_obj_set_style_text_color(title, lv_color_hex(0xFFFFFF), 0);
     lv_obj_set_style_text_opa(title, LV_OPA_COVER, 0);
 
@@ -1138,20 +1138,40 @@ void UIBuilder::createInfoModal() {
     lv_obj_remove_style_all(meta_row);
     lv_obj_set_width(meta_row, lv_pct(100));
     lv_obj_set_flex_flow(meta_row, LV_FLEX_FLOW_COLUMN);
-    lv_obj_set_style_pad_gap(meta_row, 2, 0);
+    lv_obj_set_style_pad_gap(meta_row, 4, 0);
 
     settings_ip_label_ = lv_label_create(meta_row);
     lv_label_set_text(settings_ip_label_, "IP: --");
     lv_obj_set_width(settings_ip_label_, lv_pct(100));
     lv_label_set_long_mode(settings_ip_label_, LV_LABEL_LONG_WRAP);
-    lv_obj_set_style_text_font(settings_ip_label_, &lv_font_montserrat_12, 0);
+    lv_obj_set_style_text_font(settings_ip_label_, &lv_font_montserrat_16, 0);
     lv_obj_set_style_text_color(settings_ip_label_, UITheme::COLOR_TEXT_SECONDARY, 0);
+
+    settings_network_label_ = lv_label_create(meta_row);
+    lv_label_set_text(settings_network_label_, "Network: --");
+    lv_obj_set_width(settings_network_label_, lv_pct(100));
+    lv_label_set_long_mode(settings_network_label_, LV_LABEL_LONG_WRAP);
+    lv_obj_set_style_text_font(settings_network_label_, &lv_font_montserrat_16, 0);
+    lv_obj_set_style_text_color(settings_network_label_, UITheme::COLOR_TEXT_SECONDARY, 0);
+
+    settings_brightness_label_ = lv_label_create(meta_row);
+    {
+        const uint8_t initial_brightness = clampBrightness(config_ ? config_->display.brightness : 100);
+        char pct_buf[8];
+        snprintf(pct_buf, sizeof(pct_buf), "Brightness: %u%%", static_cast<unsigned>(initial_brightness));
+        cached_settings_brightness_text_ = pct_buf;
+        lv_label_set_text(settings_brightness_label_, cached_settings_brightness_text_.c_str());
+    }
+    lv_obj_set_width(settings_brightness_label_, lv_pct(100));
+    lv_label_set_long_mode(settings_brightness_label_, LV_LABEL_LONG_WRAP);
+    lv_obj_set_style_text_font(settings_brightness_label_, &lv_font_montserrat_16, 0);
+    lv_obj_set_style_text_color(settings_brightness_label_, UITheme::COLOR_TEXT_SECONDARY, 0);
 
     settings_version_label_ = lv_label_create(meta_row);
     lv_label_set_text(settings_version_label_, "Version: --");
     lv_obj_set_width(settings_version_label_, lv_pct(100));
     lv_label_set_long_mode(settings_version_label_, LV_LABEL_LONG_WRAP);
-    lv_obj_set_style_text_font(settings_version_label_, &lv_font_montserrat_12, 0);
+    lv_obj_set_style_text_font(settings_version_label_, &lv_font_montserrat_16, 0);
     lv_obj_set_style_text_color(settings_version_label_, UITheme::COLOR_TEXT_SECONDARY, 0);
 
     // Dedicated actions row keeps Update button visible
@@ -1161,6 +1181,7 @@ void UIBuilder::createInfoModal() {
     lv_obj_set_flex_flow(action_row, LV_FLEX_FLOW_ROW);
     lv_obj_set_flex_align(action_row, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
     lv_obj_set_style_pad_all(action_row, 0, 0);
+    lv_obj_set_style_pad_gap(action_row, 6, 0);
 
     ota_primary_button_ = lv_btn_create(action_row);
     lv_obj_set_height(ota_primary_button_, 36);
@@ -1175,25 +1196,21 @@ void UIBuilder::createInfoModal() {
 
     ota_primary_button_label_ = lv_label_create(ota_primary_button_);
     lv_label_set_text(ota_primary_button_label_, "Update Now");
-    lv_obj_set_style_text_font(ota_primary_button_label_, &lv_font_montserrat_14, 0);
+    lv_obj_set_style_text_font(ota_primary_button_label_, &lv_font_montserrat_16, 0);
     lv_obj_set_style_text_color(ota_primary_button_label_, lv_color_hex(0x000000), 0);
     lv_obj_center(ota_primary_button_label_);
 
-    // Modal body container (fixed grid; no scrolling)
+    // Modal body container (single column; no scrolling)
     lv_obj_t* modal_body = lv_obj_create(info_modal_);
     lv_obj_remove_style_all(modal_body);
     lv_obj_set_width(modal_body, lv_pct(100));
     lv_obj_set_flex_grow(modal_body, 1);  // Take available space
     lv_obj_set_style_pad_all(modal_body, 0, 0);
-    lv_obj_set_style_pad_gap(modal_body, 10, 0);
+    lv_obj_set_style_pad_gap(modal_body, 12, 0);
     lv_obj_clear_flag(modal_body, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_set_scroll_dir(modal_body, LV_DIR_NONE);
     lv_obj_set_scrollbar_mode(modal_body, LV_SCROLLBAR_MODE_OFF);
-
-    lv_obj_set_layout(modal_body, LV_LAYOUT_GRID);
-    static lv_coord_t grid_cols[] = { LV_GRID_FR(1), LV_GRID_FR(1), LV_GRID_TEMPLATE_LAST };
-    static lv_coord_t grid_rows[] = { LV_GRID_CONTENT, LV_GRID_FR(1), LV_GRID_TEMPLATE_LAST };
-    lv_obj_set_grid_dsc_array(modal_body, grid_cols, grid_rows);
+    lv_obj_set_flex_flow(modal_body, LV_FLEX_FLOW_COLUMN);
 
     auto createSection = [&](lv_obj_t* parent, const char* heading_text) {
         lv_obj_t* section = lv_obj_create(parent);
@@ -1206,13 +1223,13 @@ void UIBuilder::createInfoModal() {
         lv_obj_set_style_pad_right(section, 4, 0);
         lv_obj_set_style_pad_top(section, 2, 0);
         lv_obj_set_style_pad_bottom(section, 2, 0);
-        lv_obj_set_style_pad_gap(section, 6, 0);
+        lv_obj_set_style_pad_gap(section, 8, 0);
         lv_obj_set_flex_flow(section, LV_FLEX_FLOW_COLUMN);
         lv_obj_set_flex_align(section, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
 
         lv_obj_t* heading = lv_label_create(section);
         lv_label_set_text(heading, heading_text);
-        lv_obj_set_style_text_font(heading, &lv_font_montserrat_14, 0);
+        lv_obj_set_style_text_font(heading, &lv_font_montserrat_16, 0);
         lv_obj_set_style_text_color(heading, UITheme::COLOR_TEXT_PRIMARY, 0);
         lv_obj_set_style_text_letter_space(heading, 1, 0);
         lv_obj_set_style_text_opa(heading, LV_OPA_80, 0);
@@ -1225,18 +1242,18 @@ void UIBuilder::createInfoModal() {
         lv_obj_set_width(row, lv_pct(100));
         lv_obj_set_flex_flow(row, LV_FLEX_FLOW_COLUMN);
         lv_obj_set_style_pad_all(row, 0, 0);
-        lv_obj_set_style_pad_gap(row, 2, 0);
+        lv_obj_set_style_pad_gap(row, 4, 0);
 
         lv_obj_t* k = lv_label_create(row);
         lv_label_set_text(k, key);
-        lv_obj_set_style_text_font(k, &lv_font_montserrat_12, 0);
+        lv_obj_set_style_text_font(k, &lv_font_montserrat_14, 0);
         lv_obj_set_style_text_color(k, UITheme::COLOR_TEXT_SECONDARY, 0);
 
         lv_obj_t* v = lv_label_create(row);
         lv_label_set_text(v, default_value);
         lv_obj_set_width(v, lv_pct(100));
         lv_label_set_long_mode(v, LV_LABEL_LONG_WRAP);
-        lv_obj_set_style_text_font(v, &lv_font_montserrat_14, 0);
+        lv_obj_set_style_text_font(v, &lv_font_montserrat_16, 0);
         lv_obj_set_style_text_color(v, UITheme::COLOR_TEXT_PRIMARY, 0);
 
         if (value_slot) {
@@ -1244,9 +1261,8 @@ void UIBuilder::createInfoModal() {
         }
     };
 
-    // System section (top-left)
+    // System section
     lv_obj_t* system_card = createSection(modal_body, "System");
-    lv_obj_set_grid_cell(system_card, LV_GRID_ALIGN_STRETCH, 0, 1, LV_GRID_ALIGN_STRETCH, 0, 1);
     createKeyValue(system_card, "Connectivity", "Checking...", &network_status_label_);
     createKeyValue(system_card, "IP Address", "Not connected", &info_ip_label_);
     const char* version_default = (APP_VERSION && APP_VERSION[0]) ? APP_VERSION : "--";
@@ -1259,18 +1275,18 @@ void UIBuilder::createInfoModal() {
     lv_obj_set_width(bar_row, lv_pct(100));
     lv_obj_set_flex_flow(bar_row, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_style_pad_all(bar_row, 0, 0);
-    lv_obj_set_style_pad_gap(bar_row, 3, 0);
+    lv_obj_set_style_pad_gap(bar_row, 4, 0);
 
     lv_obj_t* bar_heading = lv_label_create(bar_row);
     lv_label_set_text(bar_heading, "Network health");
-    lv_obj_set_style_text_font(bar_heading, &lv_font_montserrat_12, 0);
+    lv_obj_set_style_text_font(bar_heading, &lv_font_montserrat_14, 0);
     lv_obj_set_style_text_color(bar_heading, UITheme::COLOR_TEXT_SECONDARY, 0);
 
     network_status_bar_ = lv_bar_create(bar_row);
     lv_bar_set_range(network_status_bar_, 0, 100);
     lv_bar_set_value(network_status_bar_, 0, LV_ANIM_OFF);
     lv_obj_set_width(network_status_bar_, lv_pct(100));
-    lv_obj_set_height(network_status_bar_, 8);
+    lv_obj_set_height(network_status_bar_, 10);
     lv_obj_set_style_bg_color(network_status_bar_, lv_color_hex(0x262626), LV_PART_MAIN);
     lv_obj_set_style_bg_opa(network_status_bar_, LV_OPA_COVER, LV_PART_MAIN);
     lv_obj_set_style_radius(network_status_bar_, 4, LV_PART_MAIN);
@@ -1280,19 +1296,18 @@ void UIBuilder::createInfoModal() {
 
     diagnostics_label_ = lv_label_create(system_card);
     lv_label_set_text(diagnostics_label_, "No recent errors");
-    lv_obj_set_style_text_font(diagnostics_label_, &lv_font_montserrat_12, 0);
+    lv_obj_set_style_text_font(diagnostics_label_, &lv_font_montserrat_14, 0);
     lv_obj_set_style_text_color(diagnostics_label_, UITheme::COLOR_TEXT_SECONDARY, 0);
     diag_priority_ = DiagnosticsPriority::NORMAL;
 
-    // Brightness section (top-right)
+    // Brightness section
     lv_obj_t* brightness_card = createSection(modal_body, "Brightness");
-    lv_obj_set_grid_cell(brightness_card, LV_GRID_ALIGN_STRETCH, 1, 1, LV_GRID_ALIGN_STRETCH, 0, 1);
 
     lv_obj_t* brightness_row = lv_obj_create(brightness_card);
     lv_obj_remove_style_all(brightness_row);
     lv_obj_set_flex_flow(brightness_row, LV_FLEX_FLOW_ROW);
     lv_obj_set_flex_align(brightness_row, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
-    lv_obj_set_style_pad_gap(brightness_row, 10, 0);
+    lv_obj_set_style_pad_gap(brightness_row, 12, 0);
     lv_obj_set_style_pad_all(brightness_row, 0, 0);
     lv_obj_set_width(brightness_row, lv_pct(100));
 
@@ -1302,7 +1317,7 @@ void UIBuilder::createInfoModal() {
     lv_slider_set_value(brightness_slider_, initial_brightness, LV_ANIM_OFF);
     lv_obj_set_width(brightness_slider_, LV_SIZE_CONTENT);
     lv_obj_set_flex_grow(brightness_slider_, 1);
-    lv_obj_set_height(brightness_slider_, 16);
+    lv_obj_set_height(brightness_slider_, 20);
     lv_obj_clear_flag(brightness_slider_, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_add_flag(brightness_slider_, LV_OBJ_FLAG_CLICKABLE);
     lv_obj_set_style_bg_color(brightness_slider_, lv_color_hex(0x404040), LV_PART_MAIN);
@@ -1325,35 +1340,34 @@ void UIBuilder::createInfoModal() {
         cached_brightness_text_ = pct_buf;
         lv_label_set_text(brightness_value_label_, cached_brightness_text_.c_str());
     }
-    lv_obj_set_style_text_font(brightness_value_label_, &lv_font_montserrat_14, 0);
+    lv_obj_set_style_text_font(brightness_value_label_, &lv_font_montserrat_16, 0);
     lv_obj_set_style_text_color(brightness_value_label_, UITheme::COLOR_ACCENT, 0);
-    lv_obj_set_width(brightness_value_label_, 45);
+    lv_obj_set_width(brightness_value_label_, 55);
 
     lv_obj_t* brightness_hint = lv_label_create(brightness_card);
     lv_label_set_text(brightness_hint, "Min brightness is limited so you can always see this screen.");
     lv_obj_set_width(brightness_hint, lv_pct(100));
     lv_label_set_long_mode(brightness_hint, LV_LABEL_LONG_WRAP);
-    lv_obj_set_style_text_font(brightness_hint, &lv_font_montserrat_12, 0);
+    lv_obj_set_style_text_font(brightness_hint, &lv_font_montserrat_14, 0);
     lv_obj_set_style_text_color(brightness_hint, UITheme::COLOR_TEXT_SECONDARY, 0);
 
-    // Updates section (bottom, spans full width)
+    // Updates section (bottom)
     lv_obj_t* updates_card = createSection(modal_body, "Updates");
-    lv_obj_set_grid_cell(updates_card, LV_GRID_ALIGN_STRETCH, 0, 2, LV_GRID_ALIGN_STRETCH, 1, 1);
     ota_status_label_ = lv_label_create(updates_card);
     lv_label_set_long_mode(ota_status_label_, LV_LABEL_LONG_WRAP);
     lv_obj_set_width(ota_status_label_, lv_pct(100));
-    lv_obj_set_style_text_font(ota_status_label_, &lv_font_montserrat_12, 0);
+    lv_obj_set_style_text_font(ota_status_label_, &lv_font_montserrat_14, 0);
     lv_obj_set_style_text_color(ota_status_label_, lv_color_hex(0xFFFFFF), 0);
 
     lv_obj_t* ota_bar_label = lv_label_create(updates_card);
     lv_label_set_text(ota_bar_label, "Progress");
-    lv_obj_set_style_text_font(ota_bar_label, &lv_font_montserrat_12, 0);
+    lv_obj_set_style_text_font(ota_bar_label, &lv_font_montserrat_14, 0);
     lv_obj_set_style_text_color(ota_bar_label, UITheme::COLOR_TEXT_SECONDARY, 0);
 
     ota_status_bar_ = lv_bar_create(updates_card);
     lv_bar_set_range(ota_status_bar_, 0, 100);
     lv_obj_set_width(ota_status_bar_, lv_pct(100));
-    lv_obj_set_height(ota_status_bar_, 8);
+    lv_obj_set_height(ota_status_bar_, 10);
     lv_obj_set_style_bg_color(ota_status_bar_, lv_color_hex(0x262626), LV_PART_MAIN);
     lv_obj_set_style_bg_opa(ota_status_bar_, LV_OPA_COVER, LV_PART_MAIN);
     lv_obj_set_style_radius(ota_status_bar_, 4, LV_PART_MAIN);
@@ -1577,6 +1591,16 @@ void UIBuilder::refreshNetworkStatusLabel() {
             cached_settings_ip_text_ = header_text;
             lv_label_set_text(settings_ip_label_, cached_settings_ip_text_.c_str());
         }
+    }
+
+    if (settings_network_label_) {
+        const std::string status_text = connectionStatusText();
+        const std::string header_text = "Network: " + status_text;
+        if (cached_settings_network_text_ != header_text) {
+            cached_settings_network_text_ = header_text;
+            lv_label_set_text(settings_network_label_, cached_settings_network_text_.c_str());
+        }
+        lv_obj_set_style_text_color(settings_network_label_, connectionStatusColor(), 0);
     }
 
     if (network_status_label_) {
@@ -1889,6 +1913,14 @@ void UIBuilder::setBrightnessInternal(uint8_t percent, bool persist) {
         if (cached_brightness_text_ != pct_buf) {
             cached_brightness_text_ = pct_buf;
             lv_label_set_text(brightness_value_label_, cached_brightness_text_.c_str());
+        }
+    }
+    if (settings_brightness_label_) {
+        char pct_buf[20];
+        snprintf(pct_buf, sizeof(pct_buf), "Brightness: %u%%", static_cast<unsigned>(percent));
+        if (cached_settings_brightness_text_ != pct_buf) {
+            cached_settings_brightness_text_ = pct_buf;
+            lv_label_set_text(settings_brightness_label_, cached_settings_brightness_text_.c_str());
         }
     }
 

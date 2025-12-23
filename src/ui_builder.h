@@ -100,6 +100,8 @@ private:
     lv_obj_t* network_status_label_ = nullptr;
     lv_obj_t* version_label_ = nullptr;
     lv_obj_t* settings_ip_label_ = nullptr;
+    lv_obj_t* settings_network_label_ = nullptr;
+    lv_obj_t* settings_brightness_label_ = nullptr;
     lv_obj_t* settings_version_label_ = nullptr;
     lv_obj_t* ota_status_label_ = nullptr;
     lv_obj_t* ota_primary_button_ = nullptr;
@@ -135,6 +137,8 @@ private:
     std::string cached_ip_text_;
     std::string cached_version_text_;
     std::string cached_settings_ip_text_;
+    std::string cached_settings_network_text_;
+    std::string cached_settings_brightness_text_;
     std::string cached_settings_version_text_;
     std::string cached_ota_friendly_text_;
     std::string cached_diag_text_;
