@@ -1144,14 +1144,34 @@ void UIBuilder::createInfoModal() {
     lv_label_set_text(settings_ip_label_, "IP: --");
     lv_obj_set_width(settings_ip_label_, lv_pct(100));
     lv_label_set_long_mode(settings_ip_label_, LV_LABEL_LONG_WRAP);
-    lv_obj_set_style_text_font(settings_ip_label_, &lv_font_montserrat_12, 0);
+    lv_obj_set_style_text_font(settings_ip_label_, &lv_font_montserrat_14, 0);
     lv_obj_set_style_text_color(settings_ip_label_, UITheme::COLOR_TEXT_SECONDARY, 0);
+
+    settings_network_label_ = lv_label_create(meta_row);
+    lv_label_set_text(settings_network_label_, "Network: --");
+    lv_obj_set_width(settings_network_label_, lv_pct(100));
+    lv_label_set_long_mode(settings_network_label_, LV_LABEL_LONG_WRAP);
+    lv_obj_set_style_text_font(settings_network_label_, &lv_font_montserrat_14, 0);
+    lv_obj_set_style_text_color(settings_network_label_, UITheme::COLOR_TEXT_SECONDARY, 0);
+
+    settings_brightness_label_ = lv_label_create(meta_row);
+    {
+        const uint8_t initial_brightness = clampBrightness(config_ ? config_->display.brightness : 100);
+        char pct_buf[8];
+        snprintf(pct_buf, sizeof(pct_buf), "Brightness: %u%%", static_cast<unsigned>(initial_brightness));
+        cached_settings_brightness_text_ = pct_buf;
+        lv_label_set_text(settings_brightness_label_, cached_settings_brightness_text_.c_str());
+    }
+    lv_obj_set_width(settings_brightness_label_, lv_pct(100));
+    lv_label_set_long_mode(settings_brightness_label_, LV_LABEL_LONG_WRAP);
+    lv_obj_set_style_text_font(settings_brightness_label_, &lv_font_montserrat_14, 0);
+    lv_obj_set_style_text_color(settings_brightness_label_, UITheme::COLOR_TEXT_SECONDARY, 0);
 
     settings_version_label_ = lv_label_create(meta_row);
     lv_label_set_text(settings_version_label_, "Version: --");
     lv_obj_set_width(settings_version_label_, lv_pct(100));
     lv_label_set_long_mode(settings_version_label_, LV_LABEL_LONG_WRAP);
-    lv_obj_set_style_text_font(settings_version_label_, &lv_font_montserrat_12, 0);
+    lv_obj_set_style_text_font(settings_version_label_, &lv_font_montserrat_14, 0);
     lv_obj_set_style_text_color(settings_version_label_, UITheme::COLOR_TEXT_SECONDARY, 0);
 
     // Dedicated actions row keeps Update button visible
@@ -1579,6 +1599,16 @@ void UIBuilder::refreshNetworkStatusLabel() {
         }
     }
 
+    if (settings_network_label_) {
+        const std::string status_text = connectionStatusText();
+        const std::string header_text = "Network: " + status_text;
+        if (cached_settings_network_text_ != header_text) {
+            cached_settings_network_text_ = header_text;
+            lv_label_set_text(settings_network_label_, cached_settings_network_text_.c_str());
+        }
+        lv_obj_set_style_text_color(settings_network_label_, connectionStatusColor(), 0);
+    }
+
     if (network_status_label_) {
         const std::string status_text = connectionStatusText();
         if (cached_network_status_text_ != status_text) {
@@ -1889,6 +1919,14 @@ void UIBuilder::setBrightnessInternal(uint8_t percent, bool persist) {
         if (cached_brightness_text_ != pct_buf) {
             cached_brightness_text_ = pct_buf;
             lv_label_set_text(brightness_value_label_, cached_brightness_text_.c_str());
+        }
+    }
+    if (settings_brightness_label_) {
+        char pct_buf[20];
+        snprintf(pct_buf, sizeof(pct_buf), "Brightness: %u%%", static_cast<unsigned>(percent));
+        if (cached_settings_brightness_text_ != pct_buf) {
+            cached_settings_brightness_text_ = pct_buf;
+            lv_label_set_text(settings_brightness_label_, cached_settings_brightness_text_.c_str());
         }
     }
 
