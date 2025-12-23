@@ -1,3 +1,3 @@
 #pragma once
-// Version 1.2.8 - Trigger workflow with fixed permissions
-constexpr const char* APP_VERSION = "1.2.8";
+// Version 1.2.9 - backlight 4
+constexpr const char* APP_VERSION = "1.2.9";
