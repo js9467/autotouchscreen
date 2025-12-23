@@ -521,8 +521,10 @@ void UIBuilder::buildPage(std::size_t index) {
         lv_obj_set_style_shadow_color(btn, lv_color_hex(0x000000), 0);
         lv_obj_set_style_shadow_opa(btn, LV_OPA_20, 0);
         lv_obj_set_grid_cell(btn,
-                             LV_GRID_ALIGN_STRETCH, button.col, button.col_span,
-                             LV_GRID_ALIGN_STRETCH, button.row, button.row_span);
+                     LV_GRID_ALIGN_STRETCH, button.col, button.col_span,
+                     LV_GRID_ALIGN_STRETCH, button.row, button.row_span);
+        lv_obj_add_event_cb(btn, actionButtonEvent, LV_EVENT_PRESSED, (void*)&button);
+        lv_obj_add_event_cb(btn, actionButtonEvent, LV_EVENT_RELEASED, (void*)&button);
         lv_obj_add_event_cb(btn, actionButtonEvent, LV_EVENT_CLICKED, (void*)&button);
 
         // Create icon if specified
@@ -625,14 +627,26 @@ void UIBuilder::navButtonEvent(lv_event_t* e) {
 }
 
 void UIBuilder::actionButtonEvent(lv_event_t* e) {
-    if (lv_event_get_code(e) != LV_EVENT_CLICKED) {
-        return;
-    }
+    const lv_event_code_t code = lv_event_get_code(e);
     auto* config = static_cast<const ButtonConfig*>(lv_event_get_user_data(e));
     if (!config) {
         return;
     }
-    CanManager::instance().sendButtonAction(*config);
+
+    if (config->momentary) {
+        if (code == LV_EVENT_PRESSED) {
+            CanManager::instance().sendButtonAction(*config);
+        } else if (code == LV_EVENT_RELEASED) {
+            if (config->can_off.enabled) {
+                CanManager::instance().sendButtonReleaseAction(*config);
+            }
+        }
+        return;
+    }
+
+    if (code == LV_EVENT_CLICKED) {
+        CanManager::instance().sendButtonAction(*config);
+    }
 }
 
 lv_color_t UIBuilder::colorFromHex(const std::string& hex, lv_color_t fallback) {
@@ -1157,13 +1171,16 @@ void UIBuilder::createInfoModal() {
 
     lv_obj_set_layout(modal_body, LV_LAYOUT_GRID);
     static lv_coord_t grid_cols[] = { LV_GRID_FR(1), LV_GRID_FR(1), LV_GRID_TEMPLATE_LAST };
-    static lv_coord_t grid_rows[] = { LV_GRID_FR(1), LV_GRID_FR(1), LV_GRID_TEMPLATE_LAST };
+    static lv_coord_t grid_rows[] = { LV_GRID_CONTENT, LV_GRID_FR(1), LV_GRID_TEMPLATE_LAST };
     lv_obj_set_grid_dsc_array(modal_body, grid_cols, grid_rows);
 
     auto createCard = [&](lv_obj_t* parent, const char* heading_text) {
         lv_obj_t* card = lv_obj_create(parent);
         lv_obj_remove_style_all(card);
         lv_obj_set_width(card, lv_pct(100));
+        lv_obj_clear_flag(card, LV_OBJ_FLAG_SCROLLABLE);
+        lv_obj_set_scroll_dir(card, LV_DIR_NONE);
+        lv_obj_set_scrollbar_mode(card, LV_SCROLLBAR_MODE_OFF);
         lv_obj_set_style_bg_color(card, lv_color_hex(0x1c1c1c), 0);
         lv_obj_set_style_bg_opa(card, LV_OPA_COVER, 0);
         lv_obj_set_style_radius(card, 8, 0);

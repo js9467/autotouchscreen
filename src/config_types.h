@@ -43,6 +43,7 @@ struct ButtonConfig {
     std::uint8_t border_width = 0;  // Button border width in pixels
     std::string border_color = "#FFFFFF";  // Button border color
     CanFrameConfig can;
+    CanFrameConfig can_off;  // Optional OFF/release frame (used by some modules like inMOTION NGX)
 };
 
 struct PageConfig {

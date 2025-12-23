@@ -471,6 +471,18 @@ void ConfigManager::encodeConfig(const DeviceConfig& source, DynamicJsonDocument
             for (std::uint8_t byte : button.can.data) {
                 data_arr.add(byte);
             }
+
+            JsonObject can_off_obj = btn_obj["can_off"].to<JsonObject>();
+            can_off_obj["enabled"] = button.can_off.enabled;
+            can_off_obj["pgn"] = button.can_off.pgn;
+            can_off_obj["priority"] = button.can_off.priority;
+            can_off_obj["source_address"] = button.can_off.source_address;
+            can_off_obj["destination_address"] = button.can_off.destination_address;
+
+            JsonArray off_data_arr = can_off_obj["data"].to<JsonArray>();
+            for (std::uint8_t byte : button.can_off.data) {
+                off_data_arr.add(byte);
+            }
         }
     }
 
@@ -670,6 +682,27 @@ bool ConfigManager::decodeConfig(JsonVariantConst json, DeviceConfig& target, st
                                     break;
                                 }
                                 button.can.data[i] = clampValue<std::uint8_t>(byte_val | 0, 0u, 255u);
+                                ++i;
+                            }
+                        }
+                    }
+
+                    JsonObjectConst can_off_obj = btn_obj["can_off"];
+                    if (!can_off_obj.isNull()) {
+                        button.can_off.enabled = can_off_obj["enabled"] | false;
+                        button.can_off.pgn = can_off_obj["pgn"] | button.can_off.pgn;
+                        button.can_off.priority = clampValue<std::uint8_t>(can_off_obj["priority"] | button.can_off.priority, 0u, 7u);
+                        button.can_off.source_address = can_off_obj["source_address"] | button.can_off.source_address;
+                        button.can_off.destination_address = can_off_obj["destination_address"] | button.can_off.destination_address;
+
+                        JsonArrayConst off_data_arr = can_off_obj["data"].as<JsonArrayConst>();
+                        if (!off_data_arr.isNull()) {
+                            std::size_t i = 0;
+                            for (JsonVariantConst byte_val : off_data_arr) {
+                                if (i >= button.can_off.data.size()) {
+                                    break;
+                                }
+                                button.can_off.data[i] = clampValue<std::uint8_t>(byte_val | 0, 0u, 255u);
                                 ++i;
                             }
                         }

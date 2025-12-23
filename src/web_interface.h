@@ -440,6 +440,12 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); bo
 					<button class="btn" onclick="importCanMessage('windows')">Windows</button>
 					<button class="btn" onclick="importCanMessage('locks')">Locks</button>
 					<button class="btn" onclick="importCanMessage('boards')">Running Boards</button>
+					<button class="btn" onclick="importCanMessage('powercell_front')">POWERCELL Front</button>
+					<button class="btn" onclick="importCanMessage('powercell_rear')">POWERCELL Rear</button>
+					<button class="btn" onclick="importCanMessage('imotion_df')">inMOTION DF</button>
+					<button class="btn" onclick="importCanMessage('imotion_pf')">inMOTION PF</button>
+					<button class="btn" onclick="importCanMessage('imotion_dr')">inMOTION DR</button>
+					<button class="btn" onclick="importCanMessage('imotion_pr')">inMOTION PR</button>
 				</div>
 			</div>
 		</div>
@@ -487,6 +493,22 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); bo
 			<div class="row" style="grid-column:1/-1;">
 				<label>From Library</label>
 				<select id="btn-can-library-select" onchange="loadCanFromLibrary()"></select>
+			</div>
+		</div>
+		<h4>CAN Release Frame</h4>
+		<div class="row" style="margin-bottom:10px;"><label><input id="btn-can-off-enabled" type="checkbox" onchange="toggleCanFields()" /> Send CAN on release (OFF)</label></div>
+		<div id="can-off-config-wrapper" class="grid two-col" style="display:none;">
+			<div><label>PGN (hex)</label><input id="btn-can-off-pgn" type="text" placeholder="FEF9" /></div>
+			<div><label>Priority</label><input id="btn-can-off-priority" type="number" min="0" max="7" /></div>
+			<div><label>Source (hex)</label><input id="btn-can-off-src" type="text" placeholder="F9" /></div>
+			<div><label>Dest (hex)</label><input id="btn-can-off-dest" type="text" placeholder="FF" /></div>
+			<div class="row" style="grid-column:1/-1;">
+				<label>Data Bytes</label>
+				<input id="btn-can-off-data" type="text" placeholder="00 00 00 00 00 00 00 00" />
+			</div>
+			<div class="row" style="grid-column:1/-1;">
+				<label>From Library</label>
+				<select id="btn-can-off-library-select" onchange="loadCanOffFromLibrary()"></select>
 			</div>
 		</div>
 		<div class="row" style="margin-top:12px; justify-content:flex-end; gap:8px;">
@@ -979,7 +1001,8 @@ function openButtonModal(row,col){
 		font_family: firstDefined(theme.button_font_family, 'montserrat'),
 		text_align: 'center',
 		momentary: false,
-		can:{enabled:false,pgn:0,priority:6,source_address:0xF9,destination_address:0xFF,data:[0,0,0,0,0,0,0,0]}
+		can:{enabled:false,pgn:0,priority:6,source_address:0xF9,destination_address:0xFF,data:[0,0,0,0,0,0,0,0]},
+		can_off:{enabled:false,pgn:0,priority:6,source_address:0xF9,destination_address:0xFF,data:[0,0,0,0,0,0,0,0]}
 	};
 	const data = btn || defaults;
 	document.getElementById('btn-label').value = data.label || '';
@@ -1001,6 +1024,14 @@ function openButtonModal(row,col){
 	document.getElementById('btn-can-dest').value = (firstDefined(canCfg.destination_address, 0xFF)).toString(16).toUpperCase();
 	const canData = (canCfg.data && canCfg.data.length) ? canCfg.data : defaults.can.data;
 	document.getElementById('btn-can-data').value = canData.map(b=>b.toString(16).toUpperCase().padStart(2,'0')).join(' ');
+	const canOffCfg = data.can_off || {};
+	document.getElementById('btn-can-off-enabled').checked = canOffCfg.enabled || false;
+	document.getElementById('btn-can-off-pgn').value = (canOffCfg.pgn || 0).toString(16).toUpperCase();
+	document.getElementById('btn-can-off-priority').value = firstDefined(canOffCfg.priority, 6);
+	document.getElementById('btn-can-off-src').value = (firstDefined(canOffCfg.source_address, 0xF9)).toString(16).toUpperCase();
+	document.getElementById('btn-can-off-dest').value = (firstDefined(canOffCfg.destination_address, 0xFF)).toString(16).toUpperCase();
+	const canOffData = (canOffCfg.data && canOffCfg.data.length) ? canOffCfg.data : defaults.can_off.data;
+	document.getElementById('btn-can-off-data').value = canOffData.map(b=>b.toString(16).toUpperCase().padStart(2,'0')).join(' ');
 	populateCanLibraryDropdown();
 	toggleCanFields();
 	document.getElementById('button-modal').classList.add('open');

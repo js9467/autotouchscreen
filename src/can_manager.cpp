@@ -52,6 +52,14 @@ bool CanManager::sendButtonAction(const ButtonConfig& button) {
     return sendFrame(button.can);
 }
 
+bool CanManager::sendButtonReleaseAction(const ButtonConfig& button) {
+    if (!button.can_off.enabled) {
+        Serial.printf("[CanManager] Button '%s' has no CAN OFF frame assigned\n", button.label.c_str());
+        return false;
+    }
+    return sendFrame(button.can_off);
+}
+
 bool CanManager::sendFrame(const CanFrameConfig& frame) {
     if (!ready_) {
         Serial.println("[CanManager] TWAI bus not initialized");

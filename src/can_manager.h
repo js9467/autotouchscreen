@@ -14,6 +14,7 @@ public:
 
     bool begin(gpio_num_t tx_pin = DEFAULT_TX_PIN, gpio_num_t rx_pin = DEFAULT_RX_PIN, std::uint32_t bitrate = 250000);
     bool sendButtonAction(const ButtonConfig& button);
+    bool sendButtonReleaseAction(const ButtonConfig& button);
     bool sendFrame(const CanFrameConfig& frame);
 
     bool isReady() const { return ready_; }
