@@ -1217,7 +1217,7 @@ void UIBuilder::createInfoModal() {
     createKeyValue(system_card, "IP Address", "Not connected", &info_ip_label_);
     createKeyValue(system_card, "Connected Network", "Not connected", &settings_wifi_label_);
     const char* version_default = (APP_VERSION && APP_VERSION[0]) ? APP_VERSION : "--";
-    createKeyValue(system_card, "Firmware Version", version_default, &version_label_);
+    createKeyValue(system_card, "Firmware Version", version_default, &settings_version_label_);
     refreshVersionLabel();
 
     // Network health bar + diagnostics
@@ -1583,7 +1583,17 @@ void UIBuilder::refreshNetworkStatusLabel() {
     if (settings_wifi_label_) {
         std::string wifi_text = "Not connected";
         if (last_sta_connected_) {
-            wifi_text = last_sta_ssid_.empty() ? "Hidden network" : last_sta_ssid_;
+            if (!last_sta_ssid_.empty()) {
+                wifi_text = last_sta_ssid_;
+            } else {
+                std::string fallback_ssid;
+                if (config_) {
+                    fallback_ssid = config_->wifi.sta.ssid;
+                } else {
+                    fallback_ssid = ConfigManager::instance().getConfig().wifi.sta.ssid;
+                }
+                wifi_text = fallback_ssid.empty() ? "Hidden network" : fallback_ssid;
+            }
         } else if (!last_ap_ip_.empty() && last_ap_ip_ != "0.0.0.0") {
             std::string ap_ssid;
             if (config_) {
@@ -1635,7 +1645,7 @@ lv_color_t UIBuilder::connectionStatusColor() const {
 }
 
 void UIBuilder::refreshVersionLabel() {
-    if (!version_label_) {
+    if (!version_label_ && !settings_version_label_) {
         return;
     }
     std::string version_text;
@@ -1653,13 +1663,14 @@ void UIBuilder::refreshVersionLabel() {
     }
     if (cached_version_text_ != version_text) {
         cached_version_text_ = version_text;
-        lv_label_set_text(version_label_, cached_version_text_.c_str());
+        if (version_label_) {
+            lv_label_set_text(version_label_, cached_version_text_.c_str());
+        }
     }
 
     if (settings_version_label_) {
-        std::string header_text = "Version: " + version_text;
-        if (cached_settings_version_text_ != header_text) {
-            cached_settings_version_text_ = header_text;
+        if (cached_settings_version_text_ != version_text) {
+            cached_settings_version_text_ = version_text;
             lv_label_set_text(settings_version_label_, cached_settings_version_text_.c_str());
         }
     }
