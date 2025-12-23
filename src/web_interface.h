@@ -1047,6 +1047,9 @@ function saveButtonFromModal(){
 	const canEnabled = document.getElementById('btn-can-enabled').checked;
 	const canData = (document.getElementById('btn-can-data').value||'').split(' ').map(v=>parseInt(v,16)||0).slice(0,8);
 	while(canData.length<8) canData.push(0);
+	const canOffEnabled = document.getElementById('btn-can-off-enabled').checked;
+	const canOffData = (document.getElementById('btn-can-off-data').value||'').split(' ').map(v=>parseInt(v,16)||0).slice(0,8);
+	while(canOffData.length<8) canOffData.push(0);
 	const button = {
 		id:`btn_${editingButton.row}_${editingButton.col}`,
 		row: editingButton.row,
@@ -1073,6 +1076,14 @@ function saveButtonFromModal(){
 			source_address: canEnabled ? parseInt(document.getElementById('btn-can-src').value,16)||0xF9 : 0xF9,
 			destination_address: canEnabled ? parseInt(document.getElementById('btn-can-dest').value,16)||0xFF : 0xFF,
 			data: canData
+		},
+		can_off: {
+			enabled: canOffEnabled,
+			pgn: canOffEnabled ? parseInt(document.getElementById('btn-can-off-pgn').value,16)||0 : 0,
+			priority: canOffEnabled ? parseInt(document.getElementById('btn-can-off-priority').value)||6 : 6,
+			source_address: canOffEnabled ? parseInt(document.getElementById('btn-can-off-src').value,16)||0xF9 : 0xF9,
+			destination_address: canOffEnabled ? parseInt(document.getElementById('btn-can-off-dest').value,16)||0xFF : 0xFF,
+			data: canOffData
 		}
 	};
 	if(idx>=0) page.buttons[idx] = button; else page.buttons.push(button);
@@ -1091,8 +1102,10 @@ function deleteButtonFromModal(){
 }
 
 function toggleCanFields(){
-	const show = document.getElementById('btn-can-enabled').checked;
-	document.getElementById('can-config-wrapper').style.display = show ? 'grid' : 'none';
+	const showOn = document.getElementById('btn-can-enabled').checked;
+	document.getElementById('can-config-wrapper').style.display = showOn ? 'grid' : 'none';
+	const showOff = document.getElementById('btn-can-off-enabled').checked;
+	document.getElementById('can-off-config-wrapper').style.display = showOff ? 'grid' : 'none';
 }
 
 function renderPreview(){
@@ -1569,24 +1582,38 @@ function importCanMessage(type){
 	const templates = {
 		windows:{name:'Windows',pgn:0xFEF6,data:[255,255,255,255,255,255,255,255]},
 		locks:{name:'Locks',pgn:0xFECA,data:[0,0,0,0,255,255,255,255]},
-		boards:{name:'Running Boards',pgn:0xFE00,data:[1,0,0,0,255,255,255,255]}
+		boards:{name:'Running Boards',pgn:0xFE00,data:[1,0,0,0,255,255,255,255]},
+		// Infinitybox NGX (from email/docs): front listens FF011E, rear listens FF021E (priority omitted)
+		powercell_front:{name:'POWERCELL NGX Front (FF011E control)',pgn:0xFF01,data:[0,0,0,0,0,0,0,0],priority:6,source_address:0x1E,destination_address:0xFF},
+		powercell_rear:{name:'POWERCELL NGX Rear (FF021E control)',pgn:0xFF02,data:[0,0,0,0,0,0,0,0],priority:6,source_address:0x1E,destination_address:0xFF},
+		// inMOTION NGX listens on different proprietary PGNs; OFF uses a distinct payload
+		imotion_df:{name:'inMOTION NGX Driver Front (PGN FF03)',pgn:0xFF03,data:[0,0,0,0,0,0,0,0]},
+		imotion_pf:{name:'inMOTION NGX Passenger Front (PGN FF04)',pgn:0xFF04,data:[0,0,0,0,0,0,0,0]},
+		imotion_dr:{name:'inMOTION NGX Driver Rear (PGN FF05)',pgn:0xFF05,data:[0,0,0,0,0,0,0,0]},
+		imotion_pr:{name:'inMOTION NGX Passenger Rear (PGN FF06)',pgn:0xFF06,data:[0,0,0,0,0,0,0,0]}
 	};
 	const t = templates[type];
 	if(!t) return;
 	if(!config.can_library) config.can_library = [];
-	config.can_library.push({ id:'msg_'+Date.now(), name:t.name, pgn:t.pgn, priority:6, source_address:0xF9, destination_address:0xFF, data:t.data, description:'Quick import' });
+	config.can_library.push({ id:'msg_'+Date.now(), name:t.name, pgn:t.pgn, priority:firstDefined(t.priority,6), source_address:firstDefined(t.source_address,0xF9), destination_address:firstDefined(t.destination_address,0xFF), data:t.data, description:'Quick import' });
 	renderCanLibrary();
 }
 
 function populateCanLibraryDropdown(){
-	const sel = document.getElementById('btn-can-library-select');
-	if(!sel) return;
-	sel.innerHTML = '<option value="">-- Select --</option>';
+	const sels = [
+		document.getElementById('btn-can-library-select'),
+		document.getElementById('btn-can-off-library-select')
+	].filter(Boolean);
+	if(!sels.length) return;
+	sels.forEach(sel=>{ sel.innerHTML = '<option value="">-- Select --</option>'; });
 	(config.can_library||[]).forEach((msg,idx)=>{
-		const opt = document.createElement('option');
-		opt.value = idx;
-		opt.textContent = `${msg.name} (PGN 0x${msg.pgn.toString(16).toUpperCase()})`;
-		sel.appendChild(opt);
+		const label = `${msg.name} (PGN 0x${msg.pgn.toString(16).toUpperCase()})`;
+		sels.forEach(sel=>{
+			const opt = document.createElement('option');
+			opt.value = idx;
+			opt.textContent = label;
+			sel.appendChild(opt);
+		});
 	});
 }
 
@@ -1602,6 +1629,21 @@ function loadCanFromLibrary(){
 	document.getElementById('btn-can-src').value = msg.source_address.toString(16).toUpperCase();
 	document.getElementById('btn-can-dest').value = msg.destination_address.toString(16).toUpperCase();
 	document.getElementById('btn-can-data').value = msg.data.map(b=>b.toString(16).toUpperCase().padStart(2,'0')).join(' ');
+	toggleCanFields();
+}
+
+function loadCanOffFromLibrary(){
+	const sel = document.getElementById('btn-can-off-library-select');
+	const idx = parseInt(sel.value);
+	if(isNaN(idx)) return;
+	const msg = config.can_library[idx];
+	if(!msg) return;
+	document.getElementById('btn-can-off-enabled').checked = true;
+	document.getElementById('btn-can-off-pgn').value = msg.pgn.toString(16).toUpperCase();
+	document.getElementById('btn-can-off-priority').value = msg.priority;
+	document.getElementById('btn-can-off-src').value = msg.source_address.toString(16).toUpperCase();
+	document.getElementById('btn-can-off-dest').value = msg.destination_address.toString(16).toUpperCase();
+	document.getElementById('btn-can-off-data').value = msg.data.map(b=>b.toString(16).toUpperCase().padStart(2,'0')).join(' ');
 	toggleCanFields();
 }
 
