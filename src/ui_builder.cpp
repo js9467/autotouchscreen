@@ -1104,6 +1104,9 @@ void UIBuilder::createInfoModal() {
     lv_obj_set_style_border_width(info_modal_bg_, 0, 0);
     lv_obj_add_flag(info_modal_bg_, LV_OBJ_FLAG_HIDDEN);
     lv_obj_add_flag(info_modal_bg_, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_clear_flag(info_modal_bg_, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scroll_dir(info_modal_bg_, LV_DIR_NONE);
+    lv_obj_set_scrollbar_mode(info_modal_bg_, LV_SCROLLBAR_MODE_OFF);
     lv_obj_add_event_cb(info_modal_bg_, infoModalBackdropEvent, LV_EVENT_CLICKED, nullptr);
     lv_obj_move_foreground(info_modal_bg_);  // Ensure modal is on top
 
@@ -1124,6 +1127,8 @@ void UIBuilder::createInfoModal() {
     lv_obj_set_style_pad_gap(info_modal_, 12, 0);
     lv_obj_add_flag(info_modal_, LV_OBJ_FLAG_CLICKABLE);  // Block clicks from reaching background
     lv_obj_clear_flag(info_modal_, LV_OBJ_FLAG_SCROLLABLE);  // No scrolling on main container
+    lv_obj_set_scroll_dir(info_modal_, LV_DIR_NONE);
+    lv_obj_set_scrollbar_mode(info_modal_, LV_SCROLLBAR_MODE_OFF);
     lv_obj_clear_flag(info_modal_, LV_OBJ_FLAG_EVENT_BUBBLE);
 
     // Title - smaller for compact design
