@@ -200,6 +200,7 @@ void WebServerManager::setupRoutes() {
 
     server_.on("/api/status", HTTP_GET, [this](AsyncWebServerRequest* request) {
         DynamicJsonDocument doc(256);
+        doc["firmware_version"] = APP_VERSION;
         doc["ap_ip"] = ap_ip_.toString();
         doc["sta_ip"] = sta_ip_.toString();
         doc["sta_connected"] = sta_connected_;
