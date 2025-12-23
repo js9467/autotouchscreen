@@ -21,6 +21,7 @@ public:
     void markDirty();
     bool consumeDirtyFlag();
     void updateNetworkStatus(const std::string& ap_ip, const std::string& sta_ip, bool sta_connected);
+    void setBrightness(uint8_t percent);
 
 private:
     UIBuilder() = default;
