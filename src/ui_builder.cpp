@@ -1584,6 +1584,17 @@ void UIBuilder::refreshNetworkStatusLabel() {
         std::string wifi_text = "Not connected";
         if (last_sta_connected_) {
             wifi_text = last_sta_ssid_.empty() ? "Hidden network" : last_sta_ssid_;
+        } else if (!last_ap_ip_.empty() && last_ap_ip_ != "0.0.0.0") {
+            std::string ap_ssid;
+            if (config_) {
+                ap_ssid = config_->wifi.ap.ssid;
+            } else {
+                ap_ssid = ConfigManager::instance().getConfig().wifi.ap.ssid;
+            }
+            if (ap_ssid.empty()) {
+                ap_ssid = "CAN-Control";
+            }
+            wifi_text = "AP: " + ap_ssid;
         }
         if (cached_settings_wifi_text_ != wifi_text) {
             cached_settings_wifi_text_ = wifi_text;
