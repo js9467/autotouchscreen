@@ -1229,7 +1229,7 @@ void UIBuilder::createInfoModal() {
     createKeyValue(system_card, "Connectivity", "Checking...", &network_status_label_);
     createKeyValue(system_card, "IP Address", "Not connected", &info_ip_label_);
     const char* version_default = (APP_VERSION && APP_VERSION[0]) ? APP_VERSION : "--";
-    createKeyValue(system_card, "Firmware", version_default, &version_label_);
+    createKeyValue(system_card, "Version", version_default, &version_label_);
     refreshVersionLabel();
 
     // Network health bar + diagnostics
@@ -1264,7 +1264,7 @@ void UIBuilder::createInfoModal() {
     diag_priority_ = DiagnosticsPriority::NORMAL;
 
     // Brightness section (top-right)
-    lv_obj_t* brightness_card = createSection(modal_body, "Display");
+    lv_obj_t* brightness_card = createSection(modal_body, "Brightness");
     lv_obj_set_grid_cell(brightness_card, LV_GRID_ALIGN_STRETCH, 1, 1, LV_GRID_ALIGN_STRETCH, 0, 1);
 
     lv_obj_t* brightness_row = lv_obj_create(brightness_card);
@@ -1416,6 +1416,7 @@ void UIBuilder::updateOtaStatus(const std::string& status) {
     ota_status_text_ = next;
     if (info_modal_visible_) {
         refreshOtaStatusLabel();
+        refreshVersionLabel();
     }
 }
 
@@ -1598,6 +1599,9 @@ void UIBuilder::refreshVersionLabel() {
     } else {
         version_text = "--";
     }
+    if (ota_status_text_ == "up-to-date" || startsWith(ota_status_text_, "updated-to-")) {
+        version_text += " (Latest)";
+    }
     if (cached_version_text_ != version_text) {
         cached_version_text_ = version_text;
         lv_label_set_text(version_label_, cached_version_text_.c_str());
@@ -1672,8 +1676,9 @@ void UIBuilder::updateOtaActionState() {
         label_text = "Install Update";
         ota_primary_action_ = OtaAction::INSTALL;
     } else if (ota_status_text_ == "up-to-date" || startsWith(ota_status_text_, "updated-to-")) {
-        label_text = "Check Again";
-        ota_primary_action_ = OtaAction::CHECK_ONLY;
+        label_text = "Up to date";
+        disable = true;
+        ota_primary_action_ = OtaAction::BLOCKED;
     } else if (isOtaStatusError(ota_status_text_)) {
         label_text = "Retry Update";
         ota_primary_action_ = OtaAction::INSTALL;
