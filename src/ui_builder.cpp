@@ -1133,6 +1133,27 @@ void UIBuilder::createInfoModal() {
     lv_obj_set_style_text_color(title, lv_color_hex(0xFFFFFF), 0);
     lv_obj_set_style_text_opa(title, LV_OPA_COVER, 0);
 
+    // Quick system info (always visible)
+    lv_obj_t* meta_row = lv_obj_create(info_modal_);
+    lv_obj_remove_style_all(meta_row);
+    lv_obj_set_width(meta_row, lv_pct(100));
+    lv_obj_set_flex_flow(meta_row, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_style_pad_gap(meta_row, 2, 0);
+
+    settings_ip_label_ = lv_label_create(meta_row);
+    lv_label_set_text(settings_ip_label_, "IP: --");
+    lv_obj_set_width(settings_ip_label_, lv_pct(100));
+    lv_label_set_long_mode(settings_ip_label_, LV_LABEL_LONG_WRAP);
+    lv_obj_set_style_text_font(settings_ip_label_, &lv_font_montserrat_12, 0);
+    lv_obj_set_style_text_color(settings_ip_label_, UITheme::COLOR_TEXT_SECONDARY, 0);
+
+    settings_version_label_ = lv_label_create(meta_row);
+    lv_label_set_text(settings_version_label_, "Version: --");
+    lv_obj_set_width(settings_version_label_, lv_pct(100));
+    lv_label_set_long_mode(settings_version_label_, LV_LABEL_LONG_WRAP);
+    lv_obj_set_style_text_font(settings_version_label_, &lv_font_montserrat_12, 0);
+    lv_obj_set_style_text_color(settings_version_label_, UITheme::COLOR_TEXT_SECONDARY, 0);
+
     // Dedicated actions row keeps Update button visible
     lv_obj_t* action_row = lv_obj_create(info_modal_);
     lv_obj_remove_style_all(action_row);
@@ -1521,11 +1542,6 @@ lv_color_t UIBuilder::colorForOtaStatus(const std::string& status) const {
 }
 
 void UIBuilder::refreshNetworkStatusLabel() {
-    // Only update if modal is visible to prevent flickering
-    if (!info_modal_visible_) {
-        return;
-    }
-    
     const bool sta_ready = last_sta_connected_ && !last_sta_ip_.empty() && last_sta_ip_ != "0.0.0.0";
     const bool ap_ready = !last_ap_ip_.empty() && last_ap_ip_ != "0.0.0.0";
 
@@ -1550,6 +1566,16 @@ void UIBuilder::refreshNetworkStatusLabel() {
         if (cached_ip_text_ != ip_text) {
             cached_ip_text_ = ip_text;
             lv_label_set_text(info_ip_label_, cached_ip_text_.c_str());
+        }
+    }
+
+    if (settings_ip_label_) {
+        std::string ip_summary = cached_ip_text_.empty() ? "Not connected" : cached_ip_text_;
+        std::replace(ip_summary.begin(), ip_summary.end(), '\n', ' ');
+        std::string header_text = "IP: " + ip_summary;
+        if (cached_settings_ip_text_ != header_text) {
+            cached_settings_ip_text_ = header_text;
+            lv_label_set_text(settings_ip_label_, cached_settings_ip_text_.c_str());
         }
     }
 
@@ -1605,6 +1631,14 @@ void UIBuilder::refreshVersionLabel() {
     if (cached_version_text_ != version_text) {
         cached_version_text_ = version_text;
         lv_label_set_text(version_label_, cached_version_text_.c_str());
+    }
+
+    if (settings_version_label_) {
+        std::string header_text = "Version: " + version_text;
+        if (cached_settings_version_text_ != header_text) {
+            cached_settings_version_text_ = header_text;
+            lv_label_set_text(settings_version_label_, cached_settings_version_text_.c_str());
+        }
     }
 }
 

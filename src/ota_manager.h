@@ -39,9 +39,10 @@ private:
     bool auto_apply_ = true;
     std::string manifest_url_;
     std::string expected_channel_ = "stable";
-    std::uint32_t check_interval_ms_ = 3600000;  // 60 minutes
+    std::uint32_t base_check_interval_ms_ = 3600000;  // 60 minutes
     std::uint32_t last_check_ms_ = 0;
     bool wifi_ready_ = false;
+    bool internet_available_ = false;
     bool pending_manual_check_ = false;
     bool manual_install_requested_ = false;
     std::string last_status_ = "idle";

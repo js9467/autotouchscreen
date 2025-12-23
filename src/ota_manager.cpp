@@ -18,7 +18,17 @@
 namespace {
 constexpr const char* kUserAgent = "BroncoControls/OTA";
 constexpr std::uint32_t kMinIntervalMinutes = 5;
+constexpr std::uint32_t kOnlineMinIntervalMinutes = 2;
 constexpr std::uint32_t kMaxIntervalMinutes = 24 * 60;
+
+std::uint32_t clampIntervalMinutes(std::uint32_t minutes) {
+    return std::max(kMinIntervalMinutes, std::min(kMaxIntervalMinutes, minutes));
+}
+
+std::uint32_t onlineIntervalMs(std::uint32_t base_interval_ms) {
+    const std::uint32_t online_min_ms = kOnlineMinIntervalMinutes * 60UL * 1000UL;
+    return std::min(base_interval_ms, online_min_ms);
+}
 
 bool beginsWith(const std::string& value, const char* prefix) {
     return value.rfind(prefix, 0) == 0;
@@ -96,10 +106,11 @@ void OTAUpdateManager::begin() {
     auto_apply_ = ota_cfg.auto_apply;
     manifest_url_ = ota_cfg.manifest_url;
     expected_channel_ = ota_cfg.channel.empty() ? "stable" : ota_cfg.channel;
-    const std::uint32_t minutes = std::max(kMinIntervalMinutes, std::min(kMaxIntervalMinutes, ota_cfg.check_interval_minutes));
-    check_interval_ms_ = minutes * 60UL * 1000UL;
+    const std::uint32_t minutes = clampIntervalMinutes(ota_cfg.check_interval_minutes);
+    base_check_interval_ms_ = minutes * 60UL * 1000UL;
     last_check_ms_ = 0;
     wifi_ready_ = false;
+    internet_available_ = false;
     pending_manual_check_ = false;
     last_status_ = enabled_ ? "waiting-for-wifi" : "disabled";
 
@@ -117,6 +128,7 @@ void OTAUpdateManager::loop(const WifiStatusSnapshot& wifi_status) {
 
     if (!wifi_status.sta_connected) {
         wifi_ready_ = false;
+        internet_available_ = false;
         if (pending_manual_check_ || manual_install_requested_) {
             Serial.printf("[OTA] Manual check blocked: WiFi STA not connected\n");
             pending_manual_check_ = false;
@@ -134,7 +146,10 @@ void OTAUpdateManager::loop(const WifiStatusSnapshot& wifi_status) {
     }
 
     const std::uint32_t now = millis();
-    const bool due = (last_check_ms_ == 0) || (now - last_check_ms_ >= check_interval_ms_);
+    const std::uint32_t interval_ms = internet_available_
+        ? onlineIntervalMs(base_check_interval_ms_)
+        : base_check_interval_ms_;
+    const bool due = (last_check_ms_ == 0) || (now - last_check_ms_ >= interval_ms);
     
     if (pending_manual_check_) {
         Serial.printf("[OTA] Processing pending manual check\n");
@@ -201,6 +216,7 @@ bool OTAUpdateManager::fetchManifest(ManifestInfo& manifest) {
         bool can_resolve_google = WiFi.hostByName("www.google.com", test_ip);
         Serial.printf("[OTA] Can resolve google.com: %s\n", can_resolve_google ? "YES" : "NO");
         
+        internet_available_ = can_resolve_google;
         if (!can_resolve_google) {
             setStatus("manifest-dns-failed-no-internet");
             return false;
@@ -209,6 +225,7 @@ bool OTAUpdateManager::fetchManifest(ManifestInfo& manifest) {
             return false;
         }
     }
+    internet_available_ = true;
     Serial.printf("[OTA] DNS resolved to: %s\n", ip.toString().c_str());
 
     HTTPClient http;
