@@ -1,3 +1,3 @@
 #pragma once
-// Version 1.2.17 - Merge pull request #2 from js9467/codex/add-version-to-settings-modal-lp6q1m
-constexpr const char* APP_VERSION = "1.2.17";
+// Version 1.2.18 - Merge pull request #3 from js9467/codex/increase-update-check-frequency
+constexpr const char* APP_VERSION = "1.2.18";
