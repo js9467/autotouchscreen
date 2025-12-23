@@ -1174,26 +1174,28 @@ void UIBuilder::createInfoModal() {
     static lv_coord_t grid_rows[] = { LV_GRID_CONTENT, LV_GRID_FR(1), LV_GRID_TEMPLATE_LAST };
     lv_obj_set_grid_dsc_array(modal_body, grid_cols, grid_rows);
 
-    auto createCard = [&](lv_obj_t* parent, const char* heading_text) {
-        lv_obj_t* card = lv_obj_create(parent);
-        lv_obj_remove_style_all(card);
-        lv_obj_set_width(card, lv_pct(100));
-        lv_obj_clear_flag(card, LV_OBJ_FLAG_SCROLLABLE);
-        lv_obj_set_scroll_dir(card, LV_DIR_NONE);
-        lv_obj_set_scrollbar_mode(card, LV_SCROLLBAR_MODE_OFF);
-        lv_obj_set_style_bg_color(card, lv_color_hex(0x1c1c1c), 0);
-        lv_obj_set_style_bg_opa(card, LV_OPA_COVER, 0);
-        lv_obj_set_style_radius(card, 8, 0);
-        lv_obj_set_style_pad_all(card, 10, 0);
-        lv_obj_set_style_pad_gap(card, 6, 0);
-        lv_obj_set_flex_flow(card, LV_FLEX_FLOW_COLUMN);
-        lv_obj_set_flex_align(card, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
+    auto createSection = [&](lv_obj_t* parent, const char* heading_text) {
+        lv_obj_t* section = lv_obj_create(parent);
+        lv_obj_remove_style_all(section);
+        lv_obj_set_width(section, lv_pct(100));
+        lv_obj_clear_flag(section, LV_OBJ_FLAG_SCROLLABLE);
+        lv_obj_set_scroll_dir(section, LV_DIR_NONE);
+        lv_obj_set_scrollbar_mode(section, LV_SCROLLBAR_MODE_OFF);
+        lv_obj_set_style_pad_left(section, 4, 0);
+        lv_obj_set_style_pad_right(section, 4, 0);
+        lv_obj_set_style_pad_top(section, 2, 0);
+        lv_obj_set_style_pad_bottom(section, 2, 0);
+        lv_obj_set_style_pad_gap(section, 6, 0);
+        lv_obj_set_flex_flow(section, LV_FLEX_FLOW_COLUMN);
+        lv_obj_set_flex_align(section, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
 
-        lv_obj_t* heading = lv_label_create(card);
+        lv_obj_t* heading = lv_label_create(section);
         lv_label_set_text(heading, heading_text);
         lv_obj_set_style_text_font(heading, &lv_font_montserrat_14, 0);
-        lv_obj_set_style_text_color(heading, lv_color_hex(0xFFFFFF), 0);
-        return card;
+        lv_obj_set_style_text_color(heading, UITheme::COLOR_TEXT_PRIMARY, 0);
+        lv_obj_set_style_text_letter_space(heading, 1, 0);
+        lv_obj_set_style_text_opa(heading, LV_OPA_80, 0);
+        return section;
     };
 
     auto createKeyValue = [&](lv_obj_t* parent, const char* key, const char* default_value, lv_obj_t** value_slot) {
@@ -1221,8 +1223,8 @@ void UIBuilder::createInfoModal() {
         }
     };
 
-    // System card (top-left)
-    lv_obj_t* system_card = createCard(modal_body, "System");
+    // System section (top-left)
+    lv_obj_t* system_card = createSection(modal_body, "System");
     lv_obj_set_grid_cell(system_card, LV_GRID_ALIGN_STRETCH, 0, 1, LV_GRID_ALIGN_STRETCH, 0, 1);
     createKeyValue(system_card, "Connectivity", "Checking...", &network_status_label_);
     createKeyValue(system_card, "IP Address", "Not connected", &info_ip_label_);
@@ -1261,8 +1263,8 @@ void UIBuilder::createInfoModal() {
     lv_obj_set_style_text_color(diagnostics_label_, UITheme::COLOR_TEXT_SECONDARY, 0);
     diag_priority_ = DiagnosticsPriority::NORMAL;
 
-    // Brightness card (top-right)
-    lv_obj_t* brightness_card = createCard(modal_body, "Display");
+    // Brightness section (top-right)
+    lv_obj_t* brightness_card = createSection(modal_body, "Display");
     lv_obj_set_grid_cell(brightness_card, LV_GRID_ALIGN_STRETCH, 1, 1, LV_GRID_ALIGN_STRETCH, 0, 1);
 
     lv_obj_t* brightness_row = lv_obj_create(brightness_card);
@@ -1313,8 +1315,8 @@ void UIBuilder::createInfoModal() {
     lv_obj_set_style_text_font(brightness_hint, &lv_font_montserrat_12, 0);
     lv_obj_set_style_text_color(brightness_hint, UITheme::COLOR_TEXT_SECONDARY, 0);
 
-    // Updates card (bottom, spans full width)
-    lv_obj_t* updates_card = createCard(modal_body, "Updates");
+    // Updates section (bottom, spans full width)
+    lv_obj_t* updates_card = createSection(modal_body, "Updates");
     lv_obj_set_grid_cell(updates_card, LV_GRID_ALIGN_STRETCH, 0, 2, LV_GRID_ALIGN_STRETCH, 1, 1);
     ota_status_label_ = lv_label_create(updates_card);
     lv_label_set_long_mode(ota_status_label_, LV_LABEL_LONG_WRAP);
