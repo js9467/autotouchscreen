@@ -101,6 +101,7 @@ private:
     lv_obj_t* version_label_ = nullptr;
     lv_obj_t* settings_ip_label_ = nullptr;
     lv_obj_t* settings_network_label_ = nullptr;
+    lv_obj_t* settings_brightness_slider_ = nullptr;
     lv_obj_t* settings_brightness_label_ = nullptr;
     lv_obj_t* settings_version_label_ = nullptr;
     lv_obj_t* ota_status_label_ = nullptr;
