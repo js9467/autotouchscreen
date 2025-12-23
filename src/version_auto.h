@@ -1,3 +1,3 @@
 #pragma once
-// Version 1.2.23 - Merge pull request #14 from js9467/codex/fix-firmware-version-display-on-settings-page
-constexpr const char* APP_VERSION = "1.2.23";
+// Version 1.2.24 - Merge pull request #15 from js9467/codex/show-firmware-version-and-wi-fi-network
+constexpr const char* APP_VERSION = "1.2.24";
