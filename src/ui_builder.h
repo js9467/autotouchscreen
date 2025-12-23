@@ -40,6 +40,7 @@ private:
     void resetSleepTimer();
     void showSleepOverlay();
     void hideSleepOverlay();
+    void applySoftBrightness(uint8_t percent);
     const lv_img_dsc_t* iconForId(const std::string& id) const;
     const lv_font_t* fontFromName(const std::string& name) const;
     const lv_font_t* navLabelFontForText(const std::string& text) const;
@@ -101,6 +102,7 @@ private:
     lv_obj_t* network_status_bar_ = nullptr;
     lv_obj_t* ota_status_bar_ = nullptr;
     lv_obj_t* diagnostics_label_ = nullptr;
+    lv_obj_t* dim_overlay_ = nullptr;
     lv_obj_t* sleep_overlay_ = nullptr;
     lv_obj_t* sleep_image_ = nullptr;
     lv_timer_t* sleep_timer_ = nullptr;

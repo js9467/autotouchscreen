@@ -11,8 +11,6 @@ on:
       - 'platformio.ini'
       - 'boards/**'
       - 'tools/**'
-    paths-ignore:
-      - '**.md'
   workflow_dispatch:
 
 concurrency:
