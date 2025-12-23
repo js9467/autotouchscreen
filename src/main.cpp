@@ -203,6 +203,32 @@ void loop() {
     static bool ap_shutdown_complete = false;
     static std::string last_ota_status_pushed;
     
+    // Serial command handler for brightness testing
+    if (Serial.available()) {
+        String cmd = Serial.readStringUntil('\n');
+        cmd.trim();
+        
+        if (cmd.startsWith("b ") || cmd.startsWith("brightness ")) {
+            int value = cmd.substring(cmd.indexOf(' ') + 1).toInt();
+            if (value >= 0 && value <= 100) {
+                lvgl_port_lock(-1);
+                UIBuilder::instance().setBrightness(static_cast<uint8_t>(value));
+                lvgl_port_unlock();
+                Serial.printf("[CMD] Brightness set to %d%%\n", value);
+            } else {
+                Serial.println("[CMD] Usage: b <0-100> or brightness <0-100>");
+            }
+        } else if (cmd == "help" || cmd == "?") {
+            Serial.println("\n=== Serial Commands ===");
+            Serial.println("b <0-100>        - Set brightness (e.g., 'b 50')");
+            Serial.println("brightness <0-100> - Set brightness");
+            Serial.println("help or ?        - Show this help");
+            Serial.println("======================\n");
+        } else if (cmd.length() > 0) {
+            Serial.printf("[CMD] Unknown command: '%s' (type 'help' for commands)\n", cmd.c_str());
+        }
+    }
+    
     // Record AP start time on first loop
     if (ap_start_ms == 0) {
         ap_start_ms = millis();

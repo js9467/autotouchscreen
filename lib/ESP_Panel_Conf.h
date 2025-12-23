@@ -128,9 +128,9 @@
 #define ESP_PANEL_LCD_TOUCH_INT_LEVEL       (0)
 
 /*-------------------------------- Backlight Related --------------------------------*/
-#define ESP_PANEL_USE_BL                    (1)  // Enable PWM backlight control
-#define ESP_PANEL_LCD_BL_IO                 (6)  // GPIO6 for PWM backlight
-#define ESP_PANEL_LCD_BL_ON                 (1)  // 1: high level turns on backlight
+#define ESP_PANEL_USE_BL                    (1)     // Enable backlight control
+#define ESP_PANEL_LCD_IO_BL                 (6)     // GPIO6 for PWM backlight
+#define ESP_PANEL_LCD_BL_ON                 (1)     // 1: high level turns on backlight
 
 #if ESP_PANEL_USE_BL
     // Use PWM (LEDC) for brightness control
