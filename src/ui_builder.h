@@ -20,7 +20,10 @@ public:
 
     void markDirty();
     bool consumeDirtyFlag();
-    void updateNetworkStatus(const std::string& ap_ip, const std::string& sta_ip, bool sta_connected);
+    void updateNetworkStatus(const std::string& ap_ip,
+                             const std::string& sta_ip,
+                             bool sta_connected,
+                             const std::string& sta_ssid);
     void setBrightness(uint8_t percent);
 
 private:
@@ -101,6 +104,7 @@ private:
     lv_obj_t* version_label_ = nullptr;
     lv_obj_t* settings_ip_label_ = nullptr;
     lv_obj_t* settings_network_label_ = nullptr;
+    lv_obj_t* settings_wifi_label_ = nullptr;
     lv_obj_t* settings_brightness_slider_ = nullptr;
     lv_obj_t* settings_brightness_label_ = nullptr;
     lv_obj_t* settings_version_label_ = nullptr;
@@ -131,6 +135,7 @@ private:
     lv_coord_t nav_base_pad_top_ = UITheme::SPACE_XS;
     std::string last_ap_ip_ = "";
     std::string last_sta_ip_ = "";
+    std::string last_sta_ssid_ = "";
     bool last_sta_connected_ = false;
 
     // Cached UI text to avoid redundant label updates (reduces flicker)
@@ -139,6 +144,7 @@ private:
     std::string cached_version_text_;
     std::string cached_settings_ip_text_;
     std::string cached_settings_network_text_;
+    std::string cached_settings_wifi_text_;
     std::string cached_settings_brightness_text_;
     std::string cached_settings_version_text_;
     std::string cached_ota_friendly_text_;

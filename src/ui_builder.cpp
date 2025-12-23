@@ -90,10 +90,14 @@ bool UIBuilder::consumeDirtyFlag() {
     return was_dirty;
 }
 
-void UIBuilder::updateNetworkStatus(const std::string& ap_ip, const std::string& sta_ip, bool sta_connected) {
+void UIBuilder::updateNetworkStatus(const std::string& ap_ip,
+                                    const std::string& sta_ip,
+                                    bool sta_connected,
+                                    const std::string& sta_ssid) {
     last_ap_ip_ = ap_ip;
     last_sta_ip_ = sta_ip;
     last_sta_connected_ = sta_connected;
+    last_sta_ssid_ = sta_ssid;
     refreshNetworkStatusLabel();
 }
 
@@ -1211,6 +1215,7 @@ void UIBuilder::createInfoModal() {
     lv_obj_set_grid_cell(system_card, LV_GRID_ALIGN_STRETCH, 0, 1, LV_GRID_ALIGN_STRETCH, 0, 1);
     createKeyValue(system_card, "Connectivity", "Checking...", &network_status_label_);
     createKeyValue(system_card, "IP Address", "Not connected", &info_ip_label_);
+    createKeyValue(system_card, "Wi-Fi Network", "Not connected", &settings_wifi_label_);
     const char* version_default = (APP_VERSION && APP_VERSION[0]) ? APP_VERSION : "--";
     createKeyValue(system_card, "Version", version_default, &version_label_);
     refreshVersionLabel();
@@ -1573,6 +1578,17 @@ void UIBuilder::refreshNetworkStatusLabel() {
             lv_label_set_text(settings_network_label_, cached_settings_network_text_.c_str());
         }
         lv_obj_set_style_text_color(settings_network_label_, connectionStatusColor(), 0);
+    }
+
+    if (settings_wifi_label_) {
+        std::string wifi_text = "Not connected";
+        if (last_sta_connected_) {
+            wifi_text = last_sta_ssid_.empty() ? "Hidden network" : last_sta_ssid_;
+        }
+        if (cached_settings_wifi_text_ != wifi_text) {
+            cached_settings_wifi_text_ = wifi_text;
+            lv_label_set_text(settings_wifi_label_, cached_settings_wifi_text_.c_str());
+        }
     }
 
     if (network_status_label_) {

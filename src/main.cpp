@@ -295,7 +295,7 @@ void loop() {
         std::string ap_ip = snapshot.ap_ip.toString().c_str();
         std::string sta_ip = snapshot.sta_ip.toString().c_str();
         lvgl_port_lock(-1);
-        UIBuilder::instance().updateNetworkStatus(ap_ip, sta_ip, snapshot.sta_connected);
+        UIBuilder::instance().updateNetworkStatus(ap_ip, sta_ip, snapshot.sta_connected, snapshot.sta_ssid);
         lvgl_port_unlock();
         last_network_push_ms = now;
     }
