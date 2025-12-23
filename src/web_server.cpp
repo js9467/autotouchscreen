@@ -58,6 +58,7 @@ void WebServerManager::begin() {
             if (event == ARDUINO_EVENT_WIFI_STA_GOT_IP) {
                 sta_connected_ = true;
                 sta_ip_ = WiFi.localIP();
+                sta_ssid_ = WiFi.SSID().c_str();
                 // Set DNS servers AFTER getting IP to prevent DHCP from overwriting
                 // Only do this once to avoid triggering more events
                 if (!dns_configured) {
@@ -70,6 +71,7 @@ void WebServerManager::begin() {
             } else if (event == ARDUINO_EVENT_WIFI_STA_DISCONNECTED) {
                 sta_connected_ = false;
                 sta_ip_ = IPAddress(0, 0, 0, 0);
+                sta_ssid_.clear();
                 Serial.println("[WebServer] Station disconnected");
             }
         });
@@ -158,11 +160,13 @@ void WebServerManager::configureWifi() {
     if (wifi.sta.enabled && !wifi.sta.ssid.empty()) {
         Serial.printf("[WebServer] Connecting to %s...\n", wifi.sta.ssid.c_str());
         sta_connected_ = false;
+        sta_ssid_.clear();
         WiFi.begin(wifi.sta.ssid.c_str(), wifi.sta.password.c_str());
     } else {
         WiFi.disconnect(true);
         sta_connected_ = false;
         sta_ip_ = IPAddress(0, 0, 0, 0);
+        sta_ssid_.clear();
     }
 }
 
@@ -386,6 +390,7 @@ WifiStatusSnapshot WebServerManager::getStatusSnapshot() const {
     snapshot.ap_ip = ap_ip_;
     snapshot.sta_ip = sta_ip_;
     snapshot.sta_connected = sta_connected_;
+    snapshot.sta_ssid = sta_ssid_;
     return snapshot;
 }
 
