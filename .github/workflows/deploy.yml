@@ -1,0 +1,122 @@
+name: Build and Deploy Firmware
+
+on:
+  push:
+    branches: [ main ]
+    paths-ignore:
+      - 'ota_functions/releases/**'
+      - '.github/**'
+      - '**.md'
+
+env:
+  FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        token: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+    
+    - name: Install PlatformIO
+      run: |
+        pip install platformio
+        pio --version
+    
+    - name: Read current version
+      id: get_version
+      run: |
+        VERSION=$(grep 'APP_VERSION = ' src/version_auto.h | sed 's/.*"\(.*\)".*/\1/')
+        echo "current_version=$VERSION" >> $GITHUB_OUTPUT
+        echo "Current version: $VERSION"
+    
+    - name: Bump version
+      id: bump_version
+      run: |
+        VERSION="${{ steps.get_version.outputs.current_version }}"
+        IFS='.' read -r major minor patch <<< "$VERSION"
+        patch=$((patch + 1))
+        NEW_VERSION="$major.$minor.$patch"
+        echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+        echo "New version: $NEW_VERSION"
+        
+        # Update version_auto.h
+        COMMIT_MSG=$(git log -1 --pretty=%B)
+        cat > src/version_auto.h << EOF
+        #pragma once
+        // Version $NEW_VERSION - $COMMIT_MSG
+        constexpr const char* APP_VERSION = "$NEW_VERSION";
+        EOF
+    
+    - name: Build firmware
+      run: |
+        pio run
+        ls -lh .pio/build/esp32s3box/firmware.bin
+    
+    - name: Create release directory
+      id: create_release
+      run: |
+        VERSION="${{ steps.bump_version.outputs.new_version }}"
+        RELEASE_DIR="ota_functions/releases/$VERSION"
+        mkdir -p "$RELEASE_DIR"
+        
+        # Copy firmware
+        cp .pio/build/esp32s3box/firmware.bin "$RELEASE_DIR/"
+        
+        # Calculate MD5 and size
+        MD5=$(md5sum "$RELEASE_DIR/firmware.bin" | awk '{print $1}')
+        SIZE=$(stat -c%s "$RELEASE_DIR/firmware.bin")
+        
+        echo "md5=$MD5" >> $GITHUB_OUTPUT
+        echo "size=$SIZE" >> $GITHUB_OUTPUT
+        
+        # Create manifest
+        cat > "$RELEASE_DIR/manifest.json" << EOF
+        {
+          "version": "$VERSION",
+          "channel": "stable",
+          "released_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+          "firmware": {
+            "url": "firmware.bin",
+            "size": $SIZE,
+            "md5": "$MD5"
+          }
+        }
+        EOF
+        
+        echo "Created release $VERSION (MD5: $MD5, Size: $SIZE bytes)"
+    
+    - name: Commit release files
+      run: |
+        VERSION="${{ steps.bump_version.outputs.new_version }}"
+        git config user.name "GitHub Actions"
+        git config user.email "actions@github.com"
+        git add src/version_auto.h
+        git add "ota_functions/releases/$VERSION/"
+        git commit -m "Release v$VERSION [skip ci]" || echo "No changes to commit"
+        git push
+    
+    - name: Install Flyctl
+      uses: superfly/flyctl-actions/setup-flyctl@master
+    
+    - name: Deploy to Fly.io
+      working-directory: ./ota_functions
+      run: |
+        flyctl deploy --remote-only --no-cache
+    
+    - name: Verify deployment
+      run: |
+        sleep 10
+        VERSION="${{ steps.bump_version.outputs.new_version }}"
+        MANIFEST=$(curl -s https://image-optimizer-still-flower-1282.fly.dev/ota/manifest)
+        echo "OTA Manifest: $MANIFEST"
+        echo "$MANIFEST" | grep -q "$VERSION" && echo "✅ Version $VERSION deployed successfully!" || echo "⚠️ Version mismatch in manifest"
