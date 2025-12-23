@@ -158,6 +158,29 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); bo
 	line-height: 1.2;
 	max-width: 100%;
 }
+.status-grid {
+	display: grid;
+	gap: 10px;
+	margin-top: 12px;
+	grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+}
+.status-chip {
+	padding: 10px 12px;
+	border-radius: 12px;
+	border: 1px solid var(--border);
+	background: var(--surface);
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	gap: 8px;
+	font-size: 0.9rem;
+}
+.status-chip span {
+	color: var(--muted);
+	font-size: 0.75rem;
+	text-transform: uppercase;
+	letter-spacing: 0.08em;
+}
 .preview-body { padding: 14px; min-height: 220px; }
 .preview-grid { display: grid; gap: 10px; }
 .preview-btn { padding: 14px 12px; border-radius: 12px; font-weight: 700; text-align: center; border: 1px solid transparent; cursor: pointer; word-break: break-word; overflow-wrap: anywhere; }
@@ -237,6 +260,15 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); bo
 						<label><input id="sta-enabled" type="checkbox" /> Connect on boot</label>
 					</div>
 				</div>
+			</div>
+		</div>
+		<div class="card">
+			<h3>Device Info</h3>
+			<div class="muted">Version and current network addresses.</div>
+			<div class="status-grid" id="status" data-version="{{VERSION}}">
+				<div class="status-chip"><span>Firmware</span>v{{VERSION}}</div>
+				<div class="status-chip"><span>AP IP</span>—</div>
+				<div class="status-chip"><span>Station IP</span>—</div>
 			</div>
 		</div>
 	</section>
@@ -1680,6 +1712,27 @@ function renderWifiList(){
 	});
 }
 
+async function refreshStatus(){
+	const statusContainer = document.getElementById('status');
+	if(!statusContainer) return;
+	const firmwareVersion = statusContainer.dataset.version || '—';
+	try{
+		const res = await fetch('/api/status');
+		const status = await res.json();
+		statusContainer.innerHTML = `
+			<div class="status-chip"><span>Firmware</span>v${firmwareVersion}</div>
+			<div class="status-chip"><span>AP IP</span>${status.ap_ip || 'N/A'}</div>
+			<div class="status-chip"><span>Station IP</span>${status.sta_ip || '—'}</div>
+		`;
+	}catch(err){
+		statusContainer.innerHTML = `
+			<div class="status-chip"><span>Firmware</span>v${firmwareVersion}</div>
+			<div class="status-chip"><span>AP IP</span>Unavailable</div>
+			<div class="status-chip"><span>Station IP</span>Unavailable</div>
+		`;
+	}
+}
+
 // Legacy logo upload function removed - use Image Assets section instead
 
 function handleSleepIconUpload(evt){
@@ -2282,6 +2335,7 @@ async function loadConfig(){
 		renderGrid();
 		renderPreview();
 		renderCanLibrary();
+		refreshStatus();
 		showBanner('Config loaded','success');
 	}catch(err){ showBanner('Load failed: '+err.message,'error'); }
 }
@@ -2335,6 +2389,7 @@ async function saveConfig(){
 
 document.addEventListener('DOMContentLoaded',()=>{
 	loadConfig();
+	refreshStatus();
 	
 	// Image upload handlers for new Image Assets section
 	const headerUpload = document.getElementById('header-logo-upload');
