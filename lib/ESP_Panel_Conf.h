@@ -130,7 +130,10 @@
 /*-------------------------------- Backlight Related --------------------------------*/
 #define ESP_PANEL_USE_BL                    (1)     // Enable backlight control
 #define ESP_PANEL_LCD_IO_BL                 (6)     // GPIO6 for PWM backlight
-#define ESP_PANEL_LCD_BL_ON                 (1)     // 1: high level turns on backlight
+// Backlight polarity: 1 means HIGH turns backlight on
+// (Different versions of ESP_Panel use different macro names; define both.)
+#define ESP_PANEL_LCD_BL_LEVEL              (1)
+#define ESP_PANEL_LCD_BL_ON_LEVEL           (ESP_PANEL_LCD_BL_LEVEL)
 
 #if ESP_PANEL_USE_BL
     // Use PWM (LEDC) for brightness control
