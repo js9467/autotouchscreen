@@ -1109,19 +1109,19 @@ void UIBuilder::createInfoModal() {
 
     // Modal content box - fixed, no-scroll layout sized to the screen
     info_modal_ = lv_obj_create(info_modal_bg_);
-    lv_obj_set_width(info_modal_, screen_w - 40);
-    lv_obj_set_height(info_modal_, screen_h - 40);
+    lv_obj_set_width(info_modal_, screen_w - 24);
+    lv_obj_set_height(info_modal_, screen_h - 24);
     lv_obj_center(info_modal_);
     lv_obj_set_style_bg_color(info_modal_, lv_color_hex(0x2A2A2A), 0);
     lv_obj_set_style_bg_opa(info_modal_, LV_OPA_COVER, 0);
     lv_obj_set_style_border_width(info_modal_, 3, 0);
     lv_obj_set_style_border_color(info_modal_, lv_color_hex(0xFFA500), 0);
     lv_obj_set_style_border_opa(info_modal_, LV_OPA_COVER, 0);
-    lv_obj_set_style_radius(info_modal_, 16, 0);
-    lv_obj_set_style_pad_all(info_modal_, 12, 0);
+    lv_obj_set_style_radius(info_modal_, 18, 0);
+    lv_obj_set_style_pad_all(info_modal_, 16, 0);
     lv_obj_set_flex_flow(info_modal_, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_flex_align(info_modal_, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
-    lv_obj_set_style_pad_gap(info_modal_, 8, 0);
+    lv_obj_set_style_pad_gap(info_modal_, 12, 0);
     lv_obj_add_flag(info_modal_, LV_OBJ_FLAG_CLICKABLE);  // Block clicks from reaching background
     lv_obj_clear_flag(info_modal_, LV_OBJ_FLAG_SCROLLABLE);  // No scrolling on main container
     lv_obj_clear_flag(info_modal_, LV_OBJ_FLAG_EVENT_BUBBLE);
@@ -1129,7 +1129,7 @@ void UIBuilder::createInfoModal() {
     // Title - smaller for compact design
     lv_obj_t* title = lv_label_create(info_modal_);
     lv_label_set_text(title, "Settings");
-    lv_obj_set_style_text_font(title, &lv_font_montserrat_18, 0);
+    lv_obj_set_style_text_font(title, &lv_font_montserrat_22, 0);
     lv_obj_set_style_text_color(title, lv_color_hex(0xFFFFFF), 0);
     lv_obj_set_style_text_opa(title, LV_OPA_COVER, 0);
 
@@ -1138,20 +1138,20 @@ void UIBuilder::createInfoModal() {
     lv_obj_remove_style_all(meta_row);
     lv_obj_set_width(meta_row, lv_pct(100));
     lv_obj_set_flex_flow(meta_row, LV_FLEX_FLOW_COLUMN);
-    lv_obj_set_style_pad_gap(meta_row, 2, 0);
+    lv_obj_set_style_pad_gap(meta_row, 4, 0);
 
     settings_ip_label_ = lv_label_create(meta_row);
     lv_label_set_text(settings_ip_label_, "IP: --");
     lv_obj_set_width(settings_ip_label_, lv_pct(100));
     lv_label_set_long_mode(settings_ip_label_, LV_LABEL_LONG_WRAP);
-    lv_obj_set_style_text_font(settings_ip_label_, &lv_font_montserrat_14, 0);
+    lv_obj_set_style_text_font(settings_ip_label_, &lv_font_montserrat_16, 0);
     lv_obj_set_style_text_color(settings_ip_label_, UITheme::COLOR_TEXT_SECONDARY, 0);
 
     settings_network_label_ = lv_label_create(meta_row);
     lv_label_set_text(settings_network_label_, "Network: --");
     lv_obj_set_width(settings_network_label_, lv_pct(100));
     lv_label_set_long_mode(settings_network_label_, LV_LABEL_LONG_WRAP);
-    lv_obj_set_style_text_font(settings_network_label_, &lv_font_montserrat_14, 0);
+    lv_obj_set_style_text_font(settings_network_label_, &lv_font_montserrat_16, 0);
     lv_obj_set_style_text_color(settings_network_label_, UITheme::COLOR_TEXT_SECONDARY, 0);
 
     settings_brightness_label_ = lv_label_create(meta_row);
@@ -1164,14 +1164,14 @@ void UIBuilder::createInfoModal() {
     }
     lv_obj_set_width(settings_brightness_label_, lv_pct(100));
     lv_label_set_long_mode(settings_brightness_label_, LV_LABEL_LONG_WRAP);
-    lv_obj_set_style_text_font(settings_brightness_label_, &lv_font_montserrat_14, 0);
+    lv_obj_set_style_text_font(settings_brightness_label_, &lv_font_montserrat_16, 0);
     lv_obj_set_style_text_color(settings_brightness_label_, UITheme::COLOR_TEXT_SECONDARY, 0);
 
     settings_version_label_ = lv_label_create(meta_row);
     lv_label_set_text(settings_version_label_, "Version: --");
     lv_obj_set_width(settings_version_label_, lv_pct(100));
     lv_label_set_long_mode(settings_version_label_, LV_LABEL_LONG_WRAP);
-    lv_obj_set_style_text_font(settings_version_label_, &lv_font_montserrat_14, 0);
+    lv_obj_set_style_text_font(settings_version_label_, &lv_font_montserrat_16, 0);
     lv_obj_set_style_text_color(settings_version_label_, UITheme::COLOR_TEXT_SECONDARY, 0);
 
     // Dedicated actions row keeps Update button visible
@@ -1181,6 +1181,7 @@ void UIBuilder::createInfoModal() {
     lv_obj_set_flex_flow(action_row, LV_FLEX_FLOW_ROW);
     lv_obj_set_flex_align(action_row, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
     lv_obj_set_style_pad_all(action_row, 0, 0);
+    lv_obj_set_style_pad_bottom(action_row, 4, 0);
 
     ota_primary_button_ = lv_btn_create(action_row);
     lv_obj_set_height(ota_primary_button_, 36);
@@ -1195,7 +1196,7 @@ void UIBuilder::createInfoModal() {
 
     ota_primary_button_label_ = lv_label_create(ota_primary_button_);
     lv_label_set_text(ota_primary_button_label_, "Update Now");
-    lv_obj_set_style_text_font(ota_primary_button_label_, &lv_font_montserrat_14, 0);
+    lv_obj_set_style_text_font(ota_primary_button_label_, &lv_font_montserrat_16, 0);
     lv_obj_set_style_text_color(ota_primary_button_label_, lv_color_hex(0x000000), 0);
     lv_obj_center(ota_primary_button_label_);
 
@@ -1205,14 +1206,14 @@ void UIBuilder::createInfoModal() {
     lv_obj_set_width(modal_body, lv_pct(100));
     lv_obj_set_flex_grow(modal_body, 1);  // Take available space
     lv_obj_set_style_pad_all(modal_body, 0, 0);
-    lv_obj_set_style_pad_gap(modal_body, 10, 0);
+    lv_obj_set_style_pad_gap(modal_body, 14, 0);
     lv_obj_clear_flag(modal_body, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_set_scroll_dir(modal_body, LV_DIR_NONE);
     lv_obj_set_scrollbar_mode(modal_body, LV_SCROLLBAR_MODE_OFF);
 
     lv_obj_set_layout(modal_body, LV_LAYOUT_GRID);
     static lv_coord_t grid_cols[] = { LV_GRID_FR(1), LV_GRID_FR(1), LV_GRID_TEMPLATE_LAST };
-    static lv_coord_t grid_rows[] = { LV_GRID_CONTENT, LV_GRID_FR(1), LV_GRID_TEMPLATE_LAST };
+    static lv_coord_t grid_rows[] = { LV_GRID_CONTENT, LV_GRID_CONTENT, LV_GRID_TEMPLATE_LAST };
     lv_obj_set_grid_dsc_array(modal_body, grid_cols, grid_rows);
 
     auto createSection = [&](lv_obj_t* parent, const char* heading_text) {
@@ -1222,17 +1223,20 @@ void UIBuilder::createInfoModal() {
         lv_obj_clear_flag(section, LV_OBJ_FLAG_SCROLLABLE);
         lv_obj_set_scroll_dir(section, LV_DIR_NONE);
         lv_obj_set_scrollbar_mode(section, LV_SCROLLBAR_MODE_OFF);
-        lv_obj_set_style_pad_left(section, 4, 0);
-        lv_obj_set_style_pad_right(section, 4, 0);
-        lv_obj_set_style_pad_top(section, 2, 0);
-        lv_obj_set_style_pad_bottom(section, 2, 0);
-        lv_obj_set_style_pad_gap(section, 6, 0);
+        lv_obj_set_style_bg_color(section, lv_color_hex(0x1F1F1F), 0);
+        lv_obj_set_style_bg_opa(section, LV_OPA_COVER, 0);
+        lv_obj_set_style_radius(section, 12, 0);
+        lv_obj_set_style_pad_left(section, 12, 0);
+        lv_obj_set_style_pad_right(section, 12, 0);
+        lv_obj_set_style_pad_top(section, 10, 0);
+        lv_obj_set_style_pad_bottom(section, 10, 0);
+        lv_obj_set_style_pad_gap(section, 8, 0);
         lv_obj_set_flex_flow(section, LV_FLEX_FLOW_COLUMN);
         lv_obj_set_flex_align(section, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
 
         lv_obj_t* heading = lv_label_create(section);
         lv_label_set_text(heading, heading_text);
-        lv_obj_set_style_text_font(heading, &lv_font_montserrat_14, 0);
+        lv_obj_set_style_text_font(heading, &lv_font_montserrat_16, 0);
         lv_obj_set_style_text_color(heading, UITheme::COLOR_TEXT_PRIMARY, 0);
         lv_obj_set_style_text_letter_space(heading, 1, 0);
         lv_obj_set_style_text_opa(heading, LV_OPA_80, 0);
@@ -1256,7 +1260,7 @@ void UIBuilder::createInfoModal() {
         lv_label_set_text(v, default_value);
         lv_obj_set_width(v, lv_pct(100));
         lv_label_set_long_mode(v, LV_LABEL_LONG_WRAP);
-        lv_obj_set_style_text_font(v, &lv_font_montserrat_14, 0);
+        lv_obj_set_style_text_font(v, &lv_font_montserrat_16, 0);
         lv_obj_set_style_text_color(v, UITheme::COLOR_TEXT_PRIMARY, 0);
 
         if (value_slot) {
@@ -1312,7 +1316,7 @@ void UIBuilder::createInfoModal() {
     lv_obj_remove_style_all(brightness_row);
     lv_obj_set_flex_flow(brightness_row, LV_FLEX_FLOW_ROW);
     lv_obj_set_flex_align(brightness_row, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
-    lv_obj_set_style_pad_gap(brightness_row, 10, 0);
+    lv_obj_set_style_pad_gap(brightness_row, 12, 0);
     lv_obj_set_style_pad_all(brightness_row, 0, 0);
     lv_obj_set_width(brightness_row, lv_pct(100));
 
@@ -1322,7 +1326,7 @@ void UIBuilder::createInfoModal() {
     lv_slider_set_value(brightness_slider_, initial_brightness, LV_ANIM_OFF);
     lv_obj_set_width(brightness_slider_, LV_SIZE_CONTENT);
     lv_obj_set_flex_grow(brightness_slider_, 1);
-    lv_obj_set_height(brightness_slider_, 16);
+    lv_obj_set_height(brightness_slider_, 20);
     lv_obj_clear_flag(brightness_slider_, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_add_flag(brightness_slider_, LV_OBJ_FLAG_CLICKABLE);
     lv_obj_set_style_bg_color(brightness_slider_, lv_color_hex(0x404040), LV_PART_MAIN);
@@ -1334,7 +1338,7 @@ void UIBuilder::createInfoModal() {
     lv_obj_set_style_bg_color(brightness_slider_, lv_color_hex(0xFFFFFF), LV_PART_KNOB);
     lv_obj_set_style_bg_opa(brightness_slider_, LV_OPA_COVER, LV_PART_KNOB);
     lv_obj_set_style_radius(brightness_slider_, LV_RADIUS_CIRCLE, LV_PART_KNOB);
-    lv_obj_set_style_pad_all(brightness_slider_, -4, LV_PART_KNOB);
+    lv_obj_set_style_pad_all(brightness_slider_, -5, LV_PART_KNOB);
     lv_obj_add_event_cb(brightness_slider_, brightnessSliderEvent, LV_EVENT_VALUE_CHANGED, nullptr);
     lv_obj_add_event_cb(brightness_slider_, brightnessSliderEvent, LV_EVENT_RELEASED, nullptr);
 
@@ -1345,9 +1349,9 @@ void UIBuilder::createInfoModal() {
         cached_brightness_text_ = pct_buf;
         lv_label_set_text(brightness_value_label_, cached_brightness_text_.c_str());
     }
-    lv_obj_set_style_text_font(brightness_value_label_, &lv_font_montserrat_14, 0);
+    lv_obj_set_style_text_font(brightness_value_label_, &lv_font_montserrat_16, 0);
     lv_obj_set_style_text_color(brightness_value_label_, UITheme::COLOR_ACCENT, 0);
-    lv_obj_set_width(brightness_value_label_, 45);
+    lv_obj_set_width(brightness_value_label_, 52);
 
     lv_obj_t* brightness_hint = lv_label_create(brightness_card);
     lv_label_set_text(brightness_hint, "Min brightness is limited so you can always see this screen.");
@@ -1400,7 +1404,7 @@ void UIBuilder::createInfoModal() {
 
     lv_obj_t* close_label = lv_label_create(close_btn);
     lv_label_set_text(close_label, "Close");
-    lv_obj_set_style_text_font(close_label, &lv_font_montserrat_14, 0);
+    lv_obj_set_style_text_font(close_label, &lv_font_montserrat_16, 0);
     lv_obj_center(close_label);
 
     // Sleep overlay (hidden until timeout)
