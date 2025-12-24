@@ -89,7 +89,8 @@ app.get("/ota/releases/:version/*", (req, res) => {
   }
 
   res.setHeader("Content-Length", stat.size);
-  res.setHeader("Cache-Control", "public, max-age=300, immutable");
+  res.setHeader("Cache-Control", "no-store");
+  res.setHeader("Pragma", "no-cache");
   res.setHeader("Content-Type", guessMimeType(filePath));
 
   const stream = fs.createReadStream(filePath);
