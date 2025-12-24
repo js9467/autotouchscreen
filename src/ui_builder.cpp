@@ -1471,7 +1471,9 @@ std::string UIBuilder::humanizeOtaStatus(const std::string& status) const {
     if (status == "manifest-url-empty" || status == "missing-manifest-url") return "Manifest URL missing";
     if (status == "manifest-channel-mismatch") return "No update available on this channel";
     if (status == "manifest-dns-failed-no-internet") return "No internet connection";
-    if (status == "manifest-dns-failed-fly-dev") return "Cannot reach update server";
+    if (status == "manifest-dns-failed-fly-dev" || status == "manifest-dns-failed-host") {
+        return "Cannot reach update server";
+    }
     if (startsWith(status, "update-available-")) return std::string("Update available: ") + status.substr(18);
     if (startsWith(status, "updated-to-")) return std::string("Updated to ") + status.substr(11);
     if (startsWith(status, "downloading-")) {
