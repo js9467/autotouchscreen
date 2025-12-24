@@ -203,11 +203,35 @@ void WebServerManager::setupRoutes() {
     });
 
     server_.on("/api/status", HTTP_GET, [this](AsyncWebServerRequest* request) {
-        DynamicJsonDocument doc(256);
+        DynamicJsonDocument doc(384);
         doc["firmware_version"] = APP_VERSION;
         doc["ap_ip"] = ap_ip_.toString();
         doc["sta_ip"] = sta_ip_.toString();
         doc["sta_connected"] = sta_connected_;
+
+        std::string device_ip;
+        if (sta_connected_ && sta_ip_ != IPAddress(0, 0, 0, 0)) {
+            device_ip = sta_ip_.toString().c_str();
+        } else if (ap_ip_ != IPAddress(0, 0, 0, 0)) {
+            device_ip = ap_ip_.toString().c_str();
+        }
+        doc["device_ip"] = device_ip.c_str();
+
+        std::string connected_network;
+        if (sta_connected_) {
+            if (!sta_ssid_.empty()) {
+                connected_network = sta_ssid_;
+            } else {
+                const auto& cfg = ConfigManager::instance().getConfig().wifi;
+                connected_network = cfg.sta.ssid.empty() ? "Hidden network" : cfg.sta.ssid;
+            }
+        } else if (ap_ip_ != IPAddress(0, 0, 0, 0)) {
+            const auto& cfg = ConfigManager::instance().getConfig().wifi;
+            std::string ap_ssid = cfg.ap.ssid.empty() ? "CAN-Control" : cfg.ap.ssid;
+            connected_network = "AP: " + ap_ssid;
+        }
+        doc["connected_network"] = connected_network.c_str();
+
         doc["uptime_ms"] = millis();
         doc["heap"] = ESP.getFreeHeap();
         String payload;
