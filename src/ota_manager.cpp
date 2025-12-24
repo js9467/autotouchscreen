@@ -70,6 +70,30 @@ std::string resolveUrl(const std::string& base_url, const std::string& candidate
     return base_url.substr(0, last_slash + 1) + candidate;
 }
 
+std::string extractHost(const std::string& url) {
+    if (url.empty()) {
+        return "";
+    }
+    std::size_t start = 0;
+    const std::size_t scheme_pos = url.find("://");
+    if (scheme_pos != std::string::npos) {
+        start = scheme_pos + 3;
+    }
+    if (start >= url.size()) {
+        return "";
+    }
+    std::size_t end = url.find('/', start);
+    std::string host = (end == std::string::npos) ? url.substr(start) : url.substr(start, end - start);
+    if (host.empty()) {
+        return "";
+    }
+    const std::size_t port_pos = host.find(':');
+    if (port_pos != std::string::npos) {
+        host = host.substr(0, port_pos);
+    }
+    return host;
+}
+
 std::string readJsonString(JsonVariantConst value) {
     if (value.isNull()) {
         return "";
@@ -202,31 +226,35 @@ bool OTAUpdateManager::fetchManifest(ManifestInfo& manifest) {
     Serial.println("[OTA] Checking network connectivity...");
     
     // Test DNS resolution
-    Serial.printf("[OTA] Testing DNS for: %s\n", "image-optimizer-still-flower-1282.fly.dev");
-    IPAddress ip;
-    if (!WiFi.hostByName("image-optimizer-still-flower-1282.fly.dev", ip)) {
-        Serial.println("[OTA] DNS resolution failed - checking network status");
-        Serial.printf("[OTA] WiFi Status: %d\n", WiFi.status());
-        Serial.printf("[OTA] Local IP: %s\n", WiFi.localIP().toString().c_str());
-        Serial.printf("[OTA] Gateway: %s\n", WiFi.gatewayIP().toString().c_str());
-        Serial.printf("[OTA] DNS: %s\n", WiFi.dnsIP().toString().c_str());
-        
-        // Try resolving a known good domain
-        IPAddress test_ip;
-        bool can_resolve_google = WiFi.hostByName("www.google.com", test_ip);
-        Serial.printf("[OTA] Can resolve google.com: %s\n", can_resolve_google ? "YES" : "NO");
-        
-        internet_available_ = can_resolve_google;
-        if (!can_resolve_google) {
-            setStatus("manifest-dns-failed-no-internet");
-            return false;
-        } else {
-            setStatus("manifest-dns-failed-fly-dev");
+    std::string manifest_host = extractHost(manifest_url_);
+    if (!manifest_host.empty()) {
+        Serial.printf("[OTA] Testing DNS for: %s\n", manifest_host.c_str());
+        IPAddress ip;
+        if (!WiFi.hostByName(manifest_host.c_str(), ip)) {
+            Serial.println("[OTA] DNS resolution failed - checking network status");
+            Serial.printf("[OTA] WiFi Status: %d\n", WiFi.status());
+            Serial.printf("[OTA] Local IP: %s\n", WiFi.localIP().toString().c_str());
+            Serial.printf("[OTA] Gateway: %s\n", WiFi.gatewayIP().toString().c_str());
+            Serial.printf("[OTA] DNS: %s\n", WiFi.dnsIP().toString().c_str());
+            
+            // Try resolving a known good domain
+            IPAddress test_ip;
+            bool can_resolve_google = WiFi.hostByName("www.google.com", test_ip);
+            Serial.printf("[OTA] Can resolve google.com: %s\n", can_resolve_google ? "YES" : "NO");
+            
+            internet_available_ = can_resolve_google;
+            if (!can_resolve_google) {
+                setStatus("manifest-dns-failed-no-internet");
+                return false;
+            }
+            setStatus("manifest-dns-failed-host");
             return false;
         }
+        internet_available_ = true;
+        Serial.printf("[OTA] DNS resolved to: %s\n", ip.toString().c_str());
+    } else {
+        Serial.println("[OTA] Skipping DNS test (unable to parse manifest host)");
     }
-    internet_available_ = true;
-    Serial.printf("[OTA] DNS resolved to: %s\n", ip.toString().c_str());
 
     HTTPClient http;
     WiFiClientSecure secure_client;
