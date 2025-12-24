@@ -267,6 +267,8 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); bo
 			<div class="muted">Version and current network addresses.</div>
 			<div class="status-grid" id="status" data-version="{{VERSION}}">
 				<div class="status-chip"><span>Firmware</span>v{{VERSION}}</div>
+				<div class="status-chip"><span>Device IP</span>—</div>
+				<div class="status-chip"><span>Connected Network</span>—</div>
 				<div class="status-chip"><span>AP IP</span>—</div>
 				<div class="status-chip"><span>Station IP</span>—</div>
 			</div>
@@ -1719,8 +1721,12 @@ async function refreshStatus(){
 		const res = await fetch('/api/status');
 		const status = await res.json();
 		const firmwareVersion = status.firmware_version || statusContainer.dataset.version || '—';
+		const deviceIp = status.device_ip || status.sta_ip || status.ap_ip || '—';
+		const connectedNetwork = status.connected_network || (status.sta_connected ? 'Hidden network' : '—');
 		statusContainer.innerHTML = `
 			<div class="status-chip"><span>Firmware</span>v${firmwareVersion}</div>
+			<div class="status-chip"><span>Device IP</span>${deviceIp || '—'}</div>
+			<div class="status-chip"><span>Connected Network</span>${connectedNetwork || '—'}</div>
 			<div class="status-chip"><span>AP IP</span>${status.ap_ip || 'N/A'}</div>
 			<div class="status-chip"><span>Station IP</span>${status.sta_ip || '—'}</div>
 		`;
@@ -1728,6 +1734,8 @@ async function refreshStatus(){
 		const firmwareVersion = statusContainer.dataset.version || '—';
 		statusContainer.innerHTML = `
 			<div class="status-chip"><span>Firmware</span>v${firmwareVersion}</div>
+			<div class="status-chip"><span>Device IP</span>Unavailable</div>
+			<div class="status-chip"><span>Connected Network</span>Unavailable</div>
 			<div class="status-chip"><span>AP IP</span>Unavailable</div>
 			<div class="status-chip"><span>Station IP</span>Unavailable</div>
 		`;
