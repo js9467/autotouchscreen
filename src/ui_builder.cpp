@@ -1216,6 +1216,7 @@ void UIBuilder::createInfoModal() {
     createKeyValue(system_card, "Connectivity", "Checking...", &network_status_label_);
     createKeyValue(system_card, "IP Address", "Not connected", &settings_ip_label_);
     createKeyValue(system_card, "Wi-Fi SSID", "Not connected", &settings_wifi_label_);
+    createKeyValue(system_card, "Connected Wi-Fi", "Not connected", &settings_wifi_label_);
     const char* version_default = (APP_VERSION && APP_VERSION[0]) ? APP_VERSION : "--";
     createKeyValue(system_card, "Firmware Version", version_default, &settings_version_label_);
     refreshVersionLabel();
@@ -1538,11 +1539,21 @@ void UIBuilder::refreshNetworkStatusLabel() {
     const bool sta_ready = last_sta_connected_ && !last_sta_ip_.empty() && last_sta_ip_ != "0.0.0.0";
     const bool ap_ready = !last_ap_ip_.empty() && last_ap_ip_ != "0.0.0.0";
 
-    std::string ip_text = "Not connected";
+    std::string ip_text;
     if (sta_ready) {
-        ip_text = last_sta_ip_;
-    } else if (ap_ready) {
-        ip_text = std::string("AP ") + last_ap_ip_;
+        ip_text.append("LAN  ");
+        ip_text.append(last_sta_ip_);
+    }
+    if (ap_ready) {
+        if (!ip_text.empty()) {
+            ip_text.push_back('\n');
+        }
+        ip_text.append("AP   ");
+        ip_text.append(last_ap_ip_);
+    }
+
+    if (ip_text.empty()) {
+        ip_text = "Not connected";
     }
 
     if (cached_ip_text_ != ip_text) {
