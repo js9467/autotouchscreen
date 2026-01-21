@@ -1,3 +1,3 @@
 #pragma once
-// Version 1.2.38 - Improve COM port detection and driver installation with Zadig for customer-friendly setup
-constexpr const char* APP_VERSION = "1.2.38";
+// Version 1.2.39 - Add printable 4x6 setup instruction card for device shipping
+constexpr const char* APP_VERSION = "1.2.39";
