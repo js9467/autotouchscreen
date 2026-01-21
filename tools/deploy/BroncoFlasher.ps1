@@ -286,65 +286,50 @@ try {
         
         if ($esp32Device) {
             Write-Header "Installing ESP32 USB Drivers"
-            Write-Host "  ESP32-S3 detected but needs WinUSB drivers.`n" -ForegroundColor Yellow
+            Write-Host "  ESP32-S3 detected. Installing WinUSB drivers automatically...`n" -ForegroundColor Yellow
             
             try {
-                # Download Zadig for automated driver installation
-                Write-Step "Downloading driver installer..."
-                $zadigUrl = "https://github.com/pbatard/libwdi/releases/download/v1.5.1/zadig-2.9.exe"
-                $zadigPath = Join-Path $WorkDir "zadig.exe"
+                # Download the driver INF file
+                Write-Step "Downloading driver package..."
+                $infUrl = "https://raw.githubusercontent.com/$GitHubRepo/$GitHubBranch/tools/deploy/esp32s3-winusb.inf"
+                $infPath = Join-Path $WorkDir "esp32s3-winusb.inf"
                 
-                Invoke-WebRequest -Uri $zadigUrl -OutFile $zadigPath -UseBasicParsing
+                Invoke-WebRequest -Uri $infUrl -OutFile $infPath -UseBasicParsing
                 
-                # Get device hardware ID
-                $hwid = $esp32Device.InstanceId
+                # Install driver using pnputil (built-in Windows tool)
+                Write-Step "Installing driver (requires admin approval)..."
+                Write-Host "  Click 'Yes' if prompted for admin permission`n" -ForegroundColor Cyan
                 
-                Write-Step "Installing WinUSB driver automatically..."
-                Write-Host "  (This will open Zadig briefly - please wait)`n" -ForegroundColor Cyan
+                $result = Start-Process "pnputil.exe" -ArgumentList "/add-driver `"$infPath`" /install" -Wait -PassThru -Verb RunAs
                 
-                # Run Zadig to install WinUSB driver
-                # Note: Zadig doesn't have full command-line automation, so we'll guide the user
-                
-                Write-Host "  ┌────────────────────────────────────────────────┐" -ForegroundColor Cyan
-                Write-Host "  │  AUTOMATIC DRIVER INSTALLATION                 │" -ForegroundColor Cyan  
-                Write-Host "  │                                                │" -ForegroundColor Cyan
-                Write-Host "  │  Zadig will open in 3 seconds.                 │" -ForegroundColor Yellow
-                Write-Host "  │                                                │" -ForegroundColor Cyan
-                Write-Host "  │  In Zadig, follow these steps:                 │" -ForegroundColor White
-                Write-Host "  │  1. Options → List All Devices                 │" -ForegroundColor Yellow
-                Write-Host "  │  2. Select 'USB JTAG/serial debug unit'        │" -ForegroundColor Yellow
-                Write-Host "  │  3. Make sure 'WinUSB' is selected             │" -ForegroundColor Yellow
-                Write-Host "  │  4. Click 'Install Driver' or 'Replace Driver' │" -ForegroundColor Yellow
-                Write-Host "  │  5. Wait for installation to complete          │" -ForegroundColor Yellow
-                Write-Host "  │  6. Close Zadig                                │" -ForegroundColor Yellow
-                Write-Host "  │                                                │" -ForegroundColor Cyan
-                Write-Host "  └────────────────────────────────────────────────┘`n" -ForegroundColor Cyan
-                
-                Start-Sleep -Seconds 3
-                
-                # Launch Zadig
-                Start-Process -FilePath $zadigPath
-                
-                Write-Host "  Press any key AFTER Zadig has finished installing the driver..." -ForegroundColor White
-                $null = $Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown')
-                
-                Write-Step "Please unplug and replug your ESP32 device now..."
-                Write-Host "  Press any key after replugging..." -ForegroundColor Cyan
-                $null = $Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown')
-                
-                Write-Step "Detecting device..."
-                Start-Sleep -Seconds 3
-                
-                # Refresh port list
-                $ports = @(Get-SerialPorts)
-                $Port = Detect-ESP32Port -Ports $ports
-                
-                if ($Port) {
-                    Write-Success "ESP32 detected on $Port!"
+                if ($result.ExitCode -eq 0) {
+                    Write-Success "Driver installed successfully!"
+                    
+                    Write-Host "`n  Please UNPLUG and REPLUG your ESP32 device now`n" -ForegroundColor Yellow
+                    Write-Host "  Press any key after replugging..." -ForegroundColor Cyan
+                    $null = $Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown')
+                    
+                    Write-Step "Detecting device..."
+                    Start-Sleep -Seconds 3
+                    
+                    # Refresh port list
+                    $ports = @(Get-SerialPorts)
+                    $Port = Detect-ESP32Port -Ports $ports
+                    
+                    if ($Port) {
+                        Write-Success "ESP32 detected on $Port!"
+                    }
+                } else {
+                    Write-Warning "Driver installation returned code: $($result.ExitCode)"
                 }
                 
             } catch {
-                Write-Warning "Driver setup failed: $_"
+                Write-Warning "Automatic driver installation failed: $_"
+                Write-Host "`nPlease install drivers manually:" -ForegroundColor Yellow
+                Write-Host "1. Download Zadig from: https://zadig.akeo.ie/" -ForegroundColor Cyan
+                Write-Host "2. Options -> List All Devices" -ForegroundColor Cyan
+                Write-Host "3. Select 'USB JTAG/serial debug unit'" -ForegroundColor Cyan
+                Write-Host "4. Choose 'WinUSB' and click Install`n" -ForegroundColor Cyan
             }
         }
         
