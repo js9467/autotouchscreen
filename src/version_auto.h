@@ -1,3 +1,3 @@
 #pragma once
-// Version 1.2.42 - Download BAT file instead of PS1 for easier execution
-constexpr const char* APP_VERSION = "1.2.42";
+// Version 1.2.43 - Improve driver installation guidance and device detection troubleshooting
+constexpr const char* APP_VERSION = "1.2.43";
