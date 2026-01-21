@@ -314,12 +314,19 @@ try {
                     Start-Process -FilePath $driverInstaller.FullName -Wait
                     Write-Success "Driver installer completed"
                     
-                    Write-Host "`n  Please UNPLUG and REPLUG your ESP32 device now" -ForegroundColor Yellow
-                    Write-Host "  (Wait 5 seconds between unplug and replug)`n" -ForegroundColor DarkGray
-                    Write-Host "  Press any key after replugging..." -ForegroundColor Cyan
+                    Write-Host "`n╔════════════════════════════════════════════════════════════╗" -ForegroundColor Yellow
+                    Write-Host "║  IMPORTANT: Unplug and Replug Your ESP32 Device          ║" -ForegroundColor Yellow
+                    Write-Host "╚════════════════════════════════════════════════════════════╝" -ForegroundColor Yellow
+                    Write-Host "`n  Steps:" -ForegroundColor Cyan
+                    Write-Host "  1. UNPLUG the USB cable from your computer" -ForegroundColor White
+                    Write-Host "  2. Wait 5 seconds" -ForegroundColor White
+                    Write-Host "  3. PLUG it back in" -ForegroundColor White
+                    Write-Host "  4. Wait another 5 seconds for Windows to detect it`n" -ForegroundColor White
+                    
+                    Write-Host "  Press any key after you've done this..." -ForegroundColor Cyan
                     $null = $Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown')
                     
-                    Write-Step "Waiting for device to initialize..."
+                    Write-Step "Waiting for Windows to recognize device..."
                     Start-Sleep -Seconds 5
                     
                     # Refresh port list
@@ -330,16 +337,28 @@ try {
                         Write-Success "ESP32 detected on $Port!"
                     } else {
                         Write-Warning "Device not detected yet"
-                        Write-Host "`n  Windows may need extra time to recognize the device." -ForegroundColor Yellow
-                        Write-Host "  Try unplugging, waiting 10 seconds, then replugging.`n" -ForegroundColor Yellow
-                        Write-Host "  Press any key after replugging..." -ForegroundColor Cyan
+                        Write-Host "`n  Let's try one more time..." -ForegroundColor Yellow
+                        Write-Host "  Make absolutely sure:" -ForegroundColor Cyan
+                        Write-Host "    • The USB cable is DATA cable (not charge-only)" -ForegroundColor White
+                        Write-Host "    • Device screen is lit up" -ForegroundColor White
+                        Write-Host "    • You've waited at least 10 seconds after replugging`n" -ForegroundColor White
+                        
+                        Write-Host "  Unplug, wait 10 seconds, replug, wait 10 seconds..." -ForegroundColor Yellow
+                        Write-Host "  Press any key after doing this..." -ForegroundColor Cyan
                         $null = $Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown')
-                        Start-Sleep -Seconds 5
+                        
+                        Start-Sleep -Seconds 10
                         $ports = @(Get-SerialPorts)
                         $Port = Detect-ESP32Port -Ports $ports
                         
                         if ($Port) {
                             Write-Success "ESP32 detected on $Port!"
+                        } else {
+                            # Show what Windows sees
+                            Write-Host "`nLet's see what Windows detects:" -ForegroundColor Yellow
+                            Get-PnpDevice | Where-Object { $_.InstanceId -like '*303A*' -or $_.InstanceId -like '*USB*' } | 
+                                Select-Object -First 10 | 
+                                Format-Table FriendlyName, Status, Class -AutoSize
                         }
                     }
                 } else {

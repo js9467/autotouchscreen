@@ -19,10 +19,17 @@ echo Downloading and running installer...
 echo.
 
 PowerShell -NoProfile -ExecutionPolicy Bypass -Command ^
-"$timestamp = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds(); ^
-$url = \"https://raw.githubusercontent.com/js9467/autotouchscreen/main/tools/deploy/BroncoFlasher.ps1?nocache=$timestamp\"; ^
-$script = Invoke-RestMethod -Uri $url -UseBasicParsing; ^
-Invoke-Expression $script"
+"try { ^
+    $timestamp = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds(); ^
+    $url = 'https://raw.githubusercontent.com/js9467/autotouchscreen/main/tools/deploy/BroncoFlasher.ps1?nocache=' + $timestamp; ^
+    Write-Host 'Downloading installer...' -ForegroundColor Cyan; ^
+    $script = Invoke-RestMethod -Uri $url -UseBasicParsing; ^
+    Write-Host 'Running installer...' -ForegroundColor Green; ^
+    Invoke-Expression $script; ^
+} catch { ^
+    Write-Host 'Error: ' $_.Exception.Message -ForegroundColor Red; ^
+    exit 1; ^
+}"
 
 if %errorlevel% equ 0 (
     echo.
