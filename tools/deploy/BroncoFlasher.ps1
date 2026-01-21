@@ -306,15 +306,20 @@ try {
                     Write-Step "Running driver installer (may require admin approval)..."
                     $process = Start-Process -FilePath $installer.FullName -ArgumentList "/S" -Wait -PassThru -Verb RunAs
                     
-                    Write-Step "Waiting for driver installation to complete..."
-                    Start-Sleep -Seconds 3
+                    Write-Success "Drivers installed!"
+                    Write-Host "`n  Please UNPLUG and REPLUG your ESP32 device now.`n" -ForegroundColor Yellow
+                    Write-Host "  Press any key after replugging..." -ForegroundColor Cyan
+                    $null = $Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown')
+                    
+                    Write-Step "Detecting device..."
+                    Start-Sleep -Seconds 2
                     
                     # Refresh port list
                     $ports = @(Get-SerialPorts)
                     $Port = Detect-ESP32Port -Ports $ports
                     
                     if ($Port) {
-                        Write-Success "Drivers installed successfully!"
+                        Write-Success "ESP32 detected on $Port!"
                     }
                 }
             } catch {
