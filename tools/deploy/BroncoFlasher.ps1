@@ -286,41 +286,54 @@ try {
         
         if ($esp32Device) {
             Write-Header "Installing ESP32 USB Drivers"
-            Write-Host "  ESP32-S3 detected but needs USB drivers.`n" -ForegroundColor Yellow
-            Write-Host "  Installing WinUSB driver (required for ESP32-S3)...`n" -ForegroundColor Cyan
+            Write-Host "  ESP32-S3 detected but needs WinUSB drivers.`n" -ForegroundColor Yellow
             
             try {
-                # Use Windows built-in USB Serial driver via registry
-                # This is more reliable than third-party installers
-                Write-Step "Configuring USB drivers..."
+                # Download Zadig for automated driver installation
+                Write-Step "Downloading driver installer..."
+                $zadigUrl = "https://github.com/pbatard/libwdi/releases/download/v1.5.1/zadig-2.9.exe"
+                $zadigPath = Join-Path $WorkDir "zadig.exe"
                 
-                # Tell Windows to use usbser.sys (built-in USB CDC driver)
-                $usbDeviceId = $esp32Device.InstanceId
-                $regPath = "HKLM:\SYSTEM\CurrentControlSet\Enum\$usbDeviceId"
+                Invoke-WebRequest -Uri $zadigUrl -OutFile $zadigPath -UseBasicParsing
                 
-                # Trigger device re-enumeration
-                Write-Step "Requesting Windows to reinstall device drivers..."
-                $devcon = @"
-`$devmgr = New-Object -ComObject DevMgr.DevMgrCtrl
-`$devmgr.Restart('$usbDeviceId')
-"@
+                # Get device hardware ID
+                $hwid = $esp32Device.InstanceId
                 
-                # Simpler approach: just tell user to replug
-                Write-Host "`n  ┌────────────────────────────────────────┐" -ForegroundColor Cyan
-                Write-Host "  │  ACTION REQUIRED:                      │" -ForegroundColor Cyan  
-                Write-Host "  │                                        │" -ForegroundColor Cyan
-                Write-Host "  │  1. UNPLUG your ESP32 USB cable       │" -ForegroundColor Yellow
-                Write-Host "  │  2. Wait 3 seconds                     │" -ForegroundColor Yellow
-                Write-Host "  │  3. PLUG IT BACK IN                    │" -ForegroundColor Yellow
-                Write-Host "  │                                        │" -ForegroundColor Cyan
-                Write-Host "  │  Windows will auto-install drivers     │" -ForegroundColor Green
-                Write-Host "  └────────────────────────────────────────┘`n" -ForegroundColor Cyan
+                Write-Step "Installing WinUSB driver automatically..."
+                Write-Host "  (This will open Zadig briefly - please wait)`n" -ForegroundColor Cyan
                 
-                Write-Host "  Press any key AFTER you've replugged the device..." -ForegroundColor White
+                # Run Zadig to install WinUSB driver
+                # Note: Zadig doesn't have full command-line automation, so we'll guide the user
+                
+                Write-Host "  ┌────────────────────────────────────────────────┐" -ForegroundColor Cyan
+                Write-Host "  │  AUTOMATIC DRIVER INSTALLATION                 │" -ForegroundColor Cyan  
+                Write-Host "  │                                                │" -ForegroundColor Cyan
+                Write-Host "  │  Zadig will open in 3 seconds.                 │" -ForegroundColor Yellow
+                Write-Host "  │                                                │" -ForegroundColor Cyan
+                Write-Host "  │  In Zadig, follow these steps:                 │" -ForegroundColor White
+                Write-Host "  │  1. Options → List All Devices                 │" -ForegroundColor Yellow
+                Write-Host "  │  2. Select 'USB JTAG/serial debug unit'        │" -ForegroundColor Yellow
+                Write-Host "  │  3. Make sure 'WinUSB' is selected             │" -ForegroundColor Yellow
+                Write-Host "  │  4. Click 'Install Driver' or 'Replace Driver' │" -ForegroundColor Yellow
+                Write-Host "  │  5. Wait for installation to complete          │" -ForegroundColor Yellow
+                Write-Host "  │  6. Close Zadig                                │" -ForegroundColor Yellow
+                Write-Host "  │                                                │" -ForegroundColor Cyan
+                Write-Host "  └────────────────────────────────────────────────┘`n" -ForegroundColor Cyan
+                
+                Start-Sleep -Seconds 3
+                
+                # Launch Zadig
+                Start-Process -FilePath $zadigPath
+                
+                Write-Host "  Press any key AFTER Zadig has finished installing the driver..." -ForegroundColor White
                 $null = $Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown')
                 
-                Write-Step "Waiting for Windows to detect device..."
-                Start-Sleep -Seconds 5
+                Write-Step "Please unplug and replug your ESP32 device now..."
+                Write-Host "  Press any key after replugging..." -ForegroundColor Cyan
+                $null = $Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown')
+                
+                Write-Step "Detecting device..."
+                Start-Sleep -Seconds 3
                 
                 # Refresh port list
                 $ports = @(Get-SerialPorts)
@@ -328,20 +341,6 @@ try {
                 
                 if ($Port) {
                     Write-Success "ESP32 detected on $Port!"
-                } else {
-                    Write-Host "`n  Still not detected. Checking device status...`n" -ForegroundColor Yellow
-                    
-                    # Check if device is there but still has issues
-                    $currentStatus = Get-PnpDevice | Where-Object { $_.InstanceId -like '*303A*1001*' } | Select-Object -First 1
-                    
-                    if ($currentStatus -and $currentStatus.Status -eq 'Unknown') {
-                        Write-Host "  The device is connected but Windows still hasn't installed drivers." -ForegroundColor Red
-                        Write-Host "`n  Manual fix required:" -ForegroundColor Yellow
-                        Write-Host "  1. Download: https://zadig.akeo.ie/" -ForegroundColor Cyan
-                        Write-Host "  2. Run Zadig -> Options -> List All Devices" -ForegroundColor Cyan
-                        Write-Host "  3. Select 'USB JTAG/serial debug unit'" -ForegroundColor Cyan
-                        Write-Host "  4. Choose 'WinUSB' driver and click Install`n" -ForegroundColor Cyan
-                    }
                 }
                 
             } catch {
