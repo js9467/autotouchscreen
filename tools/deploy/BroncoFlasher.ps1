@@ -286,44 +286,66 @@ try {
         
         if ($esp32Device) {
             Write-Header "Installing ESP32 USB Drivers"
-            Write-Step "ESP32 detected but drivers are missing. Installing automatically..."
+            Write-Host "  ESP32-S3 detected but needs USB drivers.`n" -ForegroundColor Yellow
+            Write-Host "  Installing WinUSB driver (required for ESP32-S3)...`n" -ForegroundColor Cyan
             
             try {
-                # Download and extract driver
-                $driverUrl = "https://dl.espressif.com/dl/idf-driver/idf-driver-esp32-usb-jtag-2021-07-15.zip"
-                $driverZip = Join-Path $WorkDir "esp32-driver.zip"
-                $driverDir = Join-Path $WorkDir "esp32-driver"
+                # Use Windows built-in USB Serial driver via registry
+                # This is more reliable than third-party installers
+                Write-Step "Configuring USB drivers..."
                 
-                Invoke-WebRequest -Uri $driverUrl -OutFile $driverZip -UseBasicParsing
+                # Tell Windows to use usbser.sys (built-in USB CDC driver)
+                $usbDeviceId = $esp32Device.InstanceId
+                $regPath = "HKLM:\SYSTEM\CurrentControlSet\Enum\$usbDeviceId"
                 
-                if (Test-Path $driverDir) { Remove-Item $driverDir -Recurse -Force }
-                Expand-Archive -Path $driverZip -DestinationPath $driverDir -Force
+                # Trigger device re-enumeration
+                Write-Step "Requesting Windows to reinstall device drivers..."
+                $devcon = @"
+`$devmgr = New-Object -ComObject DevMgr.DevMgrCtrl
+`$devmgr.Restart('$usbDeviceId')
+"@
                 
-                # Find and run installer silently
-                $installer = Get-ChildItem -Path $driverDir -Filter "*.exe" -Recurse | Select-Object -First 1
+                # Simpler approach: just tell user to replug
+                Write-Host "`n  ┌────────────────────────────────────────┐" -ForegroundColor Cyan
+                Write-Host "  │  ACTION REQUIRED:                      │" -ForegroundColor Cyan  
+                Write-Host "  │                                        │" -ForegroundColor Cyan
+                Write-Host "  │  1. UNPLUG your ESP32 USB cable       │" -ForegroundColor Yellow
+                Write-Host "  │  2. Wait 3 seconds                     │" -ForegroundColor Yellow
+                Write-Host "  │  3. PLUG IT BACK IN                    │" -ForegroundColor Yellow
+                Write-Host "  │                                        │" -ForegroundColor Cyan
+                Write-Host "  │  Windows will auto-install drivers     │" -ForegroundColor Green
+                Write-Host "  └────────────────────────────────────────┘`n" -ForegroundColor Cyan
                 
-                if ($installer) {
-                    Write-Step "Running driver installer (may require admin approval)..."
-                    $process = Start-Process -FilePath $installer.FullName -ArgumentList "/S" -Wait -PassThru -Verb RunAs
+                Write-Host "  Press any key AFTER you've replugged the device..." -ForegroundColor White
+                $null = $Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown')
+                
+                Write-Step "Waiting for Windows to detect device..."
+                Start-Sleep -Seconds 5
+                
+                # Refresh port list
+                $ports = @(Get-SerialPorts)
+                $Port = Detect-ESP32Port -Ports $ports
+                
+                if ($Port) {
+                    Write-Success "ESP32 detected on $Port!"
+                } else {
+                    Write-Host "`n  Still not detected. Checking device status...`n" -ForegroundColor Yellow
                     
-                    Write-Success "Drivers installed!"
-                    Write-Host "`n  Please UNPLUG and REPLUG your ESP32 device now.`n" -ForegroundColor Yellow
-                    Write-Host "  Press any key after replugging..." -ForegroundColor Cyan
-                    $null = $Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown')
+                    # Check if device is there but still has issues
+                    $currentStatus = Get-PnpDevice | Where-Object { $_.InstanceId -like '*303A*1001*' } | Select-Object -First 1
                     
-                    Write-Step "Detecting device..."
-                    Start-Sleep -Seconds 2
-                    
-                    # Refresh port list
-                    $ports = @(Get-SerialPorts)
-                    $Port = Detect-ESP32Port -Ports $ports
-                    
-                    if ($Port) {
-                        Write-Success "ESP32 detected on $Port!"
+                    if ($currentStatus -and $currentStatus.Status -eq 'Unknown') {
+                        Write-Host "  The device is connected but Windows still hasn't installed drivers." -ForegroundColor Red
+                        Write-Host "`n  Manual fix required:" -ForegroundColor Yellow
+                        Write-Host "  1. Download: https://zadig.akeo.ie/" -ForegroundColor Cyan
+                        Write-Host "  2. Run Zadig -> Options -> List All Devices" -ForegroundColor Cyan
+                        Write-Host "  3. Select 'USB JTAG/serial debug unit'" -ForegroundColor Cyan
+                        Write-Host "  4. Choose 'WinUSB' driver and click Install`n" -ForegroundColor Cyan
                     }
                 }
+                
             } catch {
-                Write-Warning "Automatic driver installation failed: $_"
+                Write-Warning "Driver setup failed: $_"
             }
         }
         
