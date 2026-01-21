@@ -13,6 +13,5 @@ tools/deploy/firmware.bin
 tools/deploy/firmware_version.txt
 tools/deploy/esp32-usb-driver.zip
 tools/deploy/esp32-driver-temp/
-tools/deploy/Install.zip
 tools/deploy/backup_device.ps1
 tools/deploy/build_manifest.mjs
