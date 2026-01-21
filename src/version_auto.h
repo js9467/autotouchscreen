@@ -1,3 +1,3 @@
 #pragma once
-// Version 1.2.33 - Add Install.zip for easy browser download
-constexpr const char* APP_VERSION = "1.2.33";
+// Version 1.2.34 - Prompt user to replug device after driver installation
+constexpr const char* APP_VERSION = "1.2.34";
