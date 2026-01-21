@@ -280,52 +280,79 @@ try {
     if (-not $Port) {
         # Check if ESP32 USB device is connected but drivers are missing
         $esp32Device = Get-PnpDevice | Where-Object { 
-            ($_.FriendlyName -like '*USB JTAG*' -or $_.FriendlyName -like '*303A*') -and 
-            $_.Status -eq 'Unknown'
+            ($_.FriendlyName -like '*USB JTAG*' -or $_.FriendlyName -like '*303A*' -or $_.FriendlyName -like '*Composite*') -and 
+            $_.Status -eq 'Unknown' -and
+            $_.InstanceId -like '*303A*'
         }
         
         if ($esp32Device) {
-            Write-Header "Installing ESP32 USB Drivers"
-            Write-Host "  ESP32-S3 detected. Installing WinUSB drivers automatically...`n" -ForegroundColor Yellow
+            Write-Header "ESP32 Device Detected - Installing Drivers"
+            Write-Host "  ESP32-S3 found but needs USB drivers...`n" -ForegroundColor Yellow
             
             try {
-                # Download the driver INF file
-                Write-Step "Downloading driver package..."
-                $infUrl = "https://raw.githubusercontent.com/$GitHubRepo/$GitHubBranch/tools/deploy/esp32s3-winusb.inf"
-                $infPath = Join-Path $WorkDir "esp32s3-winusb.inf"
-                
-                Invoke-WebRequest -Uri $infUrl -OutFile $infPath -UseBasicParsing
-                
-                # Install driver using pnputil (built-in Windows tool)
-                Write-Step "Installing driver (requires admin approval)..."
-                Write-Host "  Click 'Yes' if prompted for admin permission`n" -ForegroundColor Cyan
-                
-                $result = Start-Process "pnputil.exe" -ArgumentList "/add-driver `"$infPath`" /install" -Wait -PassThru -Verb RunAs
-                
-                if ($result.ExitCode -eq 0) {
-                    Write-Success "Driver installed successfully!"
-                    
-                    Write-Host "`n  Please UNPLUG and REPLUG your ESP32 device now`n" -ForegroundColor Yellow
-                    Write-Host "  Press any key after replugging..." -ForegroundColor Cyan
-                    $null = $Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown')
-                    
-                    Write-Step "Detecting device..."
-                    Start-Sleep -Seconds 3
-                    
-                    # Refresh port list
-                    $ports = @(Get-SerialPorts)
-                    $Port = Detect-ESP32Port -Ports $ports
-                    
-                    if ($Port) {
-                        Write-Success "ESP32 detected on $Port!"
+                # Download Zadig
+                $zadigPath = Join-Path $WorkDir "zadig.exe"
+                if (-not (Test-Path $zadigPath)) {
+                    Write-Step "Downloading Zadig (USB driver installer)..."
+                    try {
+                        $zadigUrl = "https://raw.githubusercontent.com/$GitHubRepo/$GitHubBranch/tools/deploy/zadig.exe"
+                        Invoke-WebRequest -Uri $zadigUrl -OutFile $zadigPath -UseBasicParsing
+                        Write-Success "Zadig downloaded"
+                    } catch {
+                        # If download fails, try direct from Zadig website
+                        Write-Step "Downloading from zadig.akeo.ie..."
+                        Invoke-WebRequest -Uri "https://github.com/pbatard/libwdi/releases/download/v1.5.0/zadig-2.8.exe" -OutFile $zadigPath -UseBasicParsing
+                        Write-Success "Zadig downloaded"
                     }
                 } else {
-                    Write-Warning "Driver installation returned code: $($result.ExitCode)"
+                    Write-Step "Using cached Zadig"
+                }
+                
+                Write-Header "Driver Installation Instructions"
+                Write-Host "  Zadig will open to install the USB driver." -ForegroundColor Cyan
+                Write-Host "  Follow these steps:`n" -ForegroundColor Cyan
+                Write-Host "  1. In Zadig, click 'Options' -> 'List All Devices'" -ForegroundColor Yellow
+                Write-Host "  2. Select one of these from the dropdown:" -ForegroundColor Yellow
+                Write-Host "     - 'USB JTAG/serial debug unit'" -ForegroundColor White
+                Write-Host "     - 'USB Composite Device (303A:1001)'" -ForegroundColor White
+                Write-Host "  3. Make sure the driver shows 'WinUSB' or 'USB Serial (CDC)'" -ForegroundColor Yellow
+                Write-Host "  4. Click 'Install Driver' or 'Replace Driver'" -ForegroundColor Yellow
+                Write-Host "  5. Wait for 'Driver installed successfully'" -ForegroundColor Yellow
+                Write-Host "  6. Close Zadig`n" -ForegroundColor Yellow
+                
+                Write-Host "  Press any key to open Zadig..." -ForegroundColor Cyan
+                $null = $Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown')
+                
+                # Launch Zadig
+                Start-Process -FilePath $zadigPath -Wait
+                
+                Write-Host "`n  Please UNPLUG and REPLUG your ESP32 device now" -ForegroundColor Yellow
+                Write-Host "  (This activates the new driver)`n" -ForegroundColor DarkGray
+                Write-Host "  Press any key after replugging..." -ForegroundColor Cyan
+                $null = $Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown')
+                
+                Write-Step "Detecting device..."
+                Start-Sleep -Seconds 3
+                
+                # Refresh port list
+                $ports = @(Get-SerialPorts)
+                $Port = Detect-ESP32Port -Ports $ports
+                
+                if ($Port) {
+                    Write-Success "ESP32 detected on $Port!"
+                } else {
+                    Write-Warning "Still cannot detect COM port"
+                    Write-Host "  The device may need a second replug. Try unplugging and replugging again.`n" -ForegroundColor Yellow
+                    Write-Host "  Press any key after replugging..." -ForegroundColor Cyan
+                    $null = $Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown')
+                    Start-Sleep -Seconds 3
+                    $ports = @(Get-SerialPorts)
+                    $Port = Detect-ESP32Port -Ports $ports
                 }
                 
             } catch {
-                Write-Warning "Automatic driver installation failed: $_"
-                Write-Host "`nPlease install drivers manually:" -ForegroundColor Yellow
+                Write-Warning "Driver installation encountered an error: $_"
+                Write-Host "`nManual driver installation:" -ForegroundColor Yellow
                 Write-Host "1. Download Zadig from: https://zadig.akeo.ie/" -ForegroundColor Cyan
                 Write-Host "2. Options -> List All Devices" -ForegroundColor Cyan
                 Write-Host "3. Select 'USB JTAG/serial debug unit'" -ForegroundColor Cyan
@@ -335,19 +362,55 @@ try {
         
         # Final check
         if (-not $Port) {
-            Write-ErrorMsg "Could not auto-detect ESP32 device"
-            Write-Host "`nAvailable ports:" -ForegroundColor Yellow
-            if ($ports.Count -eq 0) {
-                Write-Host "  No serial ports found" -ForegroundColor Red
-                Write-Host "`nTroubleshooting:" -ForegroundColor Yellow
-                Write-Host "  1. Make sure ESP32 is connected via USB"
-                Write-Host "  2. Unplug and replug the device"
-                Write-Host "  3. Try a different USB cable or port"
-            } else {
-                $ports | Format-Table -AutoSize
-                Write-Host "Run with -Port COMx to specify manually`n" -ForegroundColor Yellow
+            Write-ErrorMsg "Could not auto-detect ESP32 COM port"
+            
+            # Check if any USB device with ESP32 vendor ID is present
+            $anyESP32Device = Get-PnpDevice | Where-Object { 
+                $_.InstanceId -like '*303A*'
             }
-            exit 1
+            
+            if ($anyESP32Device) {
+                Write-Host "`nESP32 device detected but no COM port found." -ForegroundColor Yellow
+                Write-Host "This usually means the USB driver is not installed correctly.`n" -ForegroundColor Yellow
+                
+                Write-Host "Quick fix options:" -ForegroundColor Cyan
+                Write-Host "  1. Unplug and replug the device" -ForegroundColor White
+                Write-Host "  2. Try a different USB port (USB 2.0 recommended)" -ForegroundColor White
+                Write-Host "  3. Try a different USB cable" -ForegroundColor White
+                Write-Host "`nAfter trying above, press R to retry detection" -ForegroundColor Yellow
+                Write-Host "Or press any other key to exit`n" -ForegroundColor Yellow
+                
+                $key = $Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown')
+                if ($key.Character -eq 'r' -or $key.Character -eq 'R') {
+                    Write-Step "Retrying detection..."
+                    Start-Sleep -Seconds 2
+                    $ports = @(Get-SerialPorts)
+                    $Port = Detect-ESP32Port -Ports $ports
+                    
+                    if ($Port) {
+                        Write-Success "ESP32 detected on $Port!"
+                    } else {
+                        Write-Host "`nStill cannot detect. Please run Install-Drivers.bat first.`n" -ForegroundColor Red
+                        exit 1
+                    }
+                } else {
+                    exit 1
+                }
+            } else {
+                Write-Host "`nAvailable ports:" -ForegroundColor Yellow
+                if ($ports.Count -eq 0) {
+                    Write-Host "  No serial ports found" -ForegroundColor Red
+                    Write-Host "`nTroubleshooting:" -ForegroundColor Yellow
+                    Write-Host "  1. Make sure ESP32 is connected via USB"
+                    Write-Host "  2. Unplug and replug the device"
+                    Write-Host "  3. Try a different USB cable or port"
+                    Write-Host "  4. Run Install-Drivers.bat to install USB drivers`n"
+                } else {
+                    $ports | Format-Table -AutoSize
+                    Write-Host "Run with -Port COMx to specify manually`n" -ForegroundColor Yellow
+                }
+                exit 1
+            }
         }
     }
     
