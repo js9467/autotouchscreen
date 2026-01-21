@@ -1,3 +1,3 @@
 #pragma once
-// Version 1.2.41 - Add final solution documentation with HTML landing page and automated driver installation
-constexpr const char* APP_VERSION = "1.2.41";
+// Version 1.2.42 - Download BAT file instead of PS1 for easier execution
+constexpr const char* APP_VERSION = "1.2.42";
