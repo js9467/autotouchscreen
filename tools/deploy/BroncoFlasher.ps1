@@ -80,60 +80,6 @@ function Detect-ESP32Port {
     return $Ports[0].DeviceID
 }
 
-# Check and install USB drivers if needed
-function Install-ESP32Drivers {
-    Write-Step "Checking USB drivers..."
-    
-    # Check for ESP32 USB device with unknown/error status
-    $usbDevices = Get-PnpDevice | Where-Object { 
-        ($_.FriendlyName -like '*USB JTAG*' -or $_.FriendlyName -like '*USB Serial Device*') -and 
-        ($_.Status -eq 'Unknown' -or $_.Status -eq 'Error')
-    }
-    
-    if ($usbDevices.Count -eq 0) {
-        Write-Step "USB drivers OK"
-        return
-    }
-    
-    Write-Header "Installing ESP32 USB Drivers"
-    Write-Host "  ESP32 device detected but drivers are missing...`n" -ForegroundColor Yellow
-    
-    $driverDir = Join-Path $WorkDir "esp32-driver"
-    $driverZip = Join-Path $WorkDir "esp32-driver.zip"
-    
-    try {
-        # Download ESP32 USB JTAG driver
-        Write-Step "Downloading ESP32 USB drivers..."
-        $driverUrl = "https://dl.espressif.com/dl/idf-driver/idf-driver-esp32-usb-jtag-2021-07-15.zip"
-        Invoke-WebRequest -Uri $driverUrl -OutFile $driverZip -UseBasicParsing
-        
-        # Extract
-        if (Test-Path $driverDir) {
-            Remove-Item $driverDir -Recurse -Force
-        }
-        Expand-Archive -Path $driverZip -DestinationPath $driverDir -Force
-        
-        # Find installer
-        $installer = Get-ChildItem -Path $driverDir -Filter "*.exe" -Recurse | Select-Object -First 1
-        
-        if ($installer) {
-            Write-Step "Installing drivers (may require admin approval)..."
-            Start-Process -FilePath $installer.FullName -Wait -Verb RunAs
-            Write-Success "Drivers installed! Please replug your ESP32 device."
-            Write-Host "`nPress any key after replugging the device..." -ForegroundColor Yellow
-            $null = $Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown')
-        } else {
-            Write-Warning "Could not find driver installer"
-        }
-    } catch {
-        Write-Warning "Driver installation failed: $_"
-        Write-Host "`nManual installation:" -ForegroundColor Yellow
-        Write-Host "  1. Download: https://dl.espressif.com/dl/idf-driver/idf-driver-esp32-usb-jtag-2021-07-15.zip"
-        Write-Host "  2. Extract and run the installer"
-        Write-Host "  3. Replug your ESP32 device`n"
-    }
-}
-
 $ports = @(Get-SerialPorts)
 if ($ListPorts) {
     Write-Header "Available Serial Ports"
@@ -325,9 +271,6 @@ try {
     $firmware = Get-LatestFirmware
     $esptool = Get-Esptool -Version $EsptoolVersion
     
-    # Check and install drivers if needed
-    Install-ESP32Drivers
-    
     Write-Header "Detecting ESP32 Device"
     
     if (-not $Port) {
@@ -341,7 +284,7 @@ try {
             Write-Host "  No serial ports found" -ForegroundColor Red
             Write-Host "`nTroubleshooting:" -ForegroundColor Yellow
             Write-Host "  1. Connect your ESP32 device via USB"
-            Write-Host "  2. Install USB drivers (CP210x or CH340)"
+            Write-Host "  2. Run Install-Drivers.bat if device not recognized"
             Write-Host "  3. Check Device Manager for COM ports"
         } else {
             $ports | Format-Table -AutoSize
