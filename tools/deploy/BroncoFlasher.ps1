@@ -288,150 +288,74 @@ try {
         if ($esp32Device) {
             Write-Header "ESP32 Device Detected - Installing Drivers"
             Write-Host "  ESP32-S3 found but needs USB drivers..." -ForegroundColor Yellow
-            Write-Host "  Installing drivers automatically (requires admin permission)...`n" -ForegroundColor Yellow
+            Write-Host "  Installing official Espressif drivers...`n" -ForegroundColor Yellow
             
             try {
-                # Get the device instance ID
-                $deviceId = $esp32Device | Select-Object -First 1 | Select-Object -ExpandProperty InstanceId
-                Write-Step "Device ID: $($deviceId.Substring(0, [Math]::Min(50, $deviceId.Length)))..."
+                Write-Step "Downloading official ESP32 USB drivers..."
+                $espDriverUrl = "https://dl.espressif.com/dl/idf-driver/idf-driver-esp32-usb-jtag-2021-07-15.zip"
+                $driverZip = Join-Path $WorkDir "esp-driver.zip"
                 
-                # Download and prepare WinUSB driver
-                $driverDir = Join-Path $WorkDir "esp32-driver"
-                if (Test-Path $driverDir) {
-                    Remove-Item $driverDir -Recurse -Force
+                Invoke-WebRequest -Uri $espDriverUrl -OutFile $driverZip -UseBasicParsing
+                Write-Success "Driver package downloaded"
+                
+                $driverExtractDir = Join-Path $WorkDir "esp-driver"
+                if (Test-Path $driverExtractDir) {
+                    Remove-Item $driverExtractDir -Recurse -Force
                 }
-                New-Item -ItemType Directory -Path $driverDir -Force | Out-Null
+                Expand-Archive -Path $driverZip -DestinationPath $driverExtractDir -Force
                 
-                # Create INF file for WinUSB
-                $infContent = @"
-[Version]
-Signature="`$Windows NT`$"
-Class=USBDevice
-ClassGUID={88BAE032-5A81-49f0-BC3D-A4FF138216D6}
-Provider=Espressif
-DriverVer=01/21/2026,1.0.0.0
-CatalogFile=esp32s3.cat
-
-[Manufacturer]
-%ManufacturerName%=Standard,NTamd64
-
-[Standard.NTamd64]
-%DeviceName%=USB_Install, USB\VID_303A&PID_1001
-%DeviceName2%=USB_Install, USB\VID_303A&PID_1001&MI_02
-
-[USB_Install]
-Include=winusb.inf
-Needs=WINUSB.NT
-
-[USB_Install.Services]
-Include=winusb.inf
-Needs=WINUSB.NT.Services
-
-[USB_Install.HW]
-AddReg=Dev_AddReg
-
-[Dev_AddReg]
-HKR,,DeviceInterfaceGUIDs,0x00010000,"{88BAE032-5A81-49f0-BC3D-A4FF138216D6}"
-
-[Strings]
-ManufacturerName="Espressif Systems"
-DeviceName="ESP32-S3 USB JTAG/Serial"
-DeviceName2="ESP32-S3 USB JTAG/Serial Debug Unit"
-"@
-                $infPath = Join-Path $driverDir "esp32s3.inf"
-                $infContent | Set-Content -Path $infPath -Encoding ASCII
+                $driverInstaller = Get-ChildItem -Path $driverExtractDir -Filter "*.exe" -Recurse | Select-Object -First 1
                 
-                Write-Step "Installing WinUSB driver..."
-                Write-Host "  Click 'Yes' when Windows asks for permission`n" -ForegroundColor Cyan
-                
-                # Install driver using pnputil
-                $installResult = Start-Process "pnputil.exe" -ArgumentList "/add-driver `"$infPath`" /install" -Wait -PassThru -Verb RunAs
-                
-                if ($installResult.ExitCode -eq 0) {
-                    Write-Success "Driver installed successfully!"
+                if ($driverInstaller) {
+                    Write-Step "Running official ESP32 driver installer..."
+                    Write-Host "  The installer window will open - click through the prompts" -ForegroundColor Cyan
+                    Write-Host "  Click 'Install' or 'Next' when prompted`n" -ForegroundColor Cyan
                     
-                    # Try to apply driver to the device
-                    Write-Step "Applying driver to device..."
-                    try {
-                        # Use PowerShell to trigger device refresh
-                        $null = Start-Process "pnputil.exe" -ArgumentList "/scan-devices" -Wait -PassThru -NoNewWindow
-                    } catch {
-                        Write-Host "  Device scan completed" -ForegroundColor DarkGray
-                    }
+                    Start-Process -FilePath $driverInstaller.FullName -Wait
+                    Write-Success "Driver installer completed"
                     
-                } else {
-                    Write-Warning "pnputil returned code: $($installResult.ExitCode)"
-                }
-                
-                Write-Host "`n  Please UNPLUG and REPLUG your ESP32 device now" -ForegroundColor Yellow
-                Write-Host "  (This activates the new driver)`n" -ForegroundColor DarkGray
-                Write-Host "  Press any key after replugging..." -ForegroundColor Cyan
-                $null = $Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown')
-                
-                Write-Step "Detecting device..."
-                Start-Sleep -Seconds 3
-                
-                # Refresh port list
-                $ports = @(Get-SerialPorts)
-                $Port = Detect-ESP32Port -Ports $ports
-                
-                if ($Port) {
-                    Write-Success "ESP32 detected on $Port!"
-                } else {
-                    Write-Warning "Still cannot detect COM port after first replug"
-                    Write-Host "`n  Sometimes Windows needs the device replugged twice." -ForegroundColor Yellow
-                    Write-Host "  Please unplug and replug ONE MORE TIME...`n" -ForegroundColor Yellow
+                    Write-Host "`n  Please UNPLUG and REPLUG your ESP32 device now" -ForegroundColor Yellow
+                    Write-Host "  (Wait 5 seconds between unplug and replug)`n" -ForegroundColor DarkGray
                     Write-Host "  Press any key after replugging..." -ForegroundColor Cyan
                     $null = $Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown')
-                    Start-Sleep -Seconds 3
+                    
+                    Write-Step "Waiting for device to initialize..."
+                    Start-Sleep -Seconds 5
+                    
+                    # Refresh port list
                     $ports = @(Get-SerialPorts)
                     $Port = Detect-ESP32Port -Ports $ports
                     
                     if ($Port) {
                         Write-Success "ESP32 detected on $Port!"
+                    } else {
+                        Write-Warning "Device not detected yet"
+                        Write-Host "`n  Windows may need extra time to recognize the device." -ForegroundColor Yellow
+                        Write-Host "  Try unplugging, waiting 10 seconds, then replugging.`n" -ForegroundColor Yellow
+                        Write-Host "  Press any key after replugging..." -ForegroundColor Cyan
+                        $null = $Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown')
+                        Start-Sleep -Seconds 5
+                        $ports = @(Get-SerialPorts)
+                        $Port = Detect-ESP32Port -Ports $ports
+                        
+                        if ($Port) {
+                            Write-Success "ESP32 detected on $Port!"
+                        }
                     }
+                } else {
+                    throw "Could not find driver installer in package"
                 }
                 
             } catch {
-                Write-Warning "Automatic driver installation failed: $_"
-                Write-Host "`nTrying alternative driver installation method...`n" -ForegroundColor Yellow
-                
-                # Fallback: Download official Espressif drivers
-                try {
-                    Write-Step "Downloading official ESP32 drivers..."
-                    $espDriverUrl = "https://dl.espressif.com/dl/idf-driver/idf-driver-esp32-usb-jtag-2021-07-15.zip"
-                    $driverZip = Join-Path $WorkDir "esp-driver.zip"
-                    
-                    Invoke-WebRequest -Uri $espDriverUrl -OutFile $driverZip -UseBasicParsing
-                    
-                    $driverExtractDir = Join-Path $WorkDir "esp-driver-extracted"
-                    if (Test-Path $driverExtractDir) {
-                        Remove-Item $driverExtractDir -Recurse -Force
-                    }
-                    Expand-Archive -Path $driverZip -DestinationPath $driverExtractDir -Force
-                    
-                    $driverInstaller = Get-ChildItem -Path $driverExtractDir -Filter "*.exe" -Recurse | Select-Object -First 1
-                    
-                    if ($driverInstaller) {
-                        Write-Step "Running official driver installer..."
-                        Write-Host "  Click through the installer prompts`n" -ForegroundColor Cyan
-                        Start-Process -FilePath $driverInstaller.FullName -Wait -Verb RunAs
-                        
-                        Write-Host "`n  Please UNPLUG and REPLUG your ESP32 device" -ForegroundColor Yellow
-                        Write-Host "  Press any key after replugging..." -ForegroundColor Cyan
-                        $null = $Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown')
-                        Start-Sleep -Seconds 3
-                        $ports = @(Get-SerialPorts)
-                        $Port = Detect-ESP32Port -Ports $ports
-                    }
-                } catch {
-                    Write-ErrorMsg "All automatic installation methods failed"
-                    Write-Host "`nPlease install drivers manually:" -ForegroundColor Yellow
-                    Write-Host "  1. Go to Device Manager (Win+X, then M)" -ForegroundColor Cyan
-                    Write-Host "  2. Find device with yellow warning icon" -ForegroundColor Cyan
-                    Write-Host "  3. Right-click -> Update Driver -> Browse -> Let me pick" -ForegroundColor Cyan
-                    Write-Host "  4. Choose 'USB Serial Device' or 'Ports (COM & LPT)'`n" -ForegroundColor Cyan
-                }
+                Write-ErrorMsg "Driver installation failed: $_"
+                Write-Host "`nManual driver installation steps:" -ForegroundColor Yellow
+                Write-Host "  1. Open Device Manager (Win+X, then M)" -ForegroundColor Cyan
+                Write-Host "  2. Find device with yellow warning (likely under 'Other devices')" -ForegroundColor Cyan
+                Write-Host "  3. Right-click → Update Driver" -ForegroundColor Cyan
+                Write-Host "  4. Choose 'Browse my computer for drivers'" -ForegroundColor Cyan
+                Write-Host "  5. Click 'Let me pick from a list'" -ForegroundColor Cyan
+                Write-Host "  6. Select 'Ports (COM & LPT)'" -ForegroundColor Cyan
+                Write-Host "  7. Choose 'USB Serial Device' or any COM port driver`n" -ForegroundColor Cyan
             }
         }
         
