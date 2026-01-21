@@ -4,3 +4,15 @@
 .vscode/launch.json
 .vscode/ipch
 .version_state.json
+
+# Tools/deploy build artifacts (bundled in BroncoFlasher.zip)
+tools/deploy/bootloader.bin
+tools/deploy/boot_app0.bin
+tools/deploy/partitions.bin
+tools/deploy/firmware.bin
+tools/deploy/firmware_version.txt
+tools/deploy/esp32-usb-driver.zip
+tools/deploy/esp32-driver-temp/
+tools/deploy/Install.zip
+tools/deploy/backup_device.ps1
+tools/deploy/build_manifest.mjs

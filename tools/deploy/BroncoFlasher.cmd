@@ -103,10 +103,10 @@ function Get-LatestFirmware {
     `$manifest = Invoke-RestMethod -Uri \"`$OtaServer/ota/manifest\" -Method Get
     `$version = `$manifest.version
     `$firmwareUrl = `$manifest.firmware.url
-    `$expectedMd5 = `$manifest.md5.ToLower()
+    `$expectedMd5 = `$manifest.firmware.md5.ToLower()
     
-    Write-Header \"Latest Firmware: v`$version\"
-    Write-Step \"Downloading firmware.bin ($(((`$manifest.size / 1MB).ToString('0.0'))) MB)...\"
+    Write-Header "Latest Firmware: v`$version"
+    Write-Step "Downloading firmware.bin ($(((`$manifest.firmware.size / 1MB).ToString('0.0'))) MB)..."
     
     Invoke-WebRequest -Uri `$firmwareUrl -OutFile `$firmwarePath -UseBasicParsing
     

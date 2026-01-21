@@ -33,8 +33,8 @@ function Download-LatestFirmware {
         
         # Verify MD5
         $downloadedHash = (Get-FileHash -Path $firmwarePath -Algorithm MD5).Hash.ToLower()
-        if ($downloadedHash -ne $manifest.md5.ToLower()) {
-            throw "MD5 mismatch! Expected: $($manifest.md5), Got: $downloadedHash"
+        if ($downloadedHash -ne $manifest.firmware.md5.ToLower()) {
+            throw "MD5 mismatch! Expected: $($manifest.firmware.md5), Got: $downloadedHash"
         }
         
         Write-Info "Firmware v$($manifest.version) downloaded and verified"

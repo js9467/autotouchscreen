@@ -1,5 +1,0 @@
-Firmware Version: 1.2.2
-Downloaded: 2025-12-22 16:07:02
-Source: https://image-optimizer-still-flower-1282.fly.dev
-MD5: dad302996f4a3beb45e8dcfb327a972d
-Size: 2723936 bytes

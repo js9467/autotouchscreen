@@ -36,8 +36,6 @@ The installer downloads everything needed and flashes your device.
 
 If you need offline flashing or the above methods don't work:
 
-If you prefer offline flashing or the standalone script doesn't work:
-
 1. **Download BroncoFlasher package:**
    ```
    https://github.com/js9467/autotouchscreen/raw/main/tools/deploy/BroncoFlasher.zip
@@ -47,7 +45,53 @@ If you prefer offline flashing or the standalone script doesn't work:
 
 3. **Connect your ESP32** device via USB
 
-4. **Ensure internet connection** (script downloads latest firmware automatically)
+4. **If Device Not Recognized:**
+   - Run `Install-Drivers.bat` to install ESP32 USB drivers
+   - Replug your device after driver installation
+   - Check Device Manager to confirm COM port appears
+
+5. **Flash the firmware:**
+   - **Windows:** Double-click `BroncoFlasher.cmd`
+   - **PowerShell:** Run `.\BroncoFlasher.ps1`
+   - The script will automatically download the latest firmware and flash your device
+
+---
+
+## What's Included in BroncoFlasher.zip
+
+- `Install.bat` - One-click installer (downloads latest firmware automatically)
+- `BroncoFlasher.ps1` - PowerShell flasher with auto-driver installation
+- `BroncoFlasher.cmd` - Windows batch wrapper
+- `Install-Drivers.bat` - **USB driver installer for ESP32-S3**
+- `esp32-usb-driver.zip` - Bundled ESP32 USB JTAG drivers
+- `firmware.bin` - Latest firmware binary (auto-updated)
+- `bootloader.bin`, `partitions.bin`, `boot_app0.bin` - ESP32 system files
+- `README.md` - This file
+
+---
+
+## Troubleshooting
+
+### Device Not Detected / No COM Port
+
+**The flasher now includes automatic driver installation!**
+
+1. **Run** `Install-Drivers.bat` from the extracted folder
+2. Follow the prompts to install ESP32 USB drivers
+3. **Replug** your ESP32 device
+4. Check Device Manager - you should see a COM port (e.g., COM3)
+5. Try running `BroncoFlasher.ps1` again
+
+Alternatively, the BroncoFlasher.ps1 script will automatically detect missing drivers and offer to install them.
+
+### Manual Driver Installation
+
+If automatic installation fails:
+1. Extract `esp32-usb-driver.zip`
+2. Run the installer inside (requires admin rights)
+3. Replug the ESP32 device
+
+### COM Port Busy
 
 5. **Double-click `flash_device.cmd`** to start the flashing process
 

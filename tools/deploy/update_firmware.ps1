@@ -61,8 +61,8 @@ try {
     
     $manifest = Invoke-RestMethod -Uri $manifestUrl -Method Get
     Write-Success "Found firmware version: $($manifest.version)"
-    Write-Info "  Size: $($manifest.size) bytes"
-    Write-Info "  MD5: $($manifest.md5)"
+    Write-Info "  Size: $($manifest.firmware.size) bytes"
+    Write-Info "  MD5: $($manifest.firmware.md5)"
 } catch {
     Write-Error-Custom "Failed to fetch manifest: $_"
     exit 1
@@ -84,7 +84,7 @@ try {
 # Verify MD5 hash
 Write-Info "Verifying firmware integrity..."
 $downloadedHash = (Get-FileHash -Path $firmwarePath -Algorithm MD5).Hash.ToLower()
-$expectedHash = $manifest.md5.ToLower()
+$expectedHash = $manifest.firmware.md5.ToLower()
 if ($downloadedHash -ne $expectedHash) {
     Write-Error-Custom "MD5 mismatch!"
     Write-Error-Custom "  Expected: $expectedHash"
@@ -99,8 +99,8 @@ $versionInfo = @"
 Firmware Version: $($manifest.version)
 Downloaded: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')
 Source: $OtaServer
-MD5: $($manifest.md5)
-Size: $($manifest.size) bytes
+MD5: $($manifest.firmware.md5)
+Size: $($manifest.firmware.size) bytes
 "@
 Set-Content -Path $versionFile -Value $versionInfo
 Write-Success "Version info saved to: $versionFile"
@@ -129,7 +129,13 @@ if ($RebuildZip) {
         "flash_device.ps1",
         "flash_device.cmd",
         "flash_device.sh",
-        "firmware_version.txt"
+        "firmware_version.txt",
+        "BroncoFlasher.ps1",
+        "BroncoFlasher.cmd",
+        "Install.bat",
+        "Install-Drivers.bat",
+        "esp32-usb-driver.zip",
+        "README.md"
     )
     
     foreach ($file in $filesToInclude) {

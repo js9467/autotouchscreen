@@ -80,6 +80,60 @@ function Detect-ESP32Port {
     return $Ports[0].DeviceID
 }
 
+# Check and install USB drivers if needed
+function Install-ESP32Drivers {
+    Write-Step "Checking USB drivers..."
+    
+    # Check for ESP32 USB device with unknown/error status
+    $usbDevices = Get-PnpDevice | Where-Object { 
+        ($_.FriendlyName -like '*USB JTAG*' -or $_.FriendlyName -like '*USB Serial Device*') -and 
+        ($_.Status -eq 'Unknown' -or $_.Status -eq 'Error')
+    }
+    
+    if ($usbDevices.Count -eq 0) {
+        Write-Step "USB drivers OK"
+        return
+    }
+    
+    Write-Header "Installing ESP32 USB Drivers"
+    Write-Host "  ESP32 device detected but drivers are missing...`n" -ForegroundColor Yellow
+    
+    $driverDir = Join-Path $WorkDir "esp32-driver"
+    $driverZip = Join-Path $WorkDir "esp32-driver.zip"
+    
+    try {
+        # Download ESP32 USB JTAG driver
+        Write-Step "Downloading ESP32 USB drivers..."
+        $driverUrl = "https://dl.espressif.com/dl/idf-driver/idf-driver-esp32-usb-jtag-2021-07-15.zip"
+        Invoke-WebRequest -Uri $driverUrl -OutFile $driverZip -UseBasicParsing
+        
+        # Extract
+        if (Test-Path $driverDir) {
+            Remove-Item $driverDir -Recurse -Force
+        }
+        Expand-Archive -Path $driverZip -DestinationPath $driverDir -Force
+        
+        # Find installer
+        $installer = Get-ChildItem -Path $driverDir -Filter "*.exe" -Recurse | Select-Object -First 1
+        
+        if ($installer) {
+            Write-Step "Installing drivers (may require admin approval)..."
+            Start-Process -FilePath $installer.FullName -Wait -Verb RunAs
+            Write-Success "Drivers installed! Please replug your ESP32 device."
+            Write-Host "`nPress any key after replugging the device..." -ForegroundColor Yellow
+            $null = $Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown')
+        } else {
+            Write-Warning "Could not find driver installer"
+        }
+    } catch {
+        Write-Warning "Driver installation failed: $_"
+        Write-Host "`nManual installation:" -ForegroundColor Yellow
+        Write-Host "  1. Download: https://dl.espressif.com/dl/idf-driver/idf-driver-esp32-usb-jtag-2021-07-15.zip"
+        Write-Host "  2. Extract and run the installer"
+        Write-Host "  3. Replug your ESP32 device`n"
+    }
+}
+
 $ports = @(Get-SerialPorts)
 if ($ListPorts) {
     Write-Header "Available Serial Ports"
@@ -209,7 +263,7 @@ function Get-LatestFirmware {
         $manifest = Invoke-RestMethod -Uri "$OtaServer/ota/manifest" -Method Get
         $version = $manifest.version
         $firmwareUrl = $manifest.firmware.url
-        $expectedMd5 = $manifest.md5.ToLower()
+        $expectedMd5 = $manifest.firmware.md5.ToLower()
         
         # Check if we have the latest version cached
         $needsDownload = $true
@@ -227,7 +281,7 @@ function Get-LatestFirmware {
         
         if ($needsDownload) {
             Write-Header "Latest Firmware: v$version"
-            Write-Step "Downloading firmware.bin ($(($manifest.size / 1MB).ToString('0.0')) MB)..."
+            Write-Step "Downloading firmware.bin ($(($manifest.firmware.size / 1MB).ToString('0.0')) MB)..."
             
             Invoke-WebRequest -Uri $firmwareUrl -OutFile $firmwarePath -UseBasicParsing
             
@@ -243,7 +297,7 @@ Firmware Version: $version
 Downloaded: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')
 Source: $OtaServer
 MD5: $expectedMd5
-Size: $($manifest.size) bytes
+Size: $($manifest.firmware.size) bytes
 "@ | Set-Content -Path $versionPath
             
             Write-Success "Firmware v$version downloaded and verified"
@@ -270,6 +324,9 @@ try {
     $bootApp0 = Get-StaticBinary "boot_app0.bin"
     $firmware = Get-LatestFirmware
     $esptool = Get-Esptool -Version $EsptoolVersion
+    
+    # Check and install drivers if needed
+    Install-ESP32Drivers
     
     Write-Header "Detecting ESP32 Device"
     
