@@ -1,47 +1,49 @@
 @echo off
-:: Bronco Controls - Quick Setup (One-Click Installer)
-:: This file downloads and runs the automated installer
+:: Bronco Controls - Quick Setup (Direct PowerShell Installer)
 echo.
 echo ====================================================
 echo    Bronco Controls - Quick Setup
 echo ====================================================
 echo.
-echo This will:
-echo   1. Check for ESP32 device connection
-echo   2. Install USB drivers if needed
-echo   3. Flash the latest firmware
-echo   4. Open the web interface
+echo This will download and run the installer automatically.
 echo.
-echo Make sure your ESP32 device is connected via USB!
+echo BEFORE YOU CONTINUE:
+echo   1. Make sure ESP32 device is connected via USB
+echo   2. Close Arduino IDE, PuTTY, or any serial monitors
+echo   3. Have a data USB cable (not charge-only)
 echo.
 pause
 
-PowerShell -NoProfile -ExecutionPolicy Bypass -Command ^
-"Remove-Item \"$env:LOCALAPPDATA\BroncoControls\" -Recurse -Force -ErrorAction SilentlyContinue; ^
-$timestamp = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds(); ^
-$url = \"https://raw.githubusercontent.com/js9467/autotouchscreen/main/tools/deploy/BroncoFlasher.ps1?nocache=$timestamp\"; ^
-iex (irm $url)"
+echo.
+echo Downloading and running installer...
+echo.
 
-if %errorlevel% neq 0 (
-    echo.
-    echo.
-    echo ====================================================
-    echo    Installation failed or was cancelled
-    echo ====================================================
-    echo.
-    echo Common issues:
-    echo   - ESP32 not connected
-    echo   - Wrong USB cable (needs data, not just charging)
-    echo   - Another program is using the COM port
-    echo.
-    echo Try again after checking the above.
-    echo.
-    pause
-) else (
+PowerShell -NoProfile -ExecutionPolicy Bypass -Command ^
+"$timestamp = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds(); ^
+$url = \"https://raw.githubusercontent.com/js9467/autotouchscreen/main/tools/deploy/BroncoFlasher.ps1?nocache=$timestamp\"; ^
+$script = Invoke-RestMethod -Uri $url -UseBasicParsing; ^
+Invoke-Expression $script"
+
+if %errorlevel% equ 0 (
     echo.
     echo ====================================================
     echo    Installation Complete!
     echo ====================================================
     echo.
-    pause
+    echo Your device is ready to use!
+    echo.
+) else (
+    echo.
+    echo ====================================================
+    echo    Installation Issue
+    echo ====================================================
+    echo.
+    echo Common fixes:
+    echo   - Make sure ESP32 is connected
+    echo   - Use a USB data cable (not charge-only)
+    echo   - Close other programs using COM ports
+    echo   - Try a different USB port
+    echo.
 )
+
+pause

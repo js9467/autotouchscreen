@@ -287,44 +287,81 @@ try {
         
         if ($esp32Device) {
             Write-Header "ESP32 Device Detected - Installing Drivers"
-            Write-Host "  ESP32-S3 found but needs USB drivers...`n" -ForegroundColor Yellow
+            Write-Host "  ESP32-S3 found but needs USB drivers..." -ForegroundColor Yellow
+            Write-Host "  Installing drivers automatically (requires admin permission)...`n" -ForegroundColor Yellow
             
             try {
-                # Download Zadig
-                $zadigPath = Join-Path $WorkDir "zadig.exe"
-                if (-not (Test-Path $zadigPath)) {
-                    Write-Step "Downloading Zadig (USB driver installer)..."
-                    try {
-                        $zadigUrl = "https://raw.githubusercontent.com/$GitHubRepo/$GitHubBranch/tools/deploy/zadig.exe"
-                        Invoke-WebRequest -Uri $zadigUrl -OutFile $zadigPath -UseBasicParsing
-                        Write-Success "Zadig downloaded"
-                    } catch {
-                        # If download fails, try direct from Zadig website
-                        Write-Step "Downloading from zadig.akeo.ie..."
-                        Invoke-WebRequest -Uri "https://github.com/pbatard/libwdi/releases/download/v1.5.0/zadig-2.8.exe" -OutFile $zadigPath -UseBasicParsing
-                        Write-Success "Zadig downloaded"
-                    }
-                } else {
-                    Write-Step "Using cached Zadig"
+                # Get the device instance ID
+                $deviceId = $esp32Device | Select-Object -First 1 | Select-Object -ExpandProperty InstanceId
+                Write-Step "Device ID: $($deviceId.Substring(0, [Math]::Min(50, $deviceId.Length)))..."
+                
+                # Download and prepare WinUSB driver
+                $driverDir = Join-Path $WorkDir "esp32-driver"
+                if (Test-Path $driverDir) {
+                    Remove-Item $driverDir -Recurse -Force
                 }
+                New-Item -ItemType Directory -Path $driverDir -Force | Out-Null
                 
-                Write-Header "Driver Installation Instructions"
-                Write-Host "  Zadig will open to install the USB driver." -ForegroundColor Cyan
-                Write-Host "  Follow these steps:`n" -ForegroundColor Cyan
-                Write-Host "  1. In Zadig, click 'Options' -> 'List All Devices'" -ForegroundColor Yellow
-                Write-Host "  2. Select one of these from the dropdown:" -ForegroundColor Yellow
-                Write-Host "     - 'USB JTAG/serial debug unit'" -ForegroundColor White
-                Write-Host "     - 'USB Composite Device (303A:1001)'" -ForegroundColor White
-                Write-Host "  3. Make sure the driver shows 'WinUSB' or 'USB Serial (CDC)'" -ForegroundColor Yellow
-                Write-Host "  4. Click 'Install Driver' or 'Replace Driver'" -ForegroundColor Yellow
-                Write-Host "  5. Wait for 'Driver installed successfully'" -ForegroundColor Yellow
-                Write-Host "  6. Close Zadig`n" -ForegroundColor Yellow
+                # Create INF file for WinUSB
+                $infContent = @"
+[Version]
+Signature="`$Windows NT`$"
+Class=USBDevice
+ClassGUID={88BAE032-5A81-49f0-BC3D-A4FF138216D6}
+Provider=Espressif
+DriverVer=01/21/2026,1.0.0.0
+CatalogFile=esp32s3.cat
+
+[Manufacturer]
+%ManufacturerName%=Standard,NTamd64
+
+[Standard.NTamd64]
+%DeviceName%=USB_Install, USB\VID_303A&PID_1001
+%DeviceName2%=USB_Install, USB\VID_303A&PID_1001&MI_02
+
+[USB_Install]
+Include=winusb.inf
+Needs=WINUSB.NT
+
+[USB_Install.Services]
+Include=winusb.inf
+Needs=WINUSB.NT.Services
+
+[USB_Install.HW]
+AddReg=Dev_AddReg
+
+[Dev_AddReg]
+HKR,,DeviceInterfaceGUIDs,0x00010000,"{88BAE032-5A81-49f0-BC3D-A4FF138216D6}"
+
+[Strings]
+ManufacturerName="Espressif Systems"
+DeviceName="ESP32-S3 USB JTAG/Serial"
+DeviceName2="ESP32-S3 USB JTAG/Serial Debug Unit"
+"@
+                $infPath = Join-Path $driverDir "esp32s3.inf"
+                $infContent | Set-Content -Path $infPath -Encoding ASCII
                 
-                Write-Host "  Press any key to open Zadig..." -ForegroundColor Cyan
-                $null = $Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown')
+                Write-Step "Installing WinUSB driver..."
+                Write-Host "  Click 'Yes' when Windows asks for permission`n" -ForegroundColor Cyan
                 
-                # Launch Zadig
-                Start-Process -FilePath $zadigPath -Wait
+                # Install driver using pnputil
+                $installResult = Start-Process "pnputil.exe" -ArgumentList "/add-driver `"$infPath`" /install" -Wait -PassThru -Verb RunAs
+                
+                if ($installResult.ExitCode -eq 0) {
+                    Write-Success "Driver installed successfully!"
+                    
+                    # Try to apply driver to the device
+                    Write-Step "Applying driver to device..."
+                    try {
+                        # Use PowerShell to trigger device refresh
+                        $null = Start-Process "pnputil.exe" -ArgumentList "/scan-devices" -Wait -PassThru -NoNewWindow
+                    } catch {
+                        Write-Host "  Device scan completed" -ForegroundColor DarkGray
+                    }
+                    
+                } else {
+                    Write-Warning "pnputil returned code: $($installResult.ExitCode)"
+                }
                 
                 Write-Host "`n  Please UNPLUG and REPLUG your ESP32 device now" -ForegroundColor Yellow
                 Write-Host "  (This activates the new driver)`n" -ForegroundColor DarkGray
@@ -341,22 +378,60 @@ try {
                 if ($Port) {
                     Write-Success "ESP32 detected on $Port!"
                 } else {
-                    Write-Warning "Still cannot detect COM port"
-                    Write-Host "  The device may need a second replug. Try unplugging and replugging again.`n" -ForegroundColor Yellow
+                    Write-Warning "Still cannot detect COM port after first replug"
+                    Write-Host "`n  Sometimes Windows needs the device replugged twice." -ForegroundColor Yellow
+                    Write-Host "  Please unplug and replug ONE MORE TIME...`n" -ForegroundColor Yellow
                     Write-Host "  Press any key after replugging..." -ForegroundColor Cyan
                     $null = $Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown')
                     Start-Sleep -Seconds 3
                     $ports = @(Get-SerialPorts)
                     $Port = Detect-ESP32Port -Ports $ports
+                    
+                    if ($Port) {
+                        Write-Success "ESP32 detected on $Port!"
+                    }
                 }
                 
             } catch {
-                Write-Warning "Driver installation encountered an error: $_"
-                Write-Host "`nManual driver installation:" -ForegroundColor Yellow
-                Write-Host "1. Download Zadig from: https://zadig.akeo.ie/" -ForegroundColor Cyan
-                Write-Host "2. Options -> List All Devices" -ForegroundColor Cyan
-                Write-Host "3. Select 'USB JTAG/serial debug unit'" -ForegroundColor Cyan
-                Write-Host "4. Choose 'WinUSB' and click Install`n" -ForegroundColor Cyan
+                Write-Warning "Automatic driver installation failed: $_"
+                Write-Host "`nTrying alternative driver installation method...`n" -ForegroundColor Yellow
+                
+                # Fallback: Download official Espressif drivers
+                try {
+                    Write-Step "Downloading official ESP32 drivers..."
+                    $espDriverUrl = "https://dl.espressif.com/dl/idf-driver/idf-driver-esp32-usb-jtag-2021-07-15.zip"
+                    $driverZip = Join-Path $WorkDir "esp-driver.zip"
+                    
+                    Invoke-WebRequest -Uri $espDriverUrl -OutFile $driverZip -UseBasicParsing
+                    
+                    $driverExtractDir = Join-Path $WorkDir "esp-driver-extracted"
+                    if (Test-Path $driverExtractDir) {
+                        Remove-Item $driverExtractDir -Recurse -Force
+                    }
+                    Expand-Archive -Path $driverZip -DestinationPath $driverExtractDir -Force
+                    
+                    $driverInstaller = Get-ChildItem -Path $driverExtractDir -Filter "*.exe" -Recurse | Select-Object -First 1
+                    
+                    if ($driverInstaller) {
+                        Write-Step "Running official driver installer..."
+                        Write-Host "  Click through the installer prompts`n" -ForegroundColor Cyan
+                        Start-Process -FilePath $driverInstaller.FullName -Wait -Verb RunAs
+                        
+                        Write-Host "`n  Please UNPLUG and REPLUG your ESP32 device" -ForegroundColor Yellow
+                        Write-Host "  Press any key after replugging..." -ForegroundColor Cyan
+                        $null = $Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown')
+                        Start-Sleep -Seconds 3
+                        $ports = @(Get-SerialPorts)
+                        $Port = Detect-ESP32Port -Ports $ports
+                    }
+                } catch {
+                    Write-ErrorMsg "All automatic installation methods failed"
+                    Write-Host "`nPlease install drivers manually:" -ForegroundColor Yellow
+                    Write-Host "  1. Go to Device Manager (Win+X, then M)" -ForegroundColor Cyan
+                    Write-Host "  2. Find device with yellow warning icon" -ForegroundColor Cyan
+                    Write-Host "  3. Right-click -> Update Driver -> Browse -> Let me pick" -ForegroundColor Cyan
+                    Write-Host "  4. Choose 'USB Serial Device' or 'Ports (COM & LPT)'`n" -ForegroundColor Cyan
+                }
             }
         }
         
