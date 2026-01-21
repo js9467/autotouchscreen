@@ -278,19 +278,66 @@ try {
     }
     
     if (-not $Port) {
-        Write-ErrorMsg "Could not auto-detect ESP32 device"
-        Write-Host "`nAvailable ports:" -ForegroundColor Yellow
-        if ($ports.Count -eq 0) {
-            Write-Host "  No serial ports found" -ForegroundColor Red
-            Write-Host "`nTroubleshooting:" -ForegroundColor Yellow
-            Write-Host "  1. Connect your ESP32 device via USB"
-            Write-Host "  2. Run Install-Drivers.bat if device not recognized"
-            Write-Host "  3. Check Device Manager for COM ports"
-        } else {
-            $ports | Format-Table -AutoSize
-            Write-Host "Run with -Port COMx to specify manually`n" -ForegroundColor Yellow
+        # Check if ESP32 USB device is connected but drivers are missing
+        $esp32Device = Get-PnpDevice | Where-Object { 
+            ($_.FriendlyName -like '*USB JTAG*' -or $_.FriendlyName -like '*303A*') -and 
+            $_.Status -eq 'Unknown'
         }
-        exit 1
+        
+        if ($esp32Device) {
+            Write-Header "Installing ESP32 USB Drivers"
+            Write-Step "ESP32 detected but drivers are missing. Installing automatically..."
+            
+            try {
+                # Download and extract driver
+                $driverUrl = "https://dl.espressif.com/dl/idf-driver/idf-driver-esp32-usb-jtag-2021-07-15.zip"
+                $driverZip = Join-Path $WorkDir "esp32-driver.zip"
+                $driverDir = Join-Path $WorkDir "esp32-driver"
+                
+                Invoke-WebRequest -Uri $driverUrl -OutFile $driverZip -UseBasicParsing
+                
+                if (Test-Path $driverDir) { Remove-Item $driverDir -Recurse -Force }
+                Expand-Archive -Path $driverZip -DestinationPath $driverDir -Force
+                
+                # Find and run installer silently
+                $installer = Get-ChildItem -Path $driverDir -Filter "*.exe" -Recurse | Select-Object -First 1
+                
+                if ($installer) {
+                    Write-Step "Running driver installer (may require admin approval)..."
+                    $process = Start-Process -FilePath $installer.FullName -ArgumentList "/S" -Wait -PassThru -Verb RunAs
+                    
+                    Write-Step "Waiting for driver installation to complete..."
+                    Start-Sleep -Seconds 3
+                    
+                    # Refresh port list
+                    $ports = @(Get-SerialPorts)
+                    $Port = Detect-ESP32Port -Ports $ports
+                    
+                    if ($Port) {
+                        Write-Success "Drivers installed successfully!"
+                    }
+                }
+            } catch {
+                Write-Warning "Automatic driver installation failed: $_"
+            }
+        }
+        
+        # Final check
+        if (-not $Port) {
+            Write-ErrorMsg "Could not auto-detect ESP32 device"
+            Write-Host "`nAvailable ports:" -ForegroundColor Yellow
+            if ($ports.Count -eq 0) {
+                Write-Host "  No serial ports found" -ForegroundColor Red
+                Write-Host "`nTroubleshooting:" -ForegroundColor Yellow
+                Write-Host "  1. Make sure ESP32 is connected via USB"
+                Write-Host "  2. Unplug and replug the device"
+                Write-Host "  3. Try a different USB cable or port"
+            } else {
+                $ports | Format-Table -AutoSize
+                Write-Host "Run with -Port COMx to specify manually`n" -ForegroundColor Yellow
+            }
+            exit 1
+        }
     }
     
     Write-Success "Using port: $Port"
