@@ -1,0 +1,10 @@
+{
+  "version": "1.3.50",
+  "channel": "stable",
+  "released_at": "2026-01-23T23:27:18Z",
+  "firmware": {
+    "url": "firmware.bin",
+    "size": 2764848,
+    "md5": "08d315fae67b74987840b1d7b7ee7102"
+  }
+}
