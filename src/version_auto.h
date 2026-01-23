@@ -1,3 +1,3 @@
 #pragma once
-// Version 1.2.44 - Add COM port driver fix script for manual troubleshooting
-constexpr const char* APP_VERSION = "1.2.44";
+// Auto-generated on 2026-01-23T22:16:05.488278Z
+constexpr const char* APP_VERSION = "1.0.2";
