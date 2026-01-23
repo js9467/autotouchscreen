@@ -1406,7 +1406,8 @@ void UIBuilder::showInfoModal() {
     }
 
     info_modal_visible_ = true;
-    Serial.printf("[UI] Opening info modal, OTA status: %s\n", OTAUpdateManager::instance().lastStatus().c_str());
+    Serial.printf("[UI] Opening info modal, triggering OTA check\n");
+    OTAUpdateManager::instance().triggerImmediateCheck(false);  // Trigger check when modal opens
     updateOtaStatus(OTAUpdateManager::instance().lastStatus());
     refreshNetworkStatusLabel();
     refreshVersionLabel();
