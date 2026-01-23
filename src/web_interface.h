@@ -489,6 +489,9 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); bo
 					<button class="btn" onclick="importCanMessage('imotion_dr')">inMOTION DR</button>
 					<button class="btn" onclick="importCanMessage('imotion_pr')">inMOTION PR</button>
 				</div>
+				<div class="row" style="margin-top:10px;">
+					<button class="btn primary" onclick="addSuspensionPageTemplate()">Add Suspension Page (TCU S15)</button>
+				</div>
 			</div>
 		</div>
 	</section>
@@ -711,6 +714,75 @@ function addPage(){
 	hydratePageFields();
 	renderGrid();
 	renderPreview();
+}
+
+function addSuspensionPageTemplate(){
+	ensurePages();
+	const id = 'page_suspension_'+Date.now();
+	const buttonSpecs = [
+		{ label:'Power On', pgn:0x737, data:[0,0,0,0,0,0,0,0x30] },
+		{ label:'Power Off', pgn:0x737, data:[0,0,0,0,0,0,0,0x00] },
+		{ label:'Calibrate G-Sensor', pgn:0x738, data:[0,0,0,0,0,0,0,0x01] },
+		{ label:'Front 1', pgn:0x737, data:[0,0,0,0,0,0,0x01,0] },
+		{ label:'Front 2', pgn:0x737, data:[0,0,0,0,0,0,0x02,0] },
+		{ label:'Front 3', pgn:0x737, data:[0,0,0,0,0,0,0x03,0] },
+		{ label:'Front 4', pgn:0x737, data:[0,0,0,0,0,0,0x04,0] },
+		{ label:'Front 5', pgn:0x737, data:[0,0,0,0,0,0,0x05,0] },
+		{ label:'Rear 1', pgn:0x737, data:[0,0,0,0,0,0x01,0,0] },
+		{ label:'Rear 2', pgn:0x737, data:[0,0,0,0,0,0x02,0,0] },
+		{ label:'Rear 3', pgn:0x737, data:[0,0,0,0,0,0x03,0,0] },
+		{ label:'Rear 4', pgn:0x737, data:[0,0,0,0,0,0x04,0,0] },
+		{ label:'Rear 5', pgn:0x737, data:[0,0,0,0,0,0x05,0,0] },
+		{ label:'Roll 1', pgn:0x737, data:[0,0,0,0,0x01,0,0,0] },
+		{ label:'Roll 2', pgn:0x737, data:[0,0,0,0,0x02,0,0,0] },
+		{ label:'Roll 3', pgn:0x737, data:[0,0,0,0,0x03,0,0,0] },
+		{ label:'Roll 4', pgn:0x737, data:[0,0,0,0,0x04,0,0,0] },
+		{ label:'Roll 5', pgn:0x737, data:[0,0,0,0,0x05,0,0,0] },
+		{ label:'Pitch 1', pgn:0x737, data:[0,0,0,0x01,0,0,0,0] },
+		{ label:'Pitch 2', pgn:0x737, data:[0,0,0,0x02,0,0,0,0] },
+		{ label:'Pitch 3', pgn:0x737, data:[0,0,0,0x03,0,0,0,0] },
+		{ label:'Pitch 4', pgn:0x737, data:[0,0,0,0x04,0,0,0,0] },
+		{ label:'Pitch 5', pgn:0x737, data:[0,0,0,0x05,0,0,0,0] }
+	];
+
+	const buttons = buttonSpecs.map((spec, i) => {
+		const row = Math.floor(i / 4);
+		const col = i % 4;
+		return {
+			id: `${spec.label.toLowerCase().replace(/[^a-z0-9]+/g,'_')}_${i}`,
+			label: spec.label,
+			row,
+			col,
+			row_span: 1,
+			col_span: 1,
+			momentary: false,
+			font_size: 20,
+			corner_radius: 12,
+			can: {
+				enabled: true,
+				pgn: spec.pgn,
+				priority: 6,
+				source_address: 0xF9,
+				destination_address: 0xFF,
+				data: spec.data
+			}
+		};
+	});
+
+	const page = {
+		id,
+		name: 'Suspension',
+		rows: 6,
+		cols: 4,
+		buttons
+	};
+	config.pages.push(page);
+	activePageIndex = config.pages.length - 1;
+	renderPageList();
+	hydratePageFields();
+	renderGrid();
+	renderPreview();
+	showBanner('Suspension page added', 'success');
 }
 
 function deletePage(){
