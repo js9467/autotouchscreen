@@ -1114,10 +1114,10 @@ void UIBuilder::createInfoModal() {
     lv_obj_add_event_cb(info_modal_bg_, infoModalBackdropEvent, LV_EVENT_CLICKED, nullptr);
     lv_obj_move_foreground(info_modal_bg_);  // Ensure modal is on top
 
-    // Modal content box - fixed, no-scroll layout sized to the screen
+    // Modal content box - sized to fit content vertically, fill screen horizontally
     info_modal_ = lv_obj_create(info_modal_bg_);
     lv_obj_set_width(info_modal_, screen_w - 16);
-    lv_obj_set_height(info_modal_, screen_h - 16);
+    lv_obj_set_height(info_modal_, LV_SIZE_CONTENT);  // Auto-size to content, allow scrolling
     lv_obj_center(info_modal_);
     lv_obj_set_style_bg_color(info_modal_, lv_color_hex(0x2A2A2A), 0);
     lv_obj_set_style_bg_opa(info_modal_, LV_OPA_COVER, 0);
@@ -1130,9 +1130,8 @@ void UIBuilder::createInfoModal() {
     lv_obj_set_flex_align(info_modal_, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
     lv_obj_set_style_pad_gap(info_modal_, 10, 0);
     lv_obj_add_flag(info_modal_, LV_OBJ_FLAG_CLICKABLE);  // Block clicks from reaching background
-    lv_obj_clear_flag(info_modal_, LV_OBJ_FLAG_SCROLLABLE);  // No scrolling on main container
-    lv_obj_set_scroll_dir(info_modal_, LV_DIR_NONE);
-    lv_obj_set_scrollbar_mode(info_modal_, LV_SCROLLBAR_MODE_OFF);
+    lv_obj_set_scroll_dir(info_modal_, LV_DIR_VER);  // Allow vertical scrolling on main modal too
+    lv_obj_set_scrollbar_mode(info_modal_, LV_SCROLLBAR_MODE_AUTO);  // Show scrollbar if needed
     lv_obj_clear_flag(info_modal_, LV_OBJ_FLAG_EVENT_BUBBLE);
 
     // Title - smaller for compact design
