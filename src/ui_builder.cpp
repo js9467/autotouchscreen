@@ -1305,7 +1305,7 @@ void UIBuilder::createInfoModal() {
 
     // Show current version in Updates section
     createKeyValue(updates_card, "Current Version", version_default, &ota_version_label_);
-    createKeyValue(updates_card, "Available Update", "Checking...", &ota_available_version_label_);
+    createKeyValue(updates_card, "Available Update", "Tap check", &ota_available_version_label_);
 
     lv_obj_t* updates_header = lv_obj_create(updates_card);
     lv_obj_remove_style_all(updates_header);
@@ -1318,7 +1318,7 @@ void UIBuilder::createInfoModal() {
 
     ota_primary_button_ = lv_btn_create(updates_header);
     Serial.printf("[UI] Created ota_primary_button_ at %p\n", ota_primary_button_);
-    lv_obj_set_size(ota_primary_button_, 160, 34);  // Fixed width + height
+    lv_obj_set_size(ota_primary_button_, 200, 40);  // Fixed width + height
     lv_obj_set_style_bg_color(ota_primary_button_, UITheme::COLOR_ACCENT, 0);
     lv_obj_set_style_bg_opa(ota_primary_button_, LV_OPA_COVER, 0);
     lv_obj_set_style_radius(ota_primary_button_, UITheme::RADIUS_MD, 0);
@@ -1330,7 +1330,7 @@ void UIBuilder::createInfoModal() {
 
     ota_primary_button_label_ = lv_label_create(ota_primary_button_);
     Serial.printf("[UI] Created ota_primary_button_label_ at %p\n", ota_primary_button_label_);
-    lv_label_set_text(ota_primary_button_label_, "Update Now");
+    lv_label_set_text(ota_primary_button_label_, "Check for Updates");
     lv_obj_set_style_text_font(ota_primary_button_label_, &lv_font_montserrat_16, 0);
     lv_obj_set_style_text_color(ota_primary_button_label_, lv_color_hex(0x000000), 0);
     lv_obj_center(ota_primary_button_label_);

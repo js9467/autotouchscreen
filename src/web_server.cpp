@@ -8,6 +8,7 @@
 #include "config_manager.h"
 #include "ota_manager.h"
 #include "ui_builder.h"
+#include "suspension_page_template.h"
 #include "version_auto.h"
 #include "web_interface.h"
 
@@ -428,26 +429,47 @@ void WebServerManager::setupRoutes() {
     // OTA Update Endpoints
     server_.on("/api/ota/check", HTTP_GET, [](AsyncWebServerRequest* request) {
         DynamicJsonDocument doc(256);
-        doc["status"] = "ok";
-        // For now, we'll return a placeholder - the actual check happens in the OTA manager
-        // In a real implementation, you'd query the manifest server here
-        doc["update_available"] = false;
+        OTAUpdateManager& ota = OTAUpdateManager::instance();
+        ota.triggerImmediateCheck(false);
+
+        const std::string status = ota.lastStatus();
+        bool update_available = false;
+        std::string available_version;
+
+        const std::string kUpdatePrefix = "update-available-";
+        const std::string kDownloadingPrefix = "downloading-";
+        if (status.rfind(kUpdatePrefix, 0) == 0) {
+            update_available = true;
+            available_version = status.substr(kUpdatePrefix.size());
+        } else if (status.rfind(kDownloadingPrefix, 0) == 0) {
+            available_version = status.substr(kDownloadingPrefix.size());
+        }
+
+        doc["status"] = status.c_str();
+        doc["update_available"] = update_available;
         doc["current_version"] = APP_VERSION;
-        doc["available_version"] = "";
+        doc["available_version"] = available_version.c_str();
+
         String payload;
         serializeJson(doc, payload);
         request->send(200, "application/json", payload);
     });
 
     server_.on("/api/ota/update", HTTP_POST, [](AsyncWebServerRequest* request) {
+        OTAUpdateManager::instance().triggerImmediateCheck(true);
         DynamicJsonDocument doc(128);
         doc["status"] = "ok";
         doc["message"] = "Update triggered";
         String payload;
         serializeJson(doc, payload);
         request->send(200, "application/json", payload);
-        // In a real implementation, you'd call OTAUpdateManager::instance().triggerImmediateCheck(true);
-        // For now, the OTA manager runs in the background loop
+    });
+
+    // Suspension template preview (static HTML)
+    server_.on("/suspension", HTTP_GET, [](AsyncWebServerRequest* request) {
+        AsyncWebServerResponse* response = request->beginResponse_P(200, "text/html", SUSPENSION_PAGE_HTML);
+        response->addHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+        request->send(response);
     });
 
     // Captive portal - redirect all unknown requests to main page

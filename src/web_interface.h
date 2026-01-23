@@ -277,6 +277,9 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); bo
 				<button class="btn" onclick="checkForUpdates()">Check Updates</button>
 				<button class="btn primary" id="update-btn" onclick="triggerOTAUpdate()" style="display:none;">Update Available</button>
 			</div>
+			<div class="row" style="margin-top: 8px; gap: 8px;">
+				<a class="btn ghost" href="/suspension" target="_blank" rel="noopener">Open Suspension Interface</a>
+			</div>
 		</div>
 	</section>
 
