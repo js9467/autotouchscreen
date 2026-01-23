@@ -171,22 +171,42 @@ void WebServerManager::configureWifi() {
 }
 
 void WebServerManager::setupRoutes() {
-    // Captive portal detection endpoints
-    // iOS and macOS
+    // Captive portal detection endpoints - return wrong content to trigger portal
+    // iOS and macOS - expects "Success" but we return wrong content to trigger portal
     server_.on("/hotspot-detect.html", HTTP_GET, [](AsyncWebServerRequest* request) {
-        request->redirect("/");
+        AsyncWebServerResponse* response = request->beginResponse(200, "text/html", 
+            "<!DOCTYPE html><html><head><meta http-equiv='refresh' content='0; url=http://192.168.4.250/'></head><body></body></html>");
+        response->addHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+        response->addHeader("Pragma", "no-cache");
+        response->addHeader("Expires", "0");
+        request->send(response);
     });
-    // Android
+    server_.on("/library/test/success.html", HTTP_GET, [](AsyncWebServerRequest* request) {
+        AsyncWebServerResponse* response = request->beginResponse(200, "text/html", 
+            "<!DOCTYPE html><html><head><meta http-equiv='refresh' content='0; url=http://192.168.4.250/'></head><body></body></html>");
+        response->addHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+        request->send(response);
+    });
+    // Android - expects 204 No Content, we return different to trigger portal
     server_.on("/generate_204", HTTP_GET, [](AsyncWebServerRequest* request) {
-        request->redirect("/");
+        request->redirect("http://192.168.4.250/");
     });
-    // Windows
+    // Windows connectivity tests
     server_.on("/connecttest.txt", HTTP_GET, [](AsyncWebServerRequest* request) {
-        request->redirect("/");
+        request->redirect("http://192.168.4.250/");
     });
-    // Generic captive portal detection
     server_.on("/ncsi.txt", HTTP_GET, [](AsyncWebServerRequest* request) {
-        request->redirect("/");
+        request->redirect("http://192.168.4.250/");
+    });
+    server_.on("/redirect", HTTP_GET, [](AsyncWebServerRequest* request) {
+        request->redirect("http://192.168.4.250/");
+    });
+    // Additional Microsoft connectivity endpoints
+    server_.on("/connectivity-check", HTTP_GET, [](AsyncWebServerRequest* request) {
+        request->redirect("http://192.168.4.250/");
+    });
+    server_.on("/microsoft-connectivity-check", HTTP_GET, [](AsyncWebServerRequest* request) {
+        request->redirect("http://192.168.4.250/");
     });
     
     // Main configuration page
@@ -404,8 +424,15 @@ void WebServerManager::setupRoutes() {
         request->send(200, "application/json", payload);
     });
 
+    // Captive portal - redirect all unknown requests to main page
     server_.onNotFound([](AsyncWebServerRequest* request) {
-        request->send(404, "application/json", "{\"error\":\"Not found\"}");
+        // For API calls, return 404
+        if (request->url().startsWith("/api/")) {
+            request->send(404, "application/json", "{\"error\":\"Not found\"}");
+        } else {
+            // For all other requests, redirect to captive portal with 302 redirect
+            request->redirect("http://192.168.4.250/");
+        }
     });
 }
 

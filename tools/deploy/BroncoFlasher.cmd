@@ -13,6 +13,12 @@ if '%errorlevel%' NEQ '0' (
     timeout /t 3 >nul
 )
 
+    set "SCRIPT=%~dp0BroncoFlasher.ps1"
+    if exist "%SCRIPT%" (
+        PowerShell -NoProfile -ExecutionPolicy Bypass -File "%SCRIPT%" %*
+        exit /b %errorlevel%
+    )
+
 :: Run the embedded PowerShell script
 PowerShell -NoProfile -ExecutionPolicy Bypass -Command "& {
 $ErrorActionPreference = 'Stop'

@@ -1,12 +1,12 @@
-# Bronco Controls - Automotive HMI for Waveshare ESP32-S3-Touch-LCD-4.3
+# Bronco Controls - Automotive HMI for Waveshare ESP32-S3 Touch LCD
 
-A polished, rugged automotive HMI (Human-Machine Interface) with a Bronco-themed design for the Waveshare ESP32-S3-Touch-LCD-4.3 display board.
+A polished, rugged automotive HMI (Human-Machine Interface) with a Bronco-themed design for Waveshare ESP32-S3 Touch LCD boards.
 
 > Repository mirror: https://github.com/js9467/autotouchscreen
 
 ## Hardware Specifications
 
-- **Display**: 4.3" 800×480 RGB LCD with ST7262 controller
+- **Display**: 800×480 RGB LCD with ST7262 controller (4.3" and 7.0" panels)
 - **Touch**: GT911 capacitive I2C touch controller (5-point multi-touch)
 - **MCU**: ESP32-S3 dual-core LX7 @ 240MHz
 - **Memory**: 16MB Flash + 8MB PSRAM
@@ -53,7 +53,7 @@ Bronco-Controls-4/
 
 1. **VS Code** with **PlatformIO** extension installed
 2. **USB drivers** for ESP32-S3 (usually auto-installed)
-3. **Waveshare ESP32-S3-Touch-LCD-4.3** board
+3. **Waveshare ESP32-S3-Touch-LCD** board (4.3" or 7.0" variants)
 
 ### Clone and Setup
 
@@ -75,6 +75,11 @@ cd Bronco-Controls-4
 # Or use PlatformIO CLI:
 pio run
 ```
+
+#### Select panel variant
+
+- Default environment (4.3"): `pio run`
+- 7.0" panel: `pio run -e waveshare_7in`
 
 ### Flash
 

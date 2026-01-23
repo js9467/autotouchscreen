@@ -1142,20 +1142,19 @@ void UIBuilder::createInfoModal() {
     lv_obj_set_style_text_color(title, lv_color_hex(0xFFFFFF), 0);
     lv_obj_set_style_text_opa(title, LV_OPA_COVER, 0);
 
-    // Modal body container (fixed grid; no scrolling)
+    // Modal body container (scrollable grid to fit all content)
     lv_obj_t* modal_body = lv_obj_create(info_modal_);
     lv_obj_remove_style_all(modal_body);
     lv_obj_set_width(modal_body, lv_pct(100));
     lv_obj_set_flex_grow(modal_body, 1);  // Take available space
     lv_obj_set_style_pad_all(modal_body, 0, 0);
     lv_obj_set_style_pad_gap(modal_body, 12, 0);
-    lv_obj_clear_flag(modal_body, LV_OBJ_FLAG_SCROLLABLE);
-    lv_obj_set_scroll_dir(modal_body, LV_DIR_NONE);
-    lv_obj_set_scrollbar_mode(modal_body, LV_SCROLLBAR_MODE_OFF);
+    lv_obj_set_scroll_dir(modal_body, LV_DIR_VER);  // Allow vertical scrolling
+    lv_obj_set_scrollbar_mode(modal_body, LV_SCROLLBAR_MODE_AUTO);  // Show scrollbar when needed
 
     lv_obj_set_layout(modal_body, LV_LAYOUT_GRID);
     static lv_coord_t grid_cols[] = { LV_GRID_FR(1), LV_GRID_FR(1), LV_GRID_TEMPLATE_LAST };
-    static lv_coord_t grid_rows[] = { LV_GRID_FR(1), LV_GRID_FR(1), LV_GRID_TEMPLATE_LAST };
+    static lv_coord_t grid_rows[] = { LV_GRID_CONTENT, LV_GRID_CONTENT, LV_GRID_TEMPLATE_LAST };
     lv_obj_set_grid_dsc_array(modal_body, grid_cols, grid_rows);
 
     auto createSection = [&](lv_obj_t* parent, const char* heading_text) {
@@ -1216,10 +1215,8 @@ void UIBuilder::createInfoModal() {
     createKeyValue(system_card, "Connectivity", "Checking...", &network_status_label_);
     createKeyValue(system_card, "IP Address", "Not connected", &settings_ip_label_);
     createKeyValue(system_card, "Wi-Fi SSID", "Not connected", &settings_wifi_label_);
-    createKeyValue(system_card, "Connected Wi-Fi", "Not connected", &settings_wifi_label_);
     const char* version_default = (APP_VERSION && APP_VERSION[0]) ? APP_VERSION : "--";
     createKeyValue(system_card, "Firmware Version", version_default, &settings_version_label_);
-    refreshVersionLabel();
 
     // Network health bar + diagnostics
     lv_obj_t* bar_row = lv_obj_create(system_card);
@@ -1307,15 +1304,22 @@ void UIBuilder::createInfoModal() {
     lv_obj_t* updates_card = createSection(modal_body, "Updates");
     lv_obj_set_grid_cell(updates_card, LV_GRID_ALIGN_STRETCH, 0, 2, LV_GRID_ALIGN_STRETCH, 1, 1);
 
+    // Show current version in Updates section
+    createKeyValue(updates_card, "Current Version", version_default, &ota_version_label_);
+    createKeyValue(updates_card, "Available Update", "Checking...", &ota_available_version_label_);
+
     lv_obj_t* updates_header = lv_obj_create(updates_card);
     lv_obj_remove_style_all(updates_header);
     lv_obj_set_width(updates_header, lv_pct(100));
+    lv_obj_set_height(updates_header, LV_SIZE_CONTENT);  // Auto-size to fit button
     lv_obj_set_flex_flow(updates_header, LV_FLEX_FLOW_ROW);
-    lv_obj_set_flex_align(updates_header, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
-    lv_obj_set_style_pad_all(updates_header, 0, 0);
+    lv_obj_set_flex_align(updates_header, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_set_style_pad_top(updates_header, 8, 0);
+    lv_obj_set_style_pad_bottom(updates_header, 8, 0);
 
     ota_primary_button_ = lv_btn_create(updates_header);
-    lv_obj_set_height(ota_primary_button_, 34);
+    Serial.printf("[UI] Created ota_primary_button_ at %p\n", ota_primary_button_);
+    lv_obj_set_size(ota_primary_button_, 160, 34);  // Fixed width + height
     lv_obj_set_style_bg_color(ota_primary_button_, UITheme::COLOR_ACCENT, 0);
     lv_obj_set_style_bg_opa(ota_primary_button_, LV_OPA_COVER, 0);
     lv_obj_set_style_radius(ota_primary_button_, UITheme::RADIUS_MD, 0);
@@ -1326,6 +1330,7 @@ void UIBuilder::createInfoModal() {
     lv_obj_add_event_cb(ota_primary_button_, otaUpdateButtonEvent, LV_EVENT_CLICKED, nullptr);
 
     ota_primary_button_label_ = lv_label_create(ota_primary_button_);
+    Serial.printf("[UI] Created ota_primary_button_label_ at %p\n", ota_primary_button_label_);
     lv_label_set_text(ota_primary_button_label_, "Update Now");
     lv_obj_set_style_text_font(ota_primary_button_label_, &lv_font_montserrat_16, 0);
     lv_obj_set_style_text_color(ota_primary_button_label_, lv_color_hex(0x000000), 0);
@@ -1343,6 +1348,9 @@ void UIBuilder::createInfoModal() {
     lv_obj_set_style_text_color(ota_bar_label, UITheme::COLOR_TEXT_SECONDARY, 0);
 
     ota_status_bar_ = lv_bar_create(updates_card);
+
+    // Refresh version labels after creation
+    refreshVersionLabel();
     lv_bar_set_range(ota_status_bar_, 0, 100);
     lv_obj_set_width(ota_status_bar_, lv_pct(100));
     lv_obj_set_height(ota_status_bar_, 8);
@@ -1398,6 +1406,7 @@ void UIBuilder::showInfoModal() {
     }
 
     info_modal_visible_ = true;
+    Serial.printf("[UI] Opening info modal, OTA status: %s\n", OTAUpdateManager::instance().lastStatus().c_str());
     updateOtaStatus(OTAUpdateManager::instance().lastStatus());
     refreshNetworkStatusLabel();
     refreshVersionLabel();
@@ -1423,13 +1432,18 @@ void UIBuilder::hideInfoModal() {
 
 void UIBuilder::updateOtaStatus(const std::string& status) {
     const std::string next = status.empty() ? "idle" : status;
+    Serial.printf("[UI] updateOtaStatus called: next='%s', current='%s', modal_visible=%d\n", next.c_str(), ota_status_text_.c_str(), info_modal_visible_);
     if (next == ota_status_text_) {
+        Serial.printf("[UI] updateOtaStatus: status unchanged, returning\n");
         return;
     }
     ota_status_text_ = next;
     if (info_modal_visible_) {
+        Serial.printf("[UI] updateOtaStatus: modal visible, calling refreshOtaStatusLabel\n");
         refreshOtaStatusLabel();
         refreshVersionLabel();
+    } else {
+        Serial.printf("[UI] updateOtaStatus: modal NOT visible, skipping refresh\n");
     }
 }
 
@@ -1623,10 +1637,10 @@ void UIBuilder::refreshNetworkStatusLabel() {
 
 std::string UIBuilder::connectionStatusText() const {
     if (last_sta_connected_ && !last_sta_ip_.empty() && last_sta_ip_ != "0.0.0.0") {
-        return "Wi-Fi Online";
+        return "Wi-Fi Online - " + last_sta_ip_;
     }
     if (!last_ap_ip_.empty() && last_ap_ip_ != "0.0.0.0") {
-        return "Hosting AP";
+        return "AP Mode - " + last_ap_ip_;
     }
     return "Offline";
 }
@@ -1642,7 +1656,7 @@ lv_color_t UIBuilder::connectionStatusColor() const {
 }
 
 void UIBuilder::refreshVersionLabel() {
-    if (!version_label_ && !settings_version_label_) {
+    if (!version_label_ && !settings_version_label_ && !ota_version_label_) {
         return;
     }
     std::string version_text;
@@ -1669,6 +1683,13 @@ void UIBuilder::refreshVersionLabel() {
         if (cached_settings_version_text_ != version_text) {
             cached_settings_version_text_ = version_text;
             lv_label_set_text(settings_version_label_, cached_settings_version_text_.c_str());
+        }
+    }
+
+    if (ota_version_label_) {
+        if (cached_settings_version_text_ != version_text) {
+            cached_settings_version_text_ = version_text;
+            lv_label_set_text(ota_version_label_, cached_settings_version_text_.c_str());
         }
     }
 }
@@ -1719,35 +1740,48 @@ void UIBuilder::refreshOtaStatusBar() {
 
 void UIBuilder::updateOtaActionState() {
     if (!ota_primary_button_ || !ota_primary_button_label_) {
+        Serial.printf("[UI] updateOtaActionState: button or label is NULL! btn=%p label=%p\n", ota_primary_button_, ota_primary_button_label_);
         return;
     }
 
-    std::string label_text = "Update Now";
+    std::string label_text = "Check for Updates";
+    std::string available_text = "";
     bool disable = false;
+    Serial.printf("[UI] updateOtaActionState: ota_status_text_='%s'\n", ota_status_text_.c_str());
 
     if (ota_status_text_ == "manual-check-requested") {
         label_text = "Checking...";
+        available_text = "Checking...";
         disable = true;
         ota_primary_action_ = OtaAction::BLOCKED;
     } else if (startsWith(ota_status_text_, "downloading-")) {
         label_text = "Downloading...";
+        available_text = ota_status_text_.substr(12);
+        size_t dash = available_text.find_last_of('-');
+        if (dash != std::string::npos) {
+            available_text = available_text.substr(0, dash);
+        }
         disable = true;
         ota_primary_action_ = OtaAction::BLOCKED;
     } else if (ota_status_text_ == "waiting-for-wifi") {
         label_text = "Waiting for Wi-Fi";
+        available_text = "Offline";
         disable = true;
         ota_primary_action_ = OtaAction::BLOCKED;
     } else if (startsWith(ota_status_text_, "update-available-")) {
+        available_text = ota_status_text_.substr(18);
         label_text = "Install Update";
         ota_primary_action_ = OtaAction::INSTALL;
     } else if (ota_status_text_ == "up-to-date" || startsWith(ota_status_text_, "updated-to-")) {
-        label_text = "Up to date";
-        disable = true;
-        ota_primary_action_ = OtaAction::BLOCKED;
+        label_text = "Check for Updates";
+        available_text = "None";
+        ota_primary_action_ = OtaAction::INSTALL;
     } else if (isOtaStatusError(ota_status_text_)) {
-        label_text = "Retry Update";
+        label_text = "Retry";
+        available_text = "Error checking";
         ota_primary_action_ = OtaAction::INSTALL;
     } else {
+        available_text = "None";
         ota_primary_action_ = OtaAction::INSTALL;
     }
 
@@ -1766,6 +1800,14 @@ void UIBuilder::updateOtaActionState() {
     if (cached_ota_button_text_ != label_text) {
         cached_ota_button_text_ = label_text;
         lv_label_set_text(ota_primary_button_label_, cached_ota_button_text_.c_str());
+        Serial.printf("[UI] Set button text to: '%s'\n", cached_ota_button_text_.c_str());
+    }
+
+    if (ota_available_version_label_) {
+        lv_label_set_text(ota_available_version_label_, available_text.c_str());
+        Serial.printf("[UI] Set available version to: '%s'\n", available_text.c_str());
+    } else {
+        Serial.println("[UI] ota_available_version_label_ is NULL!");
     }
 }
 

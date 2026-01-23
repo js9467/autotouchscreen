@@ -52,19 +52,18 @@ If you need offline flashing or the above methods don't work:
 
 5. **Flash the firmware:**
    - **Windows:** Double-click `BroncoFlasher.cmd`
-   - **PowerShell:** Run `.\BroncoFlasher.ps1`
-   - The script will automatically download the latest firmware and flash your device
+    - **PowerShell:** Run `.\BroncoFlasher.ps1`
+   - The script uses the bundled firmware for the selected panel and only downloads from OTA if that file is missing
 
----
 
 ## What's Included in BroncoFlasher.zip
 
-- `Install.bat` - One-click installer (downloads latest firmware automatically)
+- `Install.bat` - One-click installer (pulls updated script when needed)
 - `BroncoFlasher.ps1` - PowerShell flasher with auto-driver installation
 - `BroncoFlasher.cmd` - Windows batch wrapper
 - `Install-Drivers.bat` - **USB driver installer for ESP32-S3**
 - `esp32-usb-driver.zip` - Bundled ESP32 USB JTAG drivers
-- `firmware.bin` - Latest firmware binary (auto-updated)
+- `firmware.bin` and optional `firmware-7.0.bin` - Packaged firmware images
 - `bootloader.bin`, `partitions.bin`, `boot_app0.bin` - ESP32 system files
 - `README.md` - This file
 
@@ -118,6 +117,9 @@ The script will:
 
 # Offline mode (use cached files only, no downloads)
 .\BroncoFlasher.ps1 -OfflineMode
+
+# Force specific panel (4.3" default)
+.\BroncoFlasher.ps1 -PanelVariant '7.0'
 
 # Use custom OTA server
 .\BroncoFlasher.ps1 -OtaServer "https://custom-server.com"
@@ -264,6 +266,9 @@ This directory provides **three different ways** to install firmware:
 
 # Use custom OTA server
 .\BroncoFlasher.ps1 -OtaServer "https://custom-server.com"
+
+# Force specific panel (4.3" default)
+.\BroncoFlasher.ps1 -PanelVariant '7.0'
 
 # Force fresh download (bypass cache)
 $env:BRONCO_FORCE_DOWNLOAD='true'

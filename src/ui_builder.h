@@ -108,6 +108,8 @@ private:
     lv_obj_t* settings_brightness_slider_ = nullptr;
     lv_obj_t* settings_brightness_label_ = nullptr;
     lv_obj_t* settings_version_label_ = nullptr;
+    lv_obj_t* ota_version_label_ = nullptr;
+    lv_obj_t* ota_available_version_label_ = nullptr;
     lv_obj_t* ota_status_label_ = nullptr;
     lv_obj_t* ota_primary_button_ = nullptr;
     lv_obj_t* ota_primary_button_label_ = nullptr;

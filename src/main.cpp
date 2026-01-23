@@ -4,11 +4,13 @@
  *
  * Boots the LVGL runtime, loads configuration from LittleFS,
  * and exposes a WiFi + web interface for live customization.
+ * Version display and OTA update support.
  */
 
 #include <Arduino.h>
 #include <ESP_IOExpander_Library.h>
 #include <ESP_Panel_Library.h>
+#include <ESP_Panel_Conf.h>
 #include <lvgl.h>
 #include <WiFi.h>
 #include <string>
@@ -40,6 +42,35 @@
 #define LVGL_TASK_STACK_SIZE    (6 * 1024)
 #define LVGL_TASK_PRIORITY      (2)
 #define LVGL_BUF_SIZE           (ESP_PANEL_LCD_H_RES * 40)
+
+enum class PanelVariant : uint8_t {
+    kFourPointThreeInch = BRONCO_PANEL_VARIANT_4_3,
+    kSevenInch = BRONCO_PANEL_VARIANT_7_0,
+};
+
+struct PanelConfig {
+    PanelVariant variant;
+    uint16_t width;
+    uint16_t height;
+    const char *name;
+    uint32_t colorDepth;
+};
+
+static constexpr PanelConfig kPanelConfigs[] = {
+    { PanelVariant::kFourPointThreeInch, 800, 480, "Waveshare 4.3", 16 },
+    { PanelVariant::kSevenInch, 800, 480, "Waveshare 7.0", 16 },
+};
+
+static const PanelConfig& SelectPanelConfig()
+{
+    const uint32_t configuredVariant = BRONCO_PANEL_VARIANT;
+    for (const auto &config : kPanelConfigs) {
+        if (static_cast<uint32_t>(config.variant) == configuredVariant) {
+            return config;
+        }
+    }
+    return kPanelConfigs[0];
+}
 
 // Globals
 ESP_Panel* panel = nullptr;
@@ -119,6 +150,9 @@ void setup() {
     Serial.println("=================================");
     Serial.printf(" Firmware Version: %s\n", APP_VERSION);
 
+    const PanelConfig &panelConfig = SelectPanelConfig();
+    Serial.printf(" Panel Variant: %s\n", panelConfig.name);
+
     // Initialize LVGL core
     lv_init();
 
@@ -149,8 +183,8 @@ void setup() {
     // Register display driver
     static lv_disp_drv_t disp_drv;
     lv_disp_drv_init(&disp_drv);
-    disp_drv.hor_res = ESP_PANEL_LCD_H_RES;
-    disp_drv.ver_res = ESP_PANEL_LCD_V_RES;
+    disp_drv.hor_res = panelConfig.width;
+    disp_drv.ver_res = panelConfig.height;
     disp_drv.flush_cb = lvgl_port_disp_flush;
     disp_drv.draw_buf = &draw_buf;
     lv_disp_drv_register(&disp_drv);

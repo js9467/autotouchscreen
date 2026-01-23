@@ -36,7 +36,7 @@ private:
     void hideOtaScreen();
 
     bool enabled_ = false;
-    bool auto_apply_ = true;
+    bool auto_apply_ = false;  // Default to manual updates - user must confirm
     std::string manifest_url_;
     std::string expected_channel_ = "stable";
     std::uint32_t base_check_interval_ms_ = 3600000;  // 60 minutes

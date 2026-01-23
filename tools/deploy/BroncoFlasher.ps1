@@ -33,6 +33,8 @@ param(
     [string]$Port,
     [switch]$ListPorts,
     [switch]$OfflineMode,
+    [ValidateSet('4.3','7.0')]
+    [string]$PanelVariant = '4.3',
     [string]$GitHubRepo = "js9467/autotouchscreen",
     [string]$GitHubBranch = "main",
     [string]$OtaServer = "https://image-optimizer-still-flower-1282.fly.dev",
@@ -48,6 +50,8 @@ function Write-Success { param([string]$Message) Write-Host "  [OK] $Message" -F
 function Write-Step { param([string]$Message) Write-Host "  --> $Message" -ForegroundColor Yellow }
 function Write-ErrorMsg { param([string]$Message) Write-Host "  [ERROR] $Message" -ForegroundColor Red }
 
+$ScriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
+
 # Setup working directory
 $WorkDir = Join-Path $env:LOCALAPPDATA "BroncoControls\flash-temp"
 if (-not (Test-Path $WorkDir)) {
@@ -59,25 +63,80 @@ Write-Host "  Workspace: $WorkDir`n" -ForegroundColor DarkGray
 
 # Detect serial ports
 function Get-SerialPorts {
+    $ports = @()
+
     try {
-        return @(Get-CimInstance Win32_SerialPort |
+        $ports = @(Get-CimInstance -ClassName Win32_SerialPort -ErrorAction Stop |
             Select-Object DeviceID, Description |
             Sort-Object DeviceID)
     } catch {
-        return @()
+        $ports = @()
     }
+
+    if ($ports.Count -gt 0) {
+        return $ports
+    }
+
+    try {
+        $pnpPorts = @(Get-PnpDevice -Class Ports -ErrorAction Stop |
+            Where-Object { $_.FriendlyName -match '\(COM\d+\)' } |
+            ForEach-Object {
+                [PSCustomObject]@{
+                    DeviceID    = ($_.FriendlyName -replace '.*\((COM\d+)\).*', '$1')
+                    Description = $_.FriendlyName
+                }
+            } |
+            Sort-Object DeviceID)
+
+        if ($pnpPorts.Count -gt 0) {
+            return $pnpPorts
+        }
+    } catch {
+        # Fall through to final fallback
+    }
+
+    $rawPorts = [System.IO.Ports.SerialPort]::GetPortNames() | Sort-Object
+    return @($rawPorts | ForEach-Object {
+        [PSCustomObject]@{
+            DeviceID    = $_
+            Description = "Serial Port ($_)"
+        }
+    })
 }
 
 function Detect-ESP32Port {
     param([array]$Ports)
     if ($Ports.Count -eq 0) { return $null }
     
-    $patterns = @('CP210', 'Silicon Labs', 'USB Serial', 'USB JTAG', 'ESP32', 'CH910')
+    $patterns = @('CP210', 'Silicon Labs', 'USB Serial', 'USB JTAG', 'ESP32', 'CH910', 'CH343')
     foreach ($pattern in $patterns) {
-        $match = $Ports | Where-Object { $_.Description -like "*$pattern*" }
+        $match = $Ports | Where-Object { ([string]$_.Description) -like "*$pattern*" }
         if ($match) { return $match[0].DeviceID }
     }
     return $Ports[0].DeviceID
+}
+
+function Resolve-PackagedFile {
+    param([string]$Filename)
+    $candidate = Join-Path $ScriptRoot $Filename
+    if (Test-Path $candidate) {
+        return $candidate
+    }
+    return $null
+}
+
+function Get-PackagedFirmwarePath {
+    param([string]$Variant)
+    $variantMap = @{
+        '4.3' = 'firmware.bin'
+        '7.0' = 'firmware-7.0.bin'
+    }
+
+    if (-not $variantMap.ContainsKey($Variant)) {
+        return $null
+    }
+
+    return Resolve-PackagedFile -Filename $variantMap[$Variant]
 }
 
 $ports = @(Get-SerialPorts)
@@ -152,6 +211,13 @@ function Get-StaticBinary {
     param([string]$Filename)
     
     $localPath = Join-Path $WorkDir $Filename
+    $packaged = Resolve-PackagedFile -Filename $Filename
+    if ($packaged) {
+        Write-Step "Using packaged $Filename"
+        Copy-Item -Path $packaged -Destination $localPath -Force
+        return $localPath
+    }
+    
     $cacheAge = if (Test-Path $localPath) { (Get-Date) - (Get-Item $localPath).LastWriteTime } else { $null }
     
     # Use cached file if less than 7 days old or in offline mode
@@ -185,6 +251,20 @@ function Get-StaticBinary {
 function Get-LatestFirmware {
     $firmwarePath = Join-Path $WorkDir "firmware.bin"
     $versionPath = Join-Path $WorkDir "firmware_version.txt"
+    $packagedFirmware = Get-PackagedFirmwarePath -Variant $PanelVariant
+
+    if ($packagedFirmware) {
+        Write-Step "Using packaged firmware for panel $PanelVariant";
+        Copy-Item -Path $packagedFirmware -Destination $firmwarePath -Force
+        @"
+Firmware Source: Packaged
+Panel Variant: $PanelVariant
+Copied: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')
+"@ | Set-Content -Path $versionPath
+        return $firmwarePath
+    }
+
+    Write-Step "Packaged firmware not found for panel $PanelVariant; falling back to OTA download"
     
     if ($OfflineMode -and (Test-Path $firmwarePath)) {
         Write-Step "Using cached firmware (offline mode)"
@@ -260,9 +340,53 @@ Size: $($manifest.firmware.size) bytes
     }
 }
 
+function Invoke-EsptoolCommand {
+    param(
+        [string]$ToolPath,
+        [string[]]$CommandArgs,
+        [string]$Action,
+        [bool]$AllowManualRetry = $false,
+        [string[]]$ManualCommandArgs,
+        [bool]$ManualOnly = $false
+    )
+
+    $attempts = 1
+    if ($AllowManualRetry) {
+        $attempts = 2
+    }
+
+    for ($i = 1; $i -le $attempts; $i++) {
+        $useManual = $ManualOnly -or ($i -gt 1 -and $AllowManualRetry -and $ManualCommandArgs)
+
+        if ($useManual) {
+            Write-Host "" 
+            Write-Step "Manual boot mode: Hold BOOT and tap RESET, keep holding BOOT"
+            Write-Host "  1. Hold BOOT now (keep holding it)." -ForegroundColor Yellow
+            Write-Host "  2. Tap RESET once while still holding BOOT." -ForegroundColor Yellow
+            Write-Host "  3. Keep holding BOOT and press Enter to retry $Action." -ForegroundColor Yellow
+            Write-Host "  4. Release BOOT only after 'Connecting...' appears." -ForegroundColor Yellow
+            $null = Read-Host
+        }
+
+        $argsToUse = $CommandArgs
+        if ($useManual -and $ManualCommandArgs) {
+            $argsToUse = $ManualCommandArgs
+        }
+
+        & $ToolPath @argsToUse
+
+        if ($LASTEXITCODE -eq 0) {
+            return
+        }
+    }
+
+    throw "$Action failed with exit code $LASTEXITCODE"
+}
+
 # Main execution
 try {
     Write-Header "Preparing Flash Files"
+    Write-Step "Panel variant: $PanelVariant"
     
     # Download all required files
     $bootloader = Get-StaticBinary "bootloader.bin"
@@ -314,9 +438,10 @@ try {
                     Start-Process -FilePath $driverInstaller.FullName -Wait
                     Write-Success "Driver installer completed"
                     
-                    Write-Host "`n╔════════════════════════════════════════════════════════════╗" -ForegroundColor Yellow
-                    Write-Host "║  IMPORTANT: Unplug and Replug Your ESP32 Device          ║" -ForegroundColor Yellow
-                    Write-Host "╚════════════════════════════════════════════════════════════╝" -ForegroundColor Yellow
+                    Write-Host ""
+                    Write-Host "============================================================" -ForegroundColor Yellow
+                    Write-Host "  IMPORTANT: Unplug and Replug Your ESP32 Device" -ForegroundColor Yellow
+                    Write-Host "============================================================" -ForegroundColor Yellow
                     Write-Host "`n  Steps:" -ForegroundColor Cyan
                     Write-Host "  1. UNPLUG the USB cable from your computer" -ForegroundColor White
                     Write-Host "  2. Wait 5 seconds" -ForegroundColor White
@@ -373,7 +498,7 @@ try {
                 Write-Host "  3. Right-click → Update Driver" -ForegroundColor Cyan
                 Write-Host "  4. Choose 'Browse my computer for drivers'" -ForegroundColor Cyan
                 Write-Host "  5. Click 'Let me pick from a list'" -ForegroundColor Cyan
-                Write-Host "  6. Select 'Ports (COM & LPT)'" -ForegroundColor Cyan
+                Write-Host "  6. Select 'Ports (COM and LPT)'" -ForegroundColor Cyan
                 Write-Host "  7. Choose 'USB Serial Device' or any COM port driver`n" -ForegroundColor Cyan
             }
         }
@@ -433,6 +558,20 @@ try {
     }
     
     Write-Success "Using port: $Port"
+
+    $selectedPort = $ports | Where-Object { $_.DeviceID -eq $Port } | Select-Object -First 1
+    if ($selectedPort) {
+        $requiresManualBoot = ([string]$selectedPort.Description) -match 'CH34\d|CH910'
+        if ($requiresManualBoot) {
+            Write-Host "  Detected CH340/CH343 style USB bridge - manual boot assist may be required." -ForegroundColor Yellow
+            Write-Host "  Keep the BOOT button handy; you'll be prompted if we need your help." -ForegroundColor Yellow
+        } else {
+            $requiresManualBoot = $false
+        }
+    } else {
+        # Non-COM or USB-JTAG mode (e.g. using esptool --port usb) - no manual boot handling
+        $requiresManualBoot = $false
+    }
     
     Write-Header "Erasing Flash"
     Write-Host "  This ensures a clean installation...`n" -ForegroundColor DarkGray
@@ -443,12 +582,15 @@ try {
         "--baud", "921600",
         "erase_flash"
     )
+    $eraseManualArgs = @(
+        "--chip", "esp32s3",
+        "--port", $Port,
+        "--baud", "921600",
+        "--before", "no_reset",
+        "erase_flash"
+    )
     
-    & $esptool @eraseArgs
-    
-    if ($LASTEXITCODE -ne 0) {
-        throw "Flash erase failed with exit code $LASTEXITCODE"
-    }
+    Invoke-EsptoolCommand -ToolPath $esptool -CommandArgs $eraseArgs -Action "Flash erase" -AllowManualRetry:$requiresManualBoot -ManualCommandArgs $eraseManualArgs -ManualOnly:$requiresManualBoot
     
     Write-Header "Flashing ESP32"
     Write-Host "  This may take 30-60 seconds...`n" -ForegroundColor DarkGray
@@ -467,12 +609,22 @@ try {
         "0xe000", $bootApp0,
         "0x10000", $firmware
     )
+    $manualFlashArgs = @(
+        "--chip", "esp32s3",
+        "--port", $Port,
+        "--baud", "921600",
+        "--before", "no_reset",
+        "--after", "hard_reset",
+        "write_flash",
+        "--flash_mode", "qio",
+        "--flash_size", "16MB",
+        "0x0", $bootloader,
+        "0x8000", $partitions,
+        "0xe000", $bootApp0,
+        "0x10000", $firmware
+    )
     
-    & $esptool @arguments
-    
-    if ($LASTEXITCODE -ne 0) {
-        throw "esptool reported exit code $LASTEXITCODE"
-    }
+    Invoke-EsptoolCommand -ToolPath $esptool -CommandArgs $arguments -Action "Firmware flash" -AllowManualRetry:$requiresManualBoot -ManualCommandArgs $manualFlashArgs -ManualOnly:$requiresManualBoot
     
     Write-Host ""
     Write-Success "Flash complete!"
