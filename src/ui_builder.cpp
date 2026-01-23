@@ -1114,10 +1114,10 @@ void UIBuilder::createInfoModal() {
     lv_obj_add_event_cb(info_modal_bg_, infoModalBackdropEvent, LV_EVENT_CLICKED, nullptr);
     lv_obj_move_foreground(info_modal_bg_);  // Ensure modal is on top
 
-    // Modal content box - fixed height to fit on screen, with scrolling for overflow
+    // Modal content box - sized to content with max limit, with scrolling for overflow
     info_modal_ = lv_obj_create(info_modal_bg_);
     lv_obj_set_width(info_modal_, screen_w - 16);
-    lv_obj_set_height(info_modal_, screen_h - 80);  // Leave space for margins, allow scrolling for overflow
+    lv_obj_set_height(info_modal_, 420);  // Fixed reasonable height, scrollable for overflow
     lv_obj_center(info_modal_);
     lv_obj_set_style_bg_color(info_modal_, lv_color_hex(0x2A2A2A), 0);
     lv_obj_set_style_bg_opa(info_modal_, LV_OPA_COVER, 0);
@@ -1145,7 +1145,7 @@ void UIBuilder::createInfoModal() {
     lv_obj_t* modal_body = lv_obj_create(info_modal_);
     lv_obj_remove_style_all(modal_body);
     lv_obj_set_width(modal_body, lv_pct(100));
-    lv_obj_set_flex_grow(modal_body, 1);  // Take available space
+    lv_obj_set_height(modal_body, LV_SIZE_CONTENT);  // Auto-size height to content
     lv_obj_set_style_pad_all(modal_body, 0, 0);
     lv_obj_set_style_pad_gap(modal_body, 12, 0);
     lv_obj_set_scroll_dir(modal_body, LV_DIR_VER);  // Allow vertical scrolling

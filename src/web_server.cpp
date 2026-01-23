@@ -6,6 +6,7 @@
 #include <cstddef>
 
 #include "config_manager.h"
+#include "ota_manager.h"
 #include "ui_builder.h"
 #include "version_auto.h"
 #include "web_interface.h"
@@ -422,6 +423,31 @@ void WebServerManager::setupRoutes() {
         String payload;
         serializeJson(doc, payload);
         request->send(200, "application/json", payload);
+    });
+
+    // OTA Update Endpoints
+    server_.on("/api/ota/check", HTTP_GET, [](AsyncWebServerRequest* request) {
+        DynamicJsonDocument doc(256);
+        doc["status"] = "ok";
+        // For now, we'll return a placeholder - the actual check happens in the OTA manager
+        // In a real implementation, you'd query the manifest server here
+        doc["update_available"] = false;
+        doc["current_version"] = APP_VERSION;
+        doc["available_version"] = "";
+        String payload;
+        serializeJson(doc, payload);
+        request->send(200, "application/json", payload);
+    });
+
+    server_.on("/api/ota/update", HTTP_POST, [](AsyncWebServerRequest* request) {
+        DynamicJsonDocument doc(128);
+        doc["status"] = "ok";
+        doc["message"] = "Update triggered";
+        String payload;
+        serializeJson(doc, payload);
+        request->send(200, "application/json", payload);
+        // In a real implementation, you'd call OTAUpdateManager::instance().triggerImmediateCheck(true);
+        // For now, the OTA manager runs in the background loop
     });
 
     // Captive portal - redirect all unknown requests to main page

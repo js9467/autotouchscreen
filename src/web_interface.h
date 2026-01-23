@@ -263,14 +263,19 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); bo
 			</div>
 		</div>
 		<div class="card">
-			<h3>Device Info</h3>
+			<h3>Device Info & Updates</h3>
 			<div class="muted">Version and current network addresses.</div>
 			<div class="status-grid" id="status" data-version="{{VERSION}}">
 				<div class="status-chip"><span>Firmware</span>v{{VERSION}}</div>
+				<div class="status-chip"><span>Available Update</span><span id="update-available">Checking...</span></div>
 				<div class="status-chip"><span>Device IP</span>—</div>
 				<div class="status-chip"><span>Connected Network</span>—</div>
 				<div class="status-chip"><span>AP IP</span>—</div>
 				<div class="status-chip"><span>Station IP</span>—</div>
+			</div>
+			<div class="row" style="margin-top: 12px; gap: 8px;">
+				<button class="btn" onclick="checkForUpdates()">Check Updates</button>
+				<button class="btn primary" id="update-btn" onclick="triggerOTAUpdate()" style="display:none;">Update Available</button>
 			</div>
 		</div>
 	</section>
@@ -2394,6 +2399,64 @@ async function saveConfig(){
 		if(!res.ok){ const text = await res.text(); throw new Error(text); }
 		showBanner('Configuration saved. Reboot device to apply display changes.','success');
 	}catch(err){ showBanner('Save failed: '+err.message,'error'); }
+}
+
+async function checkForUpdates(){
+	const btn = document.querySelector('button[onclick="checkForUpdates()"]');
+	if (btn) btn.disabled = true;
+	const updateChip = document.getElementById('update-available');
+	if (updateChip) updateChip.textContent = 'Checking...';
+	try{
+		const res = await fetch('/api/ota/check');
+		const data = await res.json();
+		if (data.update_available) {
+			if (updateChip) updateChip.innerHTML = `<span style="color: var(--success);">v${data.available_version}</span>`;
+			const updateBtn = document.getElementById('update-btn');
+			if (updateBtn) {
+				updateBtn.style.display = 'block';
+				updateBtn.textContent = `Update to v${data.available_version}`;
+			}
+			showBanner(`Update available: v${data.available_version}`, 'success');
+		} else {
+			if (updateChip) updateChip.textContent = 'Up to date';
+			const updateBtn = document.getElementById('update-btn');
+			if (updateBtn) updateBtn.style.display = 'none';
+			showBanner('Firmware is up to date', 'success');
+		}
+	}catch(err){
+		if (updateChip) updateChip.textContent = 'Error';
+		showBanner('Check failed: '+err.message, 'error');
+	}finally{
+		if (btn) btn.disabled = false;
+	}
+}
+
+async function triggerOTAUpdate(){
+	if (!confirm('Ready to update firmware? The device will reboot.')) return;
+	const btn = document.getElementById('update-btn');
+	if (btn) {
+		btn.disabled = true;
+		btn.textContent = 'Updating...';
+	}
+	try{
+		const res = await fetch('/api/ota/update', { method: 'POST' });
+		const data = await res.json();
+		if (data.status === 'ok') {
+			showBanner('Update started! Device rebooting...', 'success');
+			setTimeout(() => {
+				window.location.reload();
+			}, 3000);
+		} else {
+			showBanner(data.message || 'Update failed', 'error');
+		}
+	}catch(err){
+		showBanner('Update request failed: '+err.message, 'error');
+	}finally{
+		if (btn) {
+			btn.disabled = false;
+			btn.textContent = 'Update Available';
+		}
+	}
 }
 
 document.addEventListener('DOMContentLoaded',()=>{
