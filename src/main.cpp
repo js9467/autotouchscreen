@@ -14,6 +14,7 @@
 #include <lvgl.h>
 #include <WiFi.h>
 #include <string>
+#include <esp_ota_ops.h>
 
 #include "can_manager.h"
 #include "config_manager.h"
@@ -225,6 +226,16 @@ void setup() {
     // Launch WiFi access point + web server
     WebServerManager::instance().begin();
     OTAUpdateManager::instance().begin();
+
+    // Mark OTA partition as valid to prevent rollback
+    const esp_partition_t* running = esp_ota_get_running_partition();
+    esp_ota_img_states_t ota_state;
+    if (esp_ota_get_state_partition(running, &ota_state) == ESP_OK) {
+        if (ota_state == ESP_OTA_IMG_PENDING_VERIFY) {
+            Serial.println("[OTA] New firmware verified - marking partition as valid");
+            esp_ota_mark_app_valid_cancel_rollback();
+        }
+    }
 
     Serial.println("=================================");
     Serial.println(" Touch the screen or open http://192.168.4.250 ");
