@@ -1,4 +1,4 @@
-﻿{
+{
   "version": "1.3.61",
   "channel": "stable",
   "changelog": "Add CAN test API endpoint for InfinityBox PowerCell diagnostics - includes /api/can/send for J1939 frame transmission",
