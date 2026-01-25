@@ -179,7 +179,8 @@ void setup() {
     // Note: LCD_BL (GPIO2 on expander) is NOT set here - backlight is controlled via PWM on GPIO6
     expander->multiPinMode(TP_RST | LCD_RST | SD_CS | USB_SEL, OUTPUT);
     expander->multiDigitalWrite(TP_RST | LCD_RST | SD_CS, HIGH);
-    expander->digitalWrite(USB_SEL, LOW);
+    // USB_SEL HIGH enables CAN transceiver on GPIO19/20 (disables USB function)
+    expander->digitalWrite(USB_SEL, HIGH);
     panel->addIOExpander(expander);
 
     // LVGL draw buffers in PSRAM

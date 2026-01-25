@@ -66,6 +66,19 @@ bool CanManager::sendFrame(const CanFrameConfig& frame) {
         return false;
     }
 
+    // Check for bus errors and recover if needed
+    twai_status_info_t status;
+    if (twai_get_status_info(&status) == ESP_OK) {
+        if (status.state == TWAI_STATE_BUS_OFF) {
+            Serial.println("[CanManager] Bus-off detected, initiating recovery");
+            twai_initiate_recovery();
+            vTaskDelay(pdMS_TO_TICKS(100));
+        } else if (status.state == TWAI_STATE_RECOVERING) {
+            Serial.println("[CanManager] Bus is recovering, waiting...");
+            vTaskDelay(pdMS_TO_TICKS(50));
+        }
+    }
+
     twai_message_t message = {};
     message.identifier = buildIdentifier(frame);
     message.extd = 1;
@@ -77,6 +90,11 @@ bool CanManager::sendFrame(const CanFrameConfig& frame) {
     esp_err_t result = twai_transmit(&message, pdMS_TO_TICKS(50));
     if (result != ESP_OK) {
         Serial.printf("[CanManager] Failed to transmit frame (err=%d)\n", static_cast<int>(result));
+        // Log the bus state for debugging
+        if (twai_get_status_info(&status) == ESP_OK) {
+            Serial.printf("[CanManager] Bus state: %d, TX errors: %lu, RX errors: %lu\n",
+                         status.state, status.tx_error_counter, status.rx_error_counter);
+        }
         return false;
     }
 
