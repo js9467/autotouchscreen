@@ -1,13 +1,6 @@
 name: OTA Deploy
 
 on:
-  push:
-    branches: [ main ]
-    paths:
-      - 'src/**'
-      - 'lib/**'
-      - 'platformio.ini'
-      - '.version_state.json'
   release:
     types: [published]
   workflow_dispatch:
@@ -38,12 +31,8 @@ jobs:
             VERSION="$RELEASE_TAG"
           fi
           VERSION="${VERSION#v}"
-          # If no version provided, read from .version_state.json
           if [ -z "$VERSION" ]; then
-            VERSION=$(jq -r '"\(.major).\(.minor).\(.build)"' .version_state.json)
-          fi
-          if [ -z "$VERSION" ]; then
-            echo "A version number is required." >&2
+            echo "A version number is required. Provide one when manually dispatching this workflow or publish a tagged release." >&2
             exit 1
           fi
           echo "value=$VERSION" >> "$GITHUB_OUTPUT"
