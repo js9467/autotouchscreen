@@ -407,6 +407,7 @@ bool OTAUpdateManager::downloadAndInstall(const ManifestInfo& manifest) {
             }
         } else {
             delay(1);
+            yield(); // Feed watchdog
         }
         
         // Timeout check
@@ -423,19 +424,26 @@ bool OTAUpdateManager::downloadAndInstall(const ManifestInfo& manifest) {
         return false;
     }
 
+    Serial.println("[OTA] Finalizing update...");
+    updateOtaProgress(99);
+    yield(); // Feed watchdog before final operations
+    
     if (!Update.end(true)) {
         Update.printError(Serial);
         setStatus("update-end-failed");
         return false;
     }
 
+    Serial.println("[OTA] Update successful, saving config...");
     setStatus(std::string("updated-to-") + manifest.version);
 
     auto& config = ConfigManager::instance().getConfig();
     config.version = manifest.version;
     ConfigManager::instance().save();
 
-    delay(500);
+    Serial.println("[OTA] Restarting in 2 seconds...");
+    updateOtaProgress(100);
+    delay(2000);
     ESP.restart();
     return true;
 }
