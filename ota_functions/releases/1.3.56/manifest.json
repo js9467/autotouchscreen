@@ -1,10 +1,10 @@
 {
-  "version": "1.3.56",
-  "channel": "stable",
-  "released_at": "2026-01-25T14:45:22Z",
-  "firmware": {
-    "url": "firmware.bin",
-    "size": 2768608,
-    "md5": "7f2b908376f24b29c9445db68ef84173"
-  }
+    "released_at":  "2026-01-24T22:02:20Z",
+    "channel":  "stable",
+    "firmware":  {
+                     "url":  "firmware.bin",
+                     "md5":  "27ee17ece940206d4ef18e2c956f4b94",
+                     "size":  2768144
+                 },
+    "version":  "1.3.56"
 }
