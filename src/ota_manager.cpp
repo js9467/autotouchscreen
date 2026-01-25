@@ -467,25 +467,25 @@ bool OTAUpdateManager::downloadAndInstall(const ManifestInfo& manifest) {
     Serial.println("[OTA] Firmware update finalized");
     updateOtaProgress(99);
     
-    // Update config with new version
-    auto& config = ConfigManager::instance().getConfig();
-    config.version = manifest.version;
-    if (!ConfigManager::instance().save()) {
-        Serial.println("[OTA] Warning: Failed to save config");
-    }
+    // CRITICAL FIX: Do NOT save config before restart!
+    // ConfigManager operations during flash transition can cause hangs
+    // The device will auto-detect the new firmware version on boot
     
-    setStatus(std::string("updated-to-") + manifest.version);
-    Serial.println("[OTA] Configuration saved");
+    setStatus("firmware-restart-pending");
+    Serial.println("[OTA] Skipping config save - will auto-detect version on boot");
     updateOtaProgress(100);
     
-    // Wait with frequent yields before restart
-    Serial.println("[OTA] Restarting in 4 seconds...");
-    for (int i = 0; i < 40; i++) {
+    // Wait with aggressive watchdog feeding before restart
+    Serial.println("[OTA] Restarting in 5 seconds...");
+    for (int i = 0; i < 50; i++) {
         delay(100);
         yield();
+        if (i % 10 == 0) {
+            Serial.printf("[OTA] Restart in %d seconds\n", 5 - (i / 10));
+        }
     }
     
-    Serial.println("[OTA] Restarting now...");
+    Serial.println("[OTA] **INITIATING RESTART**");
     ESP.restart();
     
     // Should never reach here

@@ -225,6 +225,15 @@ void setup() {
         Serial.println("[Config] Failed to mount LittleFS; factory defaults applied.");
     }
 
+    // Auto-detect firmware version if it differs from APP_VERSION (after OTA update)
+    auto& config = ConfigManager::instance().getConfig();
+    if (config.version != APP_VERSION) {
+        Serial.printf("[Boot] Firmware version changed: %s -> %s\n", config.version.c_str(), APP_VERSION);
+        config.version = APP_VERSION;
+        ConfigManager::instance().save();
+        Serial.println("[Boot] Version updated and saved");
+    }
+
     // Ready CAN (TWAI) bus
     CanManager::instance().begin();
 
