@@ -15,10 +15,10 @@ bool CanManager::begin(gpio_num_t tx_pin, gpio_num_t rx_pin, std::uint32_t bitra
     rx_pin_ = rx_pin;
     bitrate_ = bitrate;
 
-    twai_general_config_t g_config = TWAI_GENERAL_CONFIG_DEFAULT(tx_pin_, rx_pin_, TWAI_MODE_NORMAL);
+    twai_general_config_t g_config = TWAI_GENERAL_CONFIG_DEFAULT(tx_pin_, rx_pin_, TWAI_MODE_NO_ACK);
     g_config.tx_queue_len = 10;
     g_config.rx_queue_len = 10;
-    g_config.alerts_enabled = TWAI_ALERT_NONE;
+    g_config.alerts_enabled = TWAI_ALERT_BUS_ERROR | TWAI_ALERT_BUS_OFF | TWAI_ALERT_BUS_RECOVERED;
 
     if (bitrate_ != 250000) {
         Serial.println("[CanManager] Unsupported bitrate requested. Falling back to 250 kbps.");
@@ -120,4 +120,43 @@ std::uint32_t CanManager::buildIdentifier(const CanFrameConfig& frame) const {
            (static_cast<std::uint32_t>(pdu_format) << 16) |
            (static_cast<std::uint32_t>(pdu_specific) << 8) |
            (static_cast<std::uint32_t>(frame.source_address));
+}
+
+bool CanManager::receiveMessage(CanRxMessage& msg, uint32_t timeout_ms) {
+    if (!ready_) {
+        return false;
+    }
+
+    twai_message_t rx_msg;
+    esp_err_t result = twai_receive(&rx_msg, pdMS_TO_TICKS(timeout_ms));
+    
+    if (result != ESP_OK) {
+        return false;
+    }
+
+    msg.identifier = rx_msg.identifier;
+    msg.length = rx_msg.data_length_code;
+    msg.timestamp = millis();
+    
+    for (uint8_t i = 0; i < msg.length && i < 8; i++) {
+        msg.data[i] = rx_msg.data[i];
+    }
+
+    return true;
+}
+
+std::vector<CanRxMessage> CanManager::receiveAll(uint32_t timeout_ms) {
+    std::vector<CanRxMessage> messages;
+    
+    uint32_t start_time = millis();
+    while (millis() - start_time < timeout_ms) {
+        CanRxMessage msg;
+        if (receiveMessage(msg, 10)) {
+            messages.push_back(msg);
+        } else {
+            break;
+        }
+    }
+    
+    return messages;
 }

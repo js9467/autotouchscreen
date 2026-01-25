@@ -5,5 +5,5 @@
     "size": 2773568,
     "md5": "8c950331b46c6d2e9735b8b780a538e1"
   },
-  "releaseNotes": "CAN bus error recovery - LOOP FIX"
+  "releaseNotes": "CAN error recovery - CLEAN BUILD"
 }

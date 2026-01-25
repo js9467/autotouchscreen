@@ -2,8 +2,17 @@
 
 #include <Arduino.h>
 #include <hal/gpio_types.h>
+#include <vector>
 
 #include "config_types.h"
+
+// Struct for received CAN messages (different from CanMessage in config_types.h)
+struct CanRxMessage {
+    uint32_t identifier;
+    uint8_t data[8];
+    uint8_t length;
+    uint32_t timestamp;
+};
 
 class CanManager {
 public:
@@ -16,6 +25,9 @@ public:
     bool sendButtonAction(const ButtonConfig& button);
     bool sendButtonReleaseAction(const ButtonConfig& button);
     bool sendFrame(const CanFrameConfig& frame);
+    
+    bool receiveMessage(CanRxMessage& msg, uint32_t timeout_ms = 10);
+    std::vector<CanRxMessage> receiveAll(uint32_t timeout_ms = 100);
 
     bool isReady() const { return ready_; }
 

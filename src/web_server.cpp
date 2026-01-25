@@ -511,6 +511,36 @@ void WebServerManager::setupRoutes() {
             request->send(success ? 200 : 500, "application/json", payload);
         });
 
+    // Receive CAN messages endpoint
+    server_.on("/api/can/receive", HTTP_GET, [](AsyncWebServerRequest* request) {
+        uint32_t timeout = 500;
+        if (request->hasParam("timeout")) {
+            timeout = request->getParam("timeout")->value().toInt();
+        }
+
+        std::vector<CanRxMessage> messages = CanManager::instance().receiveAll(timeout);
+        
+        DynamicJsonDocument doc(4096);
+        JsonArray array = doc.createNestedArray("messages");
+        
+        for (const auto& msg : messages) {
+            JsonObject msgObj = array.createNestedObject();
+            msgObj["id"] = String(msg.identifier, HEX);
+            msgObj["timestamp"] = msg.timestamp;
+            
+            JsonArray dataArray = msgObj.createNestedArray("data");
+            for (uint8_t i = 0; i < msg.length; i++) {
+                dataArray.add(msg.data[i]);
+            }
+        }
+        
+        doc["count"] = messages.size();
+        
+        String payload;
+        serializeJson(doc, payload);
+        request->send(200, "application/json", payload);
+    });
+
     // Suspension template preview (static HTML)
     server_.on("/suspension", HTTP_GET, [](AsyncWebServerRequest* request) {
         AsyncWebServerResponse* response = request->beginResponse_P(200, "text/html", SUSPENSION_PAGE_HTML);
