@@ -18,10 +18,12 @@ class CanManager {
 public:
     static CanManager& instance();
 
-    static constexpr gpio_num_t DEFAULT_TX_PIN = static_cast<gpio_num_t>(20);
-    static constexpr gpio_num_t DEFAULT_RX_PIN = static_cast<gpio_num_t>(19);
+    // Per Waveshare official documentation and demo code
+    static constexpr gpio_num_t DEFAULT_TX_PIN = static_cast<gpio_num_t>(19);
+    static constexpr gpio_num_t DEFAULT_RX_PIN = static_cast<gpio_num_t>(20);
 
     bool begin(gpio_num_t tx_pin = DEFAULT_TX_PIN, gpio_num_t rx_pin = DEFAULT_RX_PIN, std::uint32_t bitrate = 250000);
+    void stop();
     bool sendButtonAction(const ButtonConfig& button);
     bool sendButtonReleaseAction(const ButtonConfig& button);
     bool sendFrame(const CanFrameConfig& frame);

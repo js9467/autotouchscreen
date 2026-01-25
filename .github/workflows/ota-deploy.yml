@@ -1,6 +1,13 @@
 name: OTA Deploy
 
 on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'src/**'
+      - 'lib/**'
+      - 'platformio.ini'
+      - '.version_state.json'
   release:
     types: [published]
   workflow_dispatch:
@@ -31,8 +38,12 @@ jobs:
             VERSION="$RELEASE_TAG"
           fi
           VERSION="${VERSION#v}"
+          # If no version provided, read from .version_state.json
           if [ -z "$VERSION" ]; then
-            echo "A version number is required. Provide one when manually dispatching this workflow or publish a tagged release." >&2
+            VERSION=$(jq -r '"\(.major).\(.minor).\(.build)"' .version_state.json)
+          fi
+          if [ -z "$VERSION" ]; then
+            echo "A version number is required." >&2
             exit 1
           fi
           echo "value=$VERSION" >> "$GITHUB_OUTPUT"
@@ -64,15 +75,15 @@ jobs:
           constexpr const char* APP_VERSION = "${{ steps.version.outputs.value }}";
           EOF
 
-      - name: Build firmware (esp32s3box)
-        run: pio run -e esp32s3box
+      - name: Build firmware (waveshare_7in)
+        run: pio run -e waveshare_7in
 
       - name: Prepare OTA payload
         run: |
           VERSION="${{ steps.version.outputs.value }}"
           RELEASE_DIR="ota_functions/releases/${VERSION}"
           mkdir -p "$RELEASE_DIR"
-          cp .pio/build/esp32s3box/firmware.bin "$RELEASE_DIR/firmware.bin"
+          cp .pio/build/waveshare_7in/firmware.bin "$RELEASE_DIR/firmware.bin"
           SIZE=$(stat -c%s "$RELEASE_DIR/firmware.bin")
           MD5=$(md5sum "$RELEASE_DIR/firmware.bin" | cut -d' ' -f1)
           RELEASED_AT=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
