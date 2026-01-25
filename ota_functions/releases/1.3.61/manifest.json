@@ -1,10 +1,12 @@
 ﻿{
-    "changelog":  "Add CAN test API endpoint for InfinityBox diagnostics",
-    "firmware":  {
-                     "url":  "https://image-optimizer-still-flower-1282.fly.dev/ota/releases/1.3.61/firmware.bin",
-                     "md5":  "4c9473f5702d5973a3244e34d37eb692",
-                     "size":  2773072
-                 },
-    "min_version":  "1.0.0",
-    "version":  "1.3.61"
+  "version": "1.3.61",
+  "channel": "stable",
+  "changelog": "Add CAN test API endpoint for InfinityBox diagnostics",
+  "min_version": "1.0.0",
+  "firmware": {
+    "url": "https://image-optimizer-still-flower-1282.fly.dev/ota/releases/1.3.61/firmware.bin",
+    "md5": "4c9473f5702d5973a3244e34d37eb692",
+    "size": 2773072
+  }
+}
 }
