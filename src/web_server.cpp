@@ -5,6 +5,7 @@
 #include <AsyncJson.h>
 #include <cstddef>
 
+#include "can_manager.h"
 #include "config_manager.h"
 #include "ota_manager.h"
 #include "ui_builder.h"
@@ -467,6 +468,48 @@ void WebServerManager::setupRoutes() {
         serializeJson(doc, payload);
         request->send(200, "application/json", payload);
     });
+
+    // Test CAN frame endpoint
+    server_.on("/api/can/send", HTTP_POST, [](AsyncWebServerRequest* request) {}, nullptr,
+        [](AsyncWebServerRequest* request, uint8_t* data, size_t len, size_t index, size_t total) {
+            DynamicJsonDocument doc(512);
+            DeserializationError error = deserializeJson(doc, data, len);
+            
+            if (error) {
+                request->send(400, "application/json", "{\"error\":\"Invalid JSON\"}");
+                return;
+            }
+
+            CanFrameConfig frame;
+            frame.enabled = true;
+            frame.pgn = doc["pgn"] | 0xFF01;
+            frame.priority = doc["priority"] | 6;
+            frame.source_address = doc["source"] | 0xF9;
+            frame.destination_address = doc["destination"] | 0xFF;
+            
+            JsonArray dataArray = doc["data"];
+            if (dataArray.isNull()) {
+                request->send(400, "application/json", "{\"error\":\"Missing data array\"}");
+                return;
+            }
+            
+            size_t idx = 0;
+            for (JsonVariant v : dataArray) {
+                if (idx >= frame.data.size()) break;
+                frame.data[idx++] = v.as<uint8_t>();
+            }
+
+            bool success = CanManager::instance().sendFrame(frame);
+            
+            DynamicJsonDocument response(256);
+            response["success"] = success;
+            response["pgn"] = String(frame.pgn, HEX);
+            response["bytes"] = idx;
+            
+            String payload;
+            serializeJson(response, payload);
+            request->send(success ? 200 : 500, "application/json", payload);
+        });
 
     // Suspension template preview (static HTML)
     server_.on("/suspension", HTTP_GET, [](AsyncWebServerRequest* request) {
