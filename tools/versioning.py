@@ -10,17 +10,18 @@ project_dir = Path(env["PROJECT_DIR"])
 state_path = project_dir / ".version_state.json"
 header_path = project_dir / "src" / "version_auto.h"
 
-version_state = {"major": 1, "minor": 0, "build": 0}
+version_state = {"major": 1, "minor": 3, "build": 50}
 if state_path.exists():
     try:
         version_state.update(json.loads(state_path.read_text()))
     except Exception:
         pass
 
-version_state["build"] = int(version_state.get("build", 0)) + 1
+# DO NOT auto-increment - use fixed version from state file
 version_string = f"{version_state['major']}.{version_state['minor']}.{version_state['build']}"
 
-state_path.write_text(json.dumps(version_state, indent=2) + "\n")
+# Only write state file if it doesn't exist or version changed manually
+# state_path.write_text(json.dumps(version_state, indent=2) + "\n")
 
 generated = (
     "#pragma once\n"
