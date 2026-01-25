@@ -430,7 +430,7 @@ void WebServerManager::setupRoutes() {
     server_.on("/api/ota/check", HTTP_GET, [](AsyncWebServerRequest* request) {
         DynamicJsonDocument doc(256);
         OTAUpdateManager& ota = OTAUpdateManager::instance();
-        ota.triggerImmediateCheck(false);
+        ota.checkForUpdatesNow();
 
         const std::string status = ota.lastStatus();
         bool update_available = false;
@@ -443,6 +443,8 @@ void WebServerManager::setupRoutes() {
             available_version = status.substr(kUpdatePrefix.size());
         } else if (status.rfind(kDownloadingPrefix, 0) == 0) {
             available_version = status.substr(kDownloadingPrefix.size());
+        } else if (status == "up-to-date") {
+            available_version = APP_VERSION;
         }
 
         doc["status"] = status.c_str();

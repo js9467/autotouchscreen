@@ -12,6 +12,7 @@ public:
     void begin();
     void loop(const WifiStatusSnapshot& wifi_status);
     void triggerImmediateCheck(bool install_now = false);
+    void checkForUpdatesNow();
     const std::string& lastStatus() const { return last_status_; }
 
 private:
