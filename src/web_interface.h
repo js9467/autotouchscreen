@@ -205,6 +205,17 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); bo
 </style>
 </head>
 <body>
+<script>
+// Define tab switching early so tabs work even if later scripts fail
+function switchTab(tabName){
+	document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+	document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+	const btn=document.querySelector(`[data-tab="${tabName}"]`);
+	const tab=document.getElementById(`tab-${tabName}`);
+	if(btn) btn.classList.add('active');
+	if(tab) tab.classList.add('active');
+}
+</script>
 <div class="hero">
 	<div>
 		<h1>CAN controls configurator</h1>

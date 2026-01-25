@@ -1,21 +1,23 @@
-# fly.toml app configuration file
+# fly.toml app configuration file generated for image-optimizer-still-flower-1282 on 2026-01-24T20:36:31-05:00
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
+
 app = 'image-optimizer-still-flower-1282'
-primary_region = 'iad'
+primary_region = 'sjc'
 
 [build]
-
-[env]
-  PORT = "8080"
-  OTA_RELEASES_DIR = "/app/releases"
 
 [http_service]
   internal_port = 8080
   force_https = true
-  auto_stop_machines = "stop"
+  auto_stop_machines = 'stop'
   auto_start_machines = true
   min_machines_running = 0
-  processes = ["app"]
+  processes = ['app']
 
 [[vm]]
   memory = '1gb'
+  cpu_kind = 'shared'
   cpus = 1
+  memory_mb = 1024

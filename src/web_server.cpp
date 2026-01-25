@@ -16,7 +16,7 @@ namespace {
 const IPAddress kApIp(192, 168, 4, 250);
 const IPAddress kApGateway(192, 168, 4, 250);
 const IPAddress kApMask(255, 255, 255, 0);
-constexpr std::size_t kConfigJsonLimit = 524288;  // 512KB for config with base64 images (base64 adds ~33% overhead)
+constexpr std::size_t kConfigJsonLimit = 1048576;  // 1MB to allow larger configs (base64 assets)
 constexpr std::size_t kWifiConnectJsonLimit = 1024;
 constexpr std::size_t kImageUploadJsonLimit = 1048576;  // 1MB limit for header/base64 payloads
 constexpr std::size_t kImageUploadContentLimit = 1048576;
