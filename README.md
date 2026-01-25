@@ -4,6 +4,22 @@ A polished, rugged automotive HMI (Human-Machine Interface) with a Bronco-themed
 
 > Repository mirror: https://github.com/js9467/autotouchscreen
 
+## ⚠️ IMPORTANT: Deployment Process
+
+**All code changes MUST use the standardized deployment script to prevent version management issues:**
+
+```powershell
+.\deploy.ps1 -Changelog "Description of changes"
+```
+
+**See [DEPLOYMENT_README.md](DEPLOYMENT_README.md) for complete instructions.**
+
+### For AI Agents
+- Read [.ai-instructions.md](.ai-instructions.md) - Contains critical rules
+- **NEVER** manually edit: `src/version_auto.h`, `ota_functions/manifest.json`, or manifest files
+- **ALWAYS** use `deploy.ps1` for deployments
+- Cursor IDE: Rules in [.cursorrules](.cursorrules)
+
 ## Hardware Specifications
 
 - **Display**: 800×480 RGB LCD with ST7262 controller (4.3" and 7.0" panels)
