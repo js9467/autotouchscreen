@@ -3,7 +3,6 @@
 .vscode/c_cpp_properties.json
 .vscode/launch.json
 .vscode/ipch
-.version_state.json
 
 # Tools/deploy build artifacts (bundled in BroncoFlasher.zip)
 tools/deploy/firmware.bin
