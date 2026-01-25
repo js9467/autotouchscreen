@@ -16,10 +16,10 @@ namespace {
 const IPAddress kApIp(192, 168, 4, 250);
 const IPAddress kApGateway(192, 168, 4, 250);
 const IPAddress kApMask(255, 255, 255, 0);
-constexpr std::size_t kConfigJsonLimit = 1048576;  // 1MB to allow larger configs (base64 assets)
+constexpr std::size_t kConfigJsonLimit = 2097152;  // 2MB to allow larger configs (base64 assets)
 constexpr std::size_t kWifiConnectJsonLimit = 1024;
-constexpr std::size_t kImageUploadJsonLimit = 1048576;  // 1MB limit for header/base64 payloads
-constexpr std::size_t kImageUploadContentLimit = 1048576;
+constexpr std::size_t kImageUploadJsonLimit = 2097152;  // 2MB limit for header/base64 payloads
+constexpr std::size_t kImageUploadContentLimit = 2097152;
 constexpr std::uint32_t kWifiReconfigureDelayMs = 750;  // Allow HTTP responses to finish before toggling radios
 
 const char* AuthModeToString(wifi_auth_mode_t mode) {
