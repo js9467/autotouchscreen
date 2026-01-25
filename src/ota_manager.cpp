@@ -377,7 +377,7 @@ bool OTAUpdateManager::downloadAndInstall(const ManifestInfo& manifest) {
     // Download in chunks to allow UI updates and show progress
     WiFiClient* stream = http.getStreamPtr();
     size_t written = 0;
-    uint8_t buffer[4096];  // Larger buffer for faster download
+    uint8_t buffer[512];  // Smaller buffer = more frequent watchdog feeds
     unsigned long last_update_ms = millis();
     unsigned long last_data_ms = millis();
     const unsigned long kReadTimeout = 30000;  // 30 second timeout for no data
@@ -387,6 +387,8 @@ bool OTAUpdateManager::downloadAndInstall(const ManifestInfo& manifest) {
     updateOtaProgress(0);
     
     while (written < content_length) {
+        yield();  // Feed watchdog BEFORE every iteration
+        
         size_t available = stream->available();
         unsigned long now = millis();
         
@@ -397,6 +399,8 @@ bool OTAUpdateManager::downloadAndInstall(const ManifestInfo& manifest) {
             size_t read_bytes = stream->readBytes(buffer, to_read);
             
             if (read_bytes > 0) {
+                yield();  // Feed watchdog BEFORE write (critical!)
+                
                 size_t chunk_written = Update.write(buffer, read_bytes);
                 if (chunk_written != read_bytes) {
                     Serial.printf("[OTA] Write failed: expected %u, wrote %u\n", read_bytes, chunk_written);
@@ -407,17 +411,14 @@ bool OTAUpdateManager::downloadAndInstall(const ManifestInfo& manifest) {
                 }
                 written += chunk_written;
                 
+                yield();  // Feed watchdog AFTER write
+                
                 // Update progress bar
                 if (now - last_update_ms >= 500 || written >= content_length) {
                     uint8_t progress = (written * 100) / content_length;
                     Serial.printf("[OTA] Progress: %u%% (%u/%u bytes)\n", progress, written, content_length);
                     updateOtaProgress(progress);
                     last_update_ms = now;
-                }
-                
-                // Feed watchdog frequently
-                if ((written % 4096) == 0) {
-                    yield();
                 }
             }
         } else {
