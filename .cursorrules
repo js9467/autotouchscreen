@@ -1,0 +1,43 @@
+# Cursor AI Rules for Bronco Controls Project
+
+## Version Management - CRITICAL RULES
+
+1. **NEVER manually edit version files:**
+   - src/version_auto.h
+   - ota_functions/manifest.json
+   - ota_functions/releases/*/manifest.json
+
+2. **ALWAYS use deploy.ps1 for deployments:**
+   ```powershell
+   .\deploy.ps1 -Changelog "Description of changes"
+   ```
+
+3. **NEVER use PowerShell ConvertTo-Json for manifest files**
+   - It adds incorrect formatting that breaks OTA server
+   - deploy.ps1 handles JSON formatting correctly
+
+4. **Deployment workflow:**
+   - Make code changes
+   - Run: `.\deploy.ps1 -Changelog "What changed"`
+   - Script handles: version bump, build, OTA release, git commit, push, deploy
+
+5. **See .ai-instructions.md for complete details**
+
+## Code Style
+
+- ESP32/Arduino: C++ with modern features (C++17)
+- Web server: Async patterns, JSON communication
+- CAN: J1939 protocol, 250kbps, extended frames
+- UI: LVGL for display graphics
+
+## Testing
+
+- Local build: `pio run -e waveshare_7in`
+- USB upload: `pio run -e waveshare_7in --target upload --upload-port COMX`
+- OTA trigger: `Invoke-RestMethod -Uri 'http://192.168.7.116/api/ota/update' -Method POST`
+
+## Files to Never Modify Directly
+
+- src/version_auto.h (managed by deploy.ps1)
+- ota_functions/manifest.json (managed by deploy.ps1)
+- ota_functions/releases/*/manifest.json (managed by deploy.ps1)
