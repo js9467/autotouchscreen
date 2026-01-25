@@ -353,7 +353,13 @@ bool OTAUpdateManager::downloadAndInstall(const ManifestInfo& manifest) {
         content_length = manifest.size;
     }
 
-    if (!Update.begin(content_length > 0 ? content_length : UPDATE_SIZE_UNKNOWN)) {
+    if (content_length == 0) {
+        setStatus("firmware-size-unknown");
+        http.end();
+        return false;
+    }
+
+    if (!Update.begin(content_length)) {
         Update.printError(Serial);
         setStatus("update-begin-failed");
         http.end();
@@ -371,17 +377,22 @@ bool OTAUpdateManager::downloadAndInstall(const ManifestInfo& manifest) {
     // Download in chunks to allow UI updates and show progress
     WiFiClient* stream = http.getStreamPtr();
     size_t written = 0;
-    uint8_t buffer[1024];
+    uint8_t buffer[4096];  // Larger buffer for faster download
     unsigned long last_update_ms = millis();
+    unsigned long last_data_ms = millis();
+    const unsigned long kReadTimeout = 30000;  // 30 second timeout for no data
     
     Serial.printf("[OTA] Starting download: %u bytes\n", content_length);
-    
-    // Show OTA update screen
     showOtaScreen(manifest.version);
+    updateOtaProgress(0);
     
-    while (stream->connected() && (content_length == 0 || written < content_length)) {
+    while (written < content_length) {
         size_t available = stream->available();
+        unsigned long now = millis();
+        
         if (available > 0) {
+            last_data_ms = now;  // Reset timeout on data received
+            
             size_t to_read = (available > sizeof(buffer)) ? sizeof(buffer) : available;
             size_t read_bytes = stream->readBytes(buffer, to_read);
             
@@ -389,75 +400,95 @@ bool OTAUpdateManager::downloadAndInstall(const ManifestInfo& manifest) {
                 size_t chunk_written = Update.write(buffer, read_bytes);
                 if (chunk_written != read_bytes) {
                     Serial.printf("[OTA] Write failed: expected %u, wrote %u\n", read_bytes, chunk_written);
-                    break;
+                    Update.abort();
+                    http.end();
+                    setStatus("firmware-write-failed");
+                    return false;
                 }
                 written += chunk_written;
                 
-                // Update progress bar every second
-                unsigned long now = millis();
-                if (now - last_update_ms >= 1000) {
-                    if (content_length > 0) {
-                        uint8_t progress = (written * 100) / content_length;
-                        Serial.printf("[OTA] Progress: %u%% (%u/%u bytes)\n", progress, written, content_length);
-                        updateOtaProgress(progress);
-                    }
+                // Update progress bar
+                if (now - last_update_ms >= 500 || written >= content_length) {
+                    uint8_t progress = (written * 100) / content_length;
+                    Serial.printf("[OTA] Progress: %u%% (%u/%u bytes)\n", progress, written, content_length);
+                    updateOtaProgress(progress);
                     last_update_ms = now;
-                    yield(); // Allow other tasks to run
+                }
+                
+                // Feed watchdog frequently
+                if ((written % 4096) == 0) {
+                    yield();
                 }
             }
         } else {
-            delay(1);
-            yield(); // Feed watchdog
-        }
-        
-        // Timeout check
-        if (content_length > 0 && written >= content_length) {
-            break;
+            // No data available - check timeout
+            if (now - last_data_ms > kReadTimeout) {
+                Serial.printf("[OTA] Download timeout - no data for %lu ms\n", now - last_data_ms);
+                Update.abort();
+                http.end();
+                setStatus("firmware-timeout");
+                return false;
+            }
+            
+            // Keep feeding watchdog while waiting for data
+            delay(10);
+            yield();
         }
     }
     
     http.end();
     Serial.printf("[OTA] Download complete: %u bytes\n", written);
 
-    if (written == 0) {
-        setStatus("firmware-empty");
+    if (written != content_length) {
+        Serial.printf("[OTA] Size mismatch: expected %u, got %u\n", content_length, written);
+        Update.abort();
+        setStatus("firmware-size-mismatch");
         return false;
     }
 
+    // Finalize update - this is critical and can hang
     Serial.println("[OTA] Finalizing update...");
-    updateOtaProgress(99);
-    for (int i = 0; i < 5; i++) {
-        yield(); // Feed watchdog multiple times
-        delay(10);
+    updateOtaProgress(98);
+    
+    // Feed watchdog thoroughly before final step
+    for (int i = 0; i < 10; i++) {
+        yield();
+        delay(5);
     }
     
-    // Use Update.end(false) to avoid automatic restart, so we can control timing
+    // Use Update.end(false) to prevent automatic restart
     if (!Update.end(false)) {
+        Serial.println("[OTA] Update.end() failed");
         Update.printError(Serial);
         setStatus("update-end-failed");
         return false;
     }
 
-    Serial.println("[OTA] Update finalized successfully");
-    yield();
+    Serial.println("[OTA] Firmware update finalized");
+    updateOtaProgress(99);
     
     // Update config with new version
     auto& config = ConfigManager::instance().getConfig();
     config.version = manifest.version;
-    ConfigManager::instance().save();
+    if (!ConfigManager::instance().save()) {
+        Serial.println("[OTA] Warning: Failed to save config");
+    }
     
     setStatus(std::string("updated-to-") + manifest.version);
     Serial.println("[OTA] Configuration saved");
     updateOtaProgress(100);
     
     // Wait with frequent yields before restart
-    Serial.println("[OTA] Restarting in 3 seconds...");
-    for (int i = 0; i < 30; i++) {
+    Serial.println("[OTA] Restarting in 4 seconds...");
+    for (int i = 0; i < 40; i++) {
         delay(100);
         yield();
     }
     
+    Serial.println("[OTA] Restarting now...");
     ESP.restart();
+    
+    // Should never reach here
     return true;
 }
 
