@@ -87,12 +87,12 @@ function Send-CANFrame {
     try {
         $response = Invoke-RestMethod -Uri $BaseURL -Method POST -Body $body -ContentType "application/json" -TimeoutSec 2
         if ($response.success) {
-            Write-Host "  ✓ Sent PGN 0x$($response.pgn) ($($response.bytes) bytes)" -ForegroundColor Green
+            Write-Host "  [OK] Sent PGN 0x$($response.pgn) ($($response.bytes) bytes)" -ForegroundColor Green
         } else {
-            Write-Host "  ✗ Failed to send frame" -ForegroundColor Red
+            Write-Host "  [FAIL] Failed to send frame" -ForegroundColor Red
         }
     } catch {
-        Write-Host "  ✗ Error: $($_.Exception.Message)" -ForegroundColor Red
+        Write-Host "  [ERROR] Error: $($_.Exception.Message)" -ForegroundColor Red
     }
 }
 
@@ -157,4 +157,5 @@ Write-Host "`nIf no response, verify:" -ForegroundColor Yellow
 Write-Host "  - CAN bus termination (120Ω resistors)" -ForegroundColor White
 Write-Host "  - CAN_H and CAN_L wiring is correct" -ForegroundColor White
 Write-Host "  - PowerCell is powered and configured to correct address" -ForegroundColor White
-Write-Host "  - Baud rate is 250kbps on both devices`n" -ForegroundColor White
+Write-Host "  - Baud rate is 250kbps on both devices" -ForegroundColor White
+Write-Host ""
