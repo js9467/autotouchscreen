@@ -303,6 +303,7 @@ void WebServerManager::setupRoutes() {
             serializeJson(doc, payload);
             request->send(200, "application/json", payload);
         }, kConfigJsonLimit);
+    handler->setMaxContentLength(kConfigJsonLimit);  // CRITICAL: Also set max content length to 2MB
     server_.addHandler(handler);
 
     auto* wifi_handler = new AsyncCallbackJsonWebHandler("/api/wifi/connect",
