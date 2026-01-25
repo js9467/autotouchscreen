@@ -426,24 +426,37 @@ bool OTAUpdateManager::downloadAndInstall(const ManifestInfo& manifest) {
 
     Serial.println("[OTA] Finalizing update...");
     updateOtaProgress(99);
-    yield(); // Feed watchdog before final operations
+    for (int i = 0; i < 5; i++) {
+        yield(); // Feed watchdog multiple times
+        delay(10);
+    }
     
-    if (!Update.end(true)) {
+    // Use Update.end(false) to avoid automatic restart, so we can control timing
+    if (!Update.end(false)) {
         Update.printError(Serial);
         setStatus("update-end-failed");
         return false;
     }
 
-    Serial.println("[OTA] Update successful, saving config...");
-    setStatus(std::string("updated-to-") + manifest.version);
-
+    Serial.println("[OTA] Update finalized successfully");
+    yield();
+    
+    // Update config with new version
     auto& config = ConfigManager::instance().getConfig();
     config.version = manifest.version;
     ConfigManager::instance().save();
-
-    Serial.println("[OTA] Restarting in 2 seconds...");
+    
+    setStatus(std::string("updated-to-") + manifest.version);
+    Serial.println("[OTA] Configuration saved");
     updateOtaProgress(100);
-    delay(2000);
+    
+    // Wait with frequent yields before restart
+    Serial.println("[OTA] Restarting in 3 seconds...");
+    for (int i = 0; i < 30; i++) {
+        delay(100);
+        yield();
+    }
+    
     ESP.restart();
     return true;
 }
