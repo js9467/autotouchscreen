@@ -315,13 +315,153 @@ void loop() {
                 Serial.printf("[CMD] b=%d%%\n", value);
                 delay(400);
             }
+        } else if (cmd.startsWith("canpoll ")) {
+            // Poll POWERCELL NGX: canpoll <address>
+            int address = cmd.substring(8).toInt();
+            if (address >= 1 && address <= 16) {
+                Serial.printf("[CAN] Polling POWERCELL NGX at address %d\n", address);
+                
+                // Build polling CAN ID: FF4X with source address 0x63
+                uint32_t pgn = 0xFF40 + (address == 16 ? 0 : address);
+                CanFrameConfig frame;
+                frame.enabled = true;
+                frame.pgn = pgn;
+                frame.priority = 6;
+                frame.source_address = 0x63;
+                frame.destination_address = 0xFF;
+                frame.data = {0x11, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+                
+                if (CanManager::instance().sendFrame(frame)) {
+                    Serial.println("[CAN] Poll message sent - listening for response...");
+                    
+                    // Listen for response (FF5X)
+                    uint32_t start = millis();
+                    while (millis() - start < 1000) {
+                        CanRxMessage msg;
+                        if (CanManager::instance().receiveMessage(msg, 50)) {
+                            Serial.printf("[CAN] RX ID: 0x%08lX, DLC: %d, Data: ", msg.identifier, msg.length);
+                            for (uint8_t i = 0; i < msg.length; i++) {
+                                Serial.printf("%02X ", msg.data[i]);
+                            }
+                            Serial.println();
+                        }
+                    }
+                } else {
+                    Serial.println("[CAN] Failed to send poll message");
+                }
+            } else {
+                Serial.println("[CMD] Usage: canpoll <1-16>");
+            }
+        } else if (cmd == "canmon") {
+            // Monitor CAN bus for 10 seconds
+            Serial.println("[CAN] Monitoring CAN bus for 10 seconds...");
+            uint32_t start = millis();
+            int count = 0;
+            while (millis() - start < 10000) {
+                CanRxMessage msg;
+                if (CanManager::instance().receiveMessage(msg, 100)) {
+                    count++;
+                    Serial.printf("[CAN] #%d ID: 0x%08lX, DLC: %d, Data: ", count, msg.identifier, msg.length);
+                    for (uint8_t i = 0; i < msg.length; i++) {
+                        Serial.printf("%02X ", msg.data[i]);
+                    }
+                    Serial.println();
+                }
+            }
+            Serial.printf("[CAN] Monitoring complete. Received %d messages.\n", count);
+        } else if (cmd.startsWith("canconfig ")) {
+            // Send configuration to POWERCELL NGX: canconfig <address>
+            int address = cmd.substring(10).toInt();
+            if (address >= 1 && address <= 16) {
+                Serial.printf("[CAN] Configuring POWERCELL NGX at address %d\n", address);
+                Serial.println("[CAN] Config: 250kb/s, 10s LOC timer, 250ms reporting, 200Hz PWM");
+                
+                // Build configuration CAN ID: FF4X with source address 0x63
+                uint32_t pgn = 0xFF40 + (address == 16 ? 0 : address);
+                CanFrameConfig frame;
+                frame.enabled = true;
+                frame.pgn = pgn;
+                frame.priority = 6;
+                frame.source_address = 0x63;
+                frame.destination_address = 0xFF;
+                // Configuration: 0x99 confirmation, 0x01 (250kb/s, 10s, 250ms, 200Hz), all outputs maintain state, config rev 0
+                frame.data = {0x99, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+                
+                if (CanManager::instance().sendFrame(frame)) {
+                    Serial.println("[CAN] Configuration sent! Power cycle the POWERCELL NGX to apply.");
+                } else {
+                    Serial.println("[CAN] Failed to send configuration");
+                }
+            } else {
+                Serial.println("[CMD] Usage: canconfig <1-16>");
+            }
+        } else if (cmd.startsWith("cansend ")) {
+            // Raw CAN send: cansend <pgn_hex> <byte0> <byte1> ...
+            String params = cmd.substring(8);
+            params.trim();
+            int spaceIdx = params.indexOf(' ');
+            if (spaceIdx > 0) {
+                String pgnStr = params.substring(0, spaceIdx);
+                uint32_t pgn = strtoul(pgnStr.c_str(), nullptr, 16);
+                
+                CanFrameConfig frame;
+                frame.enabled = true;
+                frame.pgn = pgn;
+                frame.priority = 6;
+                frame.source_address = 0x63;
+                frame.destination_address = 0xFF;
+                frame.data = {0, 0, 0, 0, 0, 0, 0, 0};
+                
+                String dataStr = params.substring(spaceIdx + 1);
+                int idx = 0;
+                int byteCount = 0;
+                while (idx < dataStr.length() && byteCount < 8) {
+                    while (idx < dataStr.length() && dataStr.charAt(idx) == ' ') idx++;
+                    if (idx >= dataStr.length()) break;
+                    
+                    String byteStr = "";
+                    while (idx < dataStr.length() && dataStr.charAt(idx) != ' ') {
+                        byteStr += dataStr.charAt(idx++);
+                    }
+                    if (byteStr.length() > 0) {
+                        frame.data[byteCount++] = strtoul(byteStr.c_str(), nullptr, 16);
+                    }
+                }
+                
+                Serial.printf("[CAN] Sending PGN 0x%04lX with %d bytes\n", pgn, byteCount);
+                if (CanManager::instance().sendFrame(frame)) {
+                    Serial.println("[CAN] Message sent successfully");
+                } else {
+                    Serial.println("[CAN] Failed to send message");
+                }
+            } else {
+                Serial.println("[CMD] Usage: cansend <pgn_hex> <byte0_hex> <byte1_hex> ...");
+                Serial.println("[CMD] Example: cansend FF41 11 00 00 00 00 00 00 00");
+            }
+        } else if (cmd == "canstatus") {
+            Serial.println("\n=== CAN Bus Status ===");
+            Serial.printf("CAN Ready: %s\n", CanManager::instance().isReady() ? "YES" : "NO");
+            Serial.println("TX Pin: GPIO20");
+            Serial.println("RX Pin: GPIO19");
+            Serial.println("Bitrate: 250 kbps");
+            Serial.println("Mode: NO_ACK (for testing without termination)");
+            Serial.println("======================\n");
         } else if (cmd == "help" || cmd == "?") {
             Serial.println("\n=== Serial Commands ===");
-            Serial.println("b <0-100>        - Set brightness (e.g., 'b 50')");
-            Serial.println("brightness <0-100> - Set brightness");
-            Serial.println("blinfo           - Print backlight pin/PWM info");
-            Serial.println("btest            - Step brightness 100->0->100");
-            Serial.println("help or ?        - Show this help");
+            Serial.println("BRIGHTNESS:");
+            Serial.println("  b <0-100>        - Set brightness (e.g., 'b 50')");
+            Serial.println("  brightness <0-100> - Set brightness");
+            Serial.println("  blinfo           - Print backlight pin/PWM info");
+            Serial.println("  btest            - Step brightness 100->0->100");
+            Serial.println("CAN BUS (Infinitybox POWERCELL NGX):");
+            Serial.println("  canstatus        - Show CAN bus status");
+            Serial.println("  canpoll <1-16>   - Poll POWERCELL NGX at address");
+            Serial.println("  canconfig <1-16> - Configure POWERCELL NGX (default settings)");
+            Serial.println("  canmon           - Monitor CAN bus for 10 seconds");
+            Serial.println("  cansend <pgn> <data> - Send raw CAN frame");
+            Serial.println("                     Example: cansend FF41 11 00 00 00 00 00 00 00");
+            Serial.println("GENERAL:");
+            Serial.println("  help or ?        - Show this help");
             Serial.println("======================\n");
         } else if (cmd.length() > 0) {
             Serial.printf("[CMD] Unknown command: '%s' (type 'help' for commands)\n", cmd.c_str());
