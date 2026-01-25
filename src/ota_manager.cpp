@@ -216,6 +216,36 @@ void OTAUpdateManager::triggerImmediateCheck(bool install_now) {
     }
 }
 
+void OTAUpdateManager::checkForUpdatesNow() {
+    if (!enabled_) {
+        setStatus("disabled");
+        return;
+    }
+
+    if (WiFi.status() != WL_CONNECTED) {
+        wifi_ready_ = false;
+        setStatus("waiting-for-wifi");
+        return;
+    }
+
+    wifi_ready_ = true;
+    ManifestInfo manifest;
+    if (!fetchManifest(manifest)) {
+        return;
+    }
+
+    if (!expected_channel_.empty() && !manifest.channel.empty() && manifest.channel != expected_channel_) {
+        setStatus("manifest-channel-mismatch");
+        return;
+    }
+
+    if (isNewerVersion(manifest.version)) {
+        setStatus(std::string("update-available-") + manifest.version);
+    } else {
+        setStatus("up-to-date");
+    }
+}
+
 bool OTAUpdateManager::fetchManifest(ManifestInfo& manifest) {
     if (manifest_url_.empty()) {
         setStatus("manifest-url-empty");

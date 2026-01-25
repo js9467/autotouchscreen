@@ -2477,6 +2477,12 @@ async function saveConfig(){
 	// Remove images from config - they're uploaded separately via /api/image/upload
 	const configToSave = JSON.parse(JSON.stringify(config));
 	delete configToSave.images;
+	if (configToSave.header) {
+		delete configToSave.header.logo_base64;
+	}
+	if (configToSave.display) {
+		delete configToSave.display.sleep_icon_base64;
+	}
 
 	try{
 		const res = await fetch('/api/config',{ method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(configToSave) });
