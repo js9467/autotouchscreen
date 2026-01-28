@@ -13,6 +13,7 @@
 #include <ESP_Panel_Conf.h>
 #include <lvgl.h>
 #include <WiFi.h>
+#include <Wire.h>
 #include <string>
 #include <esp_ota_ops.h>
 
@@ -173,15 +174,18 @@ void setup() {
     // Initialize display panel
     panel = new ESP_Panel();
 
-    // Configure IO expander
+    // Configure IO expander - create and add to panel, let panel->init() handle full initialization
     ESP_IOExpander* expander = new ESP_IOExpander_CH422G(I2C_MASTER_NUM, ESP_IO_EXPANDER_I2C_CH422G_ADDRESS_000);
     expander->init();
     expander->begin();
     expander->multiPinMode(TP_RST | LCD_RST | SD_CS | USB_SEL, OUTPUT);
     expander->multiDigitalWrite(TP_RST | LCD_RST | SD_CS, HIGH);
-    // NOTE: IO expander init fails (I2C not ready) but device still boots
-    // CAN transceiver works without explicitly setting USB_SEL
-    Serial.println("[Boot] IO Expander configured");
+    
+    // CRITICAL: Set USB_SEL HIGH to enable CAN transceiver
+    // Without this, the SN65HVD230 CAN transceiver remains unpowered/disabled
+    // and GPIO19 RX will not receive any CAN messages
+    expander->digitalWrite(USB_SEL, HIGH);
+    Serial.println("[Boot] IO Expander configured (USB_SEL=HIGH for CAN transceiver)");
     panel->addIOExpander(expander);
 
     // LVGL draw buffers in PSRAM
@@ -218,6 +222,34 @@ void setup() {
 #endif
     panel->begin();
 
+    // CRITICAL: Re-ensure USB_SEL is HIGH after panel initialization
+    // The ESP_IOExpander may have been reset during panel->init()
+    // USB_SEL (bit 5) must be HIGH to power the CAN transceiver
+    delay(50);
+    if (expander) {
+        expander->digitalWrite(USB_SEL, HIGH);
+        Serial.println("[Boot] USB_SEL set HIGH for CAN transceiver");
+    }
+
+    // === CAN INITIALIZATION (after I2C is ready) ===
+    Serial.println("\n[CAN] Initializing CAN bus...");
+    CanManager::instance().begin();
+    
+    if (CanManager::instance().isReady()) {
+        Serial.println("[CAN] ✓ TWAI driver initialized successfully!");
+        Serial.printf("[CAN]   TX=GPIO%d, RX=GPIO%d\n", CanManager::instance().txPin(), CanManager::instance().rxPin());
+    } else {
+        Serial.println("[CAN] ✗ TWAI driver FAILED - CAN will not work");
+    }
+    Serial.println();
+
+    // Enable backlight
+    auto *backlight = panel->getBacklight();
+    if (backlight) {
+        backlight->on();
+        backlight->setBrightness(255);
+    }
+
     // Start LVGL background task
     lvgl_mux = xSemaphoreCreateRecursiveMutex();
     xTaskCreate(lvgl_port_task, "lvgl", LVGL_TASK_STACK_SIZE, nullptr, LVGL_TASK_PRIORITY, nullptr);
@@ -236,27 +268,7 @@ void setup() {
         Serial.println("[Boot] Version updated and saved");
     }
 
-    // === CAN INITIALIZATION WITH DIAGNOSTICS ===
-    Serial.println("\n[CAN] Starting CAN bus initialization...");
-    Serial.println("[CAN] Using default pins: TX=GPIO20, RX=GPIO19");
-    
-    CanManager::instance().begin();
-    
-    if (CanManager::instance().isReady()) {
-        Serial.println("[CAN] ✓ TWAI driver initialized successfully!");
-        Serial.printf("[CAN]   TX Pin: GPIO%d\n", CanManager::instance().txPin());
-        Serial.printf("[CAN]   RX Pin: GPIO%d\n", CanManager::instance().rxPin());
-        Serial.println("[CAN] CAN bus is ready to send/receive frames");
-    } else {
-        Serial.println("[CAN] ✗ TWAI driver FAILED to initialize");
-        Serial.println("[CAN] Possible causes:");
-        Serial.println("[CAN]   - USB_SEL GPIO expander pin not set correctly");
-        Serial.println("[CAN]   - GPIO 19/20 already in use");
-        Serial.println("[CAN]   - CAN transceiver not powered");
-        Serial.println("[CAN] CAN frames will NOT be available");
-    }
-    Serial.println();
-
+    // CAN was already initialized before panel (see above)
     // Build the themed UI once before networking spins up
     lvgl_port_lock(-1);
     UITheme::init();
