@@ -22,6 +22,18 @@ app.use((req, res, next) => {
 
 app.get("/health", (req, res) => res.json({ ok: true }));
 
+// Serve root manifest.json for OTA updates
+app.get("/manifest.json", (req, res) => {
+  const manifestPath = path.join(process.cwd(), "manifest.json");
+  if (fs.existsSync(manifestPath)) {
+    res.setHeader("Cache-Control", "no-store");
+    res.setHeader("Content-Type", "application/json");
+    res.sendFile(manifestPath);
+  } else {
+    res.status(404).json({ error: "Manifest not found" });
+  }
+});
+
 app.get("/ota/releases", (req, res) => {
   const versions = listReleaseVersions();
   const origin = getRequestOrigin(req);

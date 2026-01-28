@@ -34,6 +34,30 @@
 				"--target",
 				"erase"
 			]
+		},
+		{
+			"label": "CAN Serial Probe",
+			"type": "shell",
+			"command": "python",
+			"args": [
+				"tools\\can_serial_probe.py"
+			],
+			"group": "test"
+		},
+		{
+			"label": "Upload to COM5",
+			"type": "shell",
+			"command": "pio",
+			"args": [
+				"run",
+				"--target",
+				"upload",
+				"--upload-port",
+				"COM5",
+				"-e",
+				"waveshare_7in"
+			],
+			"group": "build"
 		}
 	]
 }

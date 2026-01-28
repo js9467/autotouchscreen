@@ -76,6 +76,7 @@ static const PanelConfig& SelectPanelConfig()
 // Globals
 ESP_Panel* panel = nullptr;
 SemaphoreHandle_t lvgl_mux = nullptr;
+static bool g_disable_ota = false;
 
 // Forward declarations for LVGL helpers
 void lvgl_port_lock(int timeout_ms);
@@ -176,11 +177,11 @@ void setup() {
     ESP_IOExpander* expander = new ESP_IOExpander_CH422G(I2C_MASTER_NUM, ESP_IO_EXPANDER_I2C_CH422G_ADDRESS_000);
     expander->init();
     expander->begin();
-    // Note: LCD_BL (GPIO2 on expander) is NOT set here - backlight is controlled via PWM on GPIO6
     expander->multiPinMode(TP_RST | LCD_RST | SD_CS | USB_SEL, OUTPUT);
     expander->multiDigitalWrite(TP_RST | LCD_RST | SD_CS, HIGH);
-    // USB_SEL HIGH enables CAN transceiver on GPIO19/20 (disables USB function)
-    expander->digitalWrite(USB_SEL, HIGH);
+    // NOTE: IO expander init fails (I2C not ready) but device still boots
+    // CAN transceiver works without explicitly setting USB_SEL
+    Serial.println("[Boot] IO Expander configured");
     panel->addIOExpander(expander);
 
     // LVGL draw buffers in PSRAM
@@ -235,8 +236,26 @@ void setup() {
         Serial.println("[Boot] Version updated and saved");
     }
 
-    // Ready CAN (TWAI) bus
+    // === CAN INITIALIZATION WITH DIAGNOSTICS ===
+    Serial.println("\n[CAN] Starting CAN bus initialization...");
+    Serial.println("[CAN] Using default pins: TX=GPIO20, RX=GPIO19");
+    
     CanManager::instance().begin();
+    
+    if (CanManager::instance().isReady()) {
+        Serial.println("[CAN] ✓ TWAI driver initialized successfully!");
+        Serial.printf("[CAN]   TX Pin: GPIO%d\n", CanManager::instance().txPin());
+        Serial.printf("[CAN]   RX Pin: GPIO%d\n", CanManager::instance().rxPin());
+        Serial.println("[CAN] CAN bus is ready to send/receive frames");
+    } else {
+        Serial.println("[CAN] ✗ TWAI driver FAILED to initialize");
+        Serial.println("[CAN] Possible causes:");
+        Serial.println("[CAN]   - USB_SEL GPIO expander pin not set correctly");
+        Serial.println("[CAN]   - GPIO 19/20 already in use");
+        Serial.println("[CAN]   - CAN transceiver not powered");
+        Serial.println("[CAN] CAN frames will NOT be available");
+    }
+    Serial.println();
 
     // Build the themed UI once before networking spins up
     lvgl_port_lock(-1);
@@ -441,11 +460,35 @@ void loop() {
         } else if (cmd == "canstatus") {
             Serial.println("\n=== CAN Bus Status ===");
             Serial.printf("CAN Ready: %s\n", CanManager::instance().isReady() ? "YES" : "NO");
-            Serial.println("TX Pin: GPIO20");
-            Serial.println("RX Pin: GPIO19");
+            Serial.printf("TX Pin: GPIO%u\n", (unsigned)CanManager::instance().txPin());
+            Serial.printf("RX Pin: GPIO%u\n", (unsigned)CanManager::instance().rxPin());
             Serial.println("Bitrate: 250 kbps");
             Serial.println("Mode: NO_ACK (for testing without termination)");
             Serial.println("======================\n");
+        } else if (cmd.startsWith("canreinit ")) {
+            // Reinitialize CAN with custom pins: canreinit <tx_pin> <rx_pin>
+            String params = cmd.substring(9);
+            params.trim();
+            int spaceIdx = params.indexOf(' ');
+            if (spaceIdx > 0) {
+                int tx = params.substring(0, spaceIdx).toInt();
+                int rx = params.substring(spaceIdx + 1).toInt();
+                Serial.printf("[CAN] Reinit with TX=%d RX=%d at 250kbps...\n", tx, rx);
+                CanManager::instance().stop();
+                if (CanManager::instance().begin(static_cast<gpio_num_t>(tx), static_cast<gpio_num_t>(rx), 250000)) {
+                    Serial.println("[CAN] Reinitialized successfully");
+                } else {
+                    Serial.println("[CAN] Reinit failed");
+                }
+            } else {
+                Serial.println("[CMD] Usage: canreinit <tx_pin> <rx_pin>");
+            }
+        } else if (cmd == "otaoff") {
+            g_disable_ota = true;
+            Serial.println("[OTA] Auto-update disabled for testing");
+        } else if (cmd == "otaon") {
+            g_disable_ota = false;
+            Serial.println("[OTA] Auto-update enabled");
         } else if (cmd == "help" || cmd == "?") {
             Serial.println("\n=== Serial Commands ===");
             Serial.println("BRIGHTNESS:");
@@ -497,15 +540,17 @@ void loop() {
         last_network_push_ms = now;
     }
 
-    OTAUpdateManager& ota = OTAUpdateManager::instance();
-    ota.loop(snapshot);
+    if (!g_disable_ota) {
+        OTAUpdateManager& ota = OTAUpdateManager::instance();
+        ota.loop(snapshot);
 
-    const std::string& ota_status = ota.lastStatus();
-    if (ota_status != last_ota_status_pushed) {
-        lvgl_port_lock(-1);
-        UIBuilder::instance().updateOtaStatus(ota_status);
-        lvgl_port_unlock();
-        last_ota_status_pushed = ota_status;
+        const std::string& ota_status = ota.lastStatus();
+        if (ota_status != last_ota_status_pushed) {
+            lvgl_port_lock(-1);
+            UIBuilder::instance().updateOtaStatus(ota_status);
+            lvgl_port_unlock();
+            last_ota_status_pushed = ota_status;
+        }
     }
 
     WebServerManager::instance().loop();

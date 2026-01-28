@@ -127,32 +127,29 @@ OTAUpdateManager& OTAUpdateManager::instance() {
 void OTAUpdateManager::begin() {
     const auto& ota_cfg = ConfigManager::instance().getConfig().ota;
     enabled_ = ota_cfg.enabled;
-    auto_apply_ = ota_cfg.auto_apply;
     manifest_url_ = ota_cfg.manifest_url;
     expected_channel_ = ota_cfg.channel.empty() ? "stable" : ota_cfg.channel;
-    const std::uint32_t minutes = clampIntervalMinutes(ota_cfg.check_interval_minutes);
-    base_check_interval_ms_ = minutes * 60UL * 1000UL;
-    last_check_ms_ = 0;
     wifi_ready_ = false;
-    internet_available_ = false;
     pending_manual_check_ = false;
-    last_status_ = enabled_ ? "waiting-for-wifi" : "disabled";
+    last_status_ = enabled_ ? "manual-only" : "disabled";
 
     if (manifest_url_.empty()) {
         enabled_ = false;
         last_status_ = "missing-manifest-url";
         Serial.println("[OTA] Disabled: manifest URL not configured");
     }
+    
+    Serial.println("[OTA] Initialized in manual-only mode");
 }
 
 void OTAUpdateManager::loop(const WifiStatusSnapshot& wifi_status) {
+    // Manual-only updates: no automatic polling
     if (!enabled_) {
         return;
     }
 
     if (!wifi_status.sta_connected) {
         wifi_ready_ = false;
-        internet_available_ = false;
         if (pending_manual_check_ || manual_install_requested_) {
             Serial.printf("[OTA] Manual check blocked: WiFi STA not connected\n");
             pending_manual_check_ = false;
@@ -164,28 +161,17 @@ void OTAUpdateManager::loop(const WifiStatusSnapshot& wifi_status) {
 
     if (!wifi_ready_) {
         wifi_ready_ = true;
-        pending_manual_check_ = true;  // First connection triggers immediate check
         setStatus("wifi-ready");
         Serial.printf("[OTA] WiFi now ready\n");
     }
 
-    const std::uint32_t now = millis();
-    const std::uint32_t interval_ms = internet_available_
-        ? onlineIntervalMs(base_check_interval_ms_)
-        : base_check_interval_ms_;
-    const bool due = (last_check_ms_ == 0) || (now - last_check_ms_ >= interval_ms);
-    
-    if (pending_manual_check_) {
-        Serial.printf("[OTA] Processing pending manual check\n");
-    }
-    
-    if (!due && !pending_manual_check_) {
+    // Only process manual check requests
+    if (!pending_manual_check_) {
         return;
     }
 
-    Serial.printf("[OTA] Starting OTA check (due=%d, manual=%d)\n", due, pending_manual_check_);
+    Serial.printf("[OTA] Processing manual check/install request\n");
     pending_manual_check_ = false;
-    last_check_ms_ = now;
 
     ManifestInfo manifest;
     if (!fetchManifest(manifest)) {
@@ -265,6 +251,8 @@ bool OTAUpdateManager::fetchManifest(ManifestInfo& manifest) {
     http.setUserAgent(kUserAgent);
     http.setTimeout(30000);  // Increased timeout to 30 seconds
     http.setConnectTimeout(15000);  // 15 second connection timeout
+    http.addHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+    http.addHeader("Pragma", "no-cache");
 
     Serial.println("[OTA] Sending HTTP GET request...");
     const int http_code = http.GET();
@@ -320,12 +308,18 @@ bool OTAUpdateManager::applyManifest(const ManifestInfo& manifest, bool force_in
         return true;
     }
 
-    if (!auto_apply_ && !force_install) {
+    // Manual-only mode: only install if explicitly requested
+    if (!force_install) {
         setStatus(std::string("update-available-") + manifest.version);
         return true;
     }
 
-    return downloadAndInstall(manifest);
+    // User requested install
+    if (!downloadAndInstall(manifest)) {
+        return false;
+    }
+
+    return true;
 }
 
 bool OTAUpdateManager::downloadAndInstall(const ManifestInfo& manifest) {

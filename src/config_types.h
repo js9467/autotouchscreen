@@ -20,6 +20,7 @@ struct CanFrameConfig {
     std::uint8_t source_address = 0x80;
     std::uint8_t destination_address = 0xFF;  // Broadcast by default
     std::array<std::uint8_t, 8> data{};
+    std::uint8_t length = 0;  // Actual number of data bytes to transmit (0-8)
 };
 
 struct ButtonConfig {
@@ -91,10 +92,10 @@ struct WifiConfig {
 
 struct OTAConfig {
     bool enabled = true;
-    bool auto_apply = false;  // Manual updates - user must confirm
+    // bool auto_apply = false;  // Removed - manual-only
     std::string manifest_url = kOtaManifestUrl;
     std::string channel = "stable";
-    std::uint32_t check_interval_minutes = 60;  // Minutes between background checks
+    // std::uint32_t check_interval_minutes = 60;  // Removed - manual-only
 };
 
 struct HeaderConfig {

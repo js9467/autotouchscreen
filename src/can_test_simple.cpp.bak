@@ -1,0 +1,236 @@
+/**
+ * Simple CAN Bus Test Firmware
+ * No WiFi, no OTA, no UI - just serial commands and CAN
+ * 
+ * NOTE: This file is compiled but setup() and loop() are disabled
+ * since they conflict with main.cpp. Uncomment #if 0 below to use this as standalone firmware.
+ */
+
+#if 0  // Disabled - conflicts with main.cpp
+
+#include <Arduino.h>
+#include <driver/twai.h>
+
+// CAN pins for Waveshare 7" (GPIO19=TX, GPIO20=RX)
+#define CAN_TX_PIN GPIO_NUM_19
+#define CAN_RX_PIN GPIO_NUM_20
+
+bool can_ready = false;
+
+void setup() {
+    Serial.begin(115200);
+    delay(1000);
+    
+    Serial.println("\n\n=================================");
+    Serial.println("   CAN Bus Test Firmware v1.0");
+    Serial.println("=================================");
+    Serial.println("Type 'help' for commands\n");
+    
+    // Initialize CAN bus
+    Serial.printf("Initializing CAN bus on TX=%d, RX=%d...\n", CAN_TX_PIN, CAN_RX_PIN);
+    
+    twai_general_config_t g_config = TWAI_GENERAL_CONFIG_DEFAULT(CAN_TX_PIN, CAN_RX_PIN, TWAI_MODE_NORMAL);
+    g_config.tx_queue_len = 10;
+    g_config.rx_queue_len = 10;
+    
+    twai_timing_config_t t_config = TWAI_TIMING_CONFIG_250KBITS();
+    twai_filter_config_t f_config = TWAI_FILTER_CONFIG_ACCEPT_ALL();
+    
+    if (twai_driver_install(&g_config, &t_config, &f_config) != ESP_OK) {
+        Serial.println("ERROR: Failed to install TWAI driver");
+        return;
+    }
+    
+    if (twai_start() != ESP_OK) {
+        Serial.println("ERROR: Failed to start TWAI driver");
+        return;
+    }
+    
+    can_ready = true;
+    Serial.println("CAN bus ready at 250 kbps (NORMAL mode)");
+    Serial.println("Ready for commands!\n");
+}
+
+void print_help() {
+    Serial.println("\n=== CAN Test Commands ===");
+    Serial.println("  help             - Show this help");
+    Serial.println("  status           - Show CAN status");
+    Serial.println("  send <id> <data> - Send CAN frame");
+    Serial.println("                     Example: send 18FF4163 1100000000000000");
+    Serial.println("  mon <seconds>    - Monitor CAN bus");
+    Serial.println("                     Example: mon 10");
+    Serial.println("  poll <addr>      - Poll InfinityBox POWERCELL");
+    Serial.println("                     Example: poll 1");
+    Serial.println("========================\n");
+}
+
+void print_status() {
+    Serial.println("\n=== CAN Status ===");
+    Serial.printf("Ready: %s\n", can_ready ? "YES" : "NO");
+    Serial.printf("TX Pin: GPIO%d\n", CAN_TX_PIN);
+    Serial.printf("RX Pin: GPIO%d\n", CAN_RX_PIN);
+    Serial.println("Bitrate: 250 kbps");
+    Serial.println("Mode: NORMAL");
+    
+    if (can_ready) {
+        twai_status_info_t status;
+        if (twai_get_status_info(&status) == ESP_OK) {
+            Serial.printf("State: %d\n", status.state);
+            Serial.printf("TX Errors: %lu\n", status.tx_error_counter);
+            Serial.printf("RX Errors: %lu\n", status.rx_error_counter);
+            Serial.printf("TX Failed: %lu\n", status.tx_failed_count);
+            Serial.printf("RX Missed: %lu\n", status.rx_missed_count);
+        }
+    }
+    Serial.println("==================\n");
+}
+
+void send_can_frame(uint32_t id, const uint8_t* data, uint8_t len) {
+    if (!can_ready) {
+        Serial.println("ERROR: CAN not ready");
+        return;
+    }
+    
+    twai_message_t msg;
+    msg.identifier = id;
+    msg.extd = 1;  // Extended ID
+    msg.data_length_code = len;
+    memcpy(msg.data, data, len);
+    
+    Serial.printf("Sending CAN ID 0x%08lX, len=%d: ", id, len);
+    for (int i = 0; i < len; i++) {
+        Serial.printf("%02X ", data[i]);
+    }
+    Serial.println();
+    
+    esp_err_t result = twai_transmit(&msg, pdMS_TO_TICKS(1000));
+    if (result == ESP_OK) {
+        Serial.println("  -> TX SUCCESS");
+    } else {
+        Serial.printf("  -> TX FAILED (err=%d)\n", result);
+    }
+}
+
+void monitor_can(int seconds) {
+    if (!can_ready) {
+        Serial.println("ERROR: CAN not ready");
+        return;
+    }
+    
+    Serial.printf("Monitoring CAN bus for %d seconds...\n", seconds);
+    Serial.println("(Press any key to stop early)\n");
+    
+    uint32_t start = millis();
+    int count = 0;
+    
+    while (millis() - start < (seconds * 1000UL)) {
+        // Check for user input to stop
+        if (Serial.available()) {
+            Serial.read();
+            break;
+        }
+        
+        twai_message_t msg;
+        if (twai_receive(&msg, pdMS_TO_TICKS(100)) == ESP_OK) {
+            count++;
+            Serial.printf("#%d [%lu ms] ID: 0x%08lX, DLC: %d, Data: ",
+                         count, millis() - start, msg.identifier, msg.data_length_code);
+            for (int i = 0; i < msg.data_length_code; i++) {
+                Serial.printf("%02X ", msg.data[i]);
+            }
+            Serial.println();
+        }
+    }
+    
+    Serial.printf("\nMonitoring complete. Received %d messages.\n\n", count);
+}
+
+void poll_infinitybox(int address) {
+    if (address < 1 || address > 16) {
+        Serial.println("ERROR: Address must be 1-16");
+        return;
+    }
+    
+    // Build J1939 CAN ID for InfinityBox polling
+    // PGN = 0xFF40 + address (or 0xFF40 if address == 16)
+    uint32_t pgn = (address == 16) ? 0xFF40 : (0xFF40 + address);
+    uint8_t priority = 6;
+    uint8_t source = 0x63;
+    
+    // J1939 29-bit ID: [priority(3)] [reserved(1)] [data_page(1)] [PDU_format(8)] [PDU_specific(8)] [source(8)]
+    uint32_t can_id = (priority << 26) | (pgn << 8) | source;
+    
+    Serial.printf("Polling InfinityBox POWERCELL NGX at address %d\n", address);
+    Serial.printf("  PGN: 0x%04lX, CAN ID: 0x%08lX\n", pgn, can_id);
+    
+    // Poll command: 0x11 in byte 0
+    uint8_t data[8] = {0x11, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+    send_can_frame(can_id, data, 8);
+    
+    // Listen for response
+    Serial.println("Listening for response (5 seconds)...");
+    monitor_can(5);
+}
+
+void process_command(String cmd) {
+    cmd.trim();
+    cmd.toLowerCase();
+    
+    if (cmd == "help" || cmd == "?") {
+        print_help();
+    }
+    else if (cmd == "status") {
+        print_status();
+    }
+    else if (cmd.startsWith("send ")) {
+        // Parse: send <id_hex> <data_hex>
+        int space1 = cmd.indexOf(' ');
+        int space2 = cmd.indexOf(' ', space1 + 1);
+        
+        if (space2 > 0) {
+            String id_str = cmd.substring(space1 + 1, space2);
+            String data_str = cmd.substring(space2 + 1);
+            
+            uint32_t id = strtoul(id_str.c_str(), nullptr, 16);
+            
+            uint8_t data[8] = {0};
+            int len = 0;
+            int idx = 0;
+            
+            while (idx < data_str.length() && len < 8) {
+                String byte_str = data_str.substring(idx, idx + 2);
+                data[len++] = strtoul(byte_str.c_str(), nullptr, 16);
+                idx += 2;
+            }
+            
+            send_can_frame(id, data, len);
+        } else {
+            Serial.println("Usage: send <id_hex> <data_hex>");
+            Serial.println("Example: send 18FF4163 1100000000000000");
+        }
+    }
+    else if (cmd.startsWith("mon ")) {
+        int seconds = cmd.substring(4).toInt();
+        if (seconds > 0) {
+            monitor_can(seconds);
+        } else {
+            Serial.println("Usage: mon <seconds>");
+        }
+    }
+    else if (cmd.startsWith("poll ")) {
+        int addr = cmd.substring(5).toInt();
+        poll_infinitybox(addr);
+    }
+    else if (cmd.length() > 0) {
+        Serial.printf("Unknown command: '%s' (type 'help')\n", cmd.c_str());
+    }
+}
+
+void loop() {
+    if (Serial.available()) {
+        String cmd = Serial.readStringUntil('\n');
+        process_command(cmd);
+    }
+}
+
+#endif  // End of conditional compilation

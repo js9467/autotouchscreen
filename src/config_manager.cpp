@@ -256,10 +256,10 @@ DeviceConfig ConfigManager::buildDefaultConfig() const {
     cfg.wifi.sta.enabled = false;
 
     cfg.ota.enabled = true;
-    cfg.ota.auto_apply = true;
+    // cfg.ota.auto_apply = true;  // Removed - manual-only
     cfg.ota.manifest_url = kOtaManifestUrl;
     cfg.ota.channel = "stable";
-    cfg.ota.check_interval_minutes = 60;
+    // cfg.ota.check_interval_minutes = 60;  // Removed - manual-only
 
     // Initialize available fonts
     cfg.available_fonts.clear();
@@ -410,10 +410,10 @@ void ConfigManager::encodeConfig(const DeviceConfig& source, DynamicJsonDocument
 
     JsonObject ota = doc["ota"].to<JsonObject>();
     ota["enabled"] = source.ota.enabled;
-    ota["auto_apply"] = source.ota.auto_apply;
+    // ota["auto_apply"] = source.ota.auto_apply;  // Removed - manual-only
     ota["manifest_url"] = source.ota.manifest_url.c_str();
     ota["channel"] = source.ota.channel.c_str();
-    ota["check_interval_minutes"] = source.ota.check_interval_minutes;
+    // ota["check_interval_minutes"] = source.ota.check_interval_minutes;  // Removed - manual-only
 
     JsonArray pages = doc["pages"].to<JsonArray>();
     for (const auto& page : source.pages) {
@@ -468,8 +468,8 @@ void ConfigManager::encodeConfig(const DeviceConfig& source, DynamicJsonDocument
             can_obj["destination_address"] = button.can.destination_address;
 
             JsonArray data_arr = can_obj["data"].to<JsonArray>();
-            for (std::uint8_t byte : button.can.data) {
-                data_arr.add(byte);
+            for (std::uint8_t i = 0; i < button.can.length; ++i) {
+                data_arr.add(button.can.data[i]);
             }
 
             JsonObject can_off_obj = btn_obj["can_off"].to<JsonObject>();
@@ -480,8 +480,8 @@ void ConfigManager::encodeConfig(const DeviceConfig& source, DynamicJsonDocument
             can_off_obj["destination_address"] = button.can_off.destination_address;
 
             JsonArray off_data_arr = can_off_obj["data"].to<JsonArray>();
-            for (std::uint8_t byte : button.can_off.data) {
-                off_data_arr.add(byte);
+            for (std::uint8_t i = 0; i < button.can_off.length; ++i) {
+                off_data_arr.add(button.can_off.data[i]);
             }
         }
     }
@@ -593,10 +593,10 @@ bool ConfigManager::decodeConfig(JsonVariantConst json, DeviceConfig& target, st
     JsonObjectConst ota = json["ota"];
     if (!ota.isNull()) {
         target.ota.enabled = ota["enabled"] | target.ota.enabled;
-        target.ota.auto_apply = ota["auto_apply"] | target.ota.auto_apply;
+        // target.ota.auto_apply = ota["auto_apply"] | target.ota.auto_apply;  // Removed - manual-only
         target.ota.channel = safeString(ota["channel"], target.ota.channel);
-        const std::uint32_t interval = ota["check_interval_minutes"] | target.ota.check_interval_minutes;
-        target.ota.check_interval_minutes = clampValue<std::uint32_t>(interval, 5u, 1440u);
+        // const std::uint32_t interval = ota["check_interval_minutes"] | target.ota.check_interval_minutes;  // Removed - manual-only
+        // target.ota.check_interval_minutes = clampValue<std::uint32_t>(interval, 5u, 1440u);  // Removed - manual-only
     }
 
     target.pages.clear();
@@ -684,6 +684,7 @@ bool ConfigManager::decodeConfig(JsonVariantConst json, DeviceConfig& target, st
                                 button.can.data[i] = clampValue<std::uint8_t>(byte_val | 0, 0u, 255u);
                                 ++i;
                             }
+                            button.can.length = static_cast<std::uint8_t>(i);  // Set length based on actual data bytes
                         }
                     }
 
@@ -705,6 +706,7 @@ bool ConfigManager::decodeConfig(JsonVariantConst json, DeviceConfig& target, st
                                 button.can_off.data[i] = clampValue<std::uint8_t>(byte_val | 0, 0u, 255u);
                                 ++i;
                             }
+                            button.can_off.length = static_cast<std::uint8_t>(i);  // Set length based on actual data bytes
                         }
                     }
 

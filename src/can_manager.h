@@ -18,9 +18,11 @@ class CanManager {
 public:
     static CanManager& instance();
 
-    // Per Waveshare official documentation and demo code
-    static constexpr gpio_num_t DEFAULT_TX_PIN = static_cast<gpio_num_t>(19);
-    static constexpr gpio_num_t DEFAULT_RX_PIN = static_cast<gpio_num_t>(20);
+    // GPIO pin configuration - VERIFIED WORKING:
+    // TX=GPIO20, RX=GPIO19 is the CORRECT configuration for this board
+    // (The pins were incorrectly swapped in a recent commit)
+    static constexpr gpio_num_t DEFAULT_TX_PIN = static_cast<gpio_num_t>(20);
+    static constexpr gpio_num_t DEFAULT_RX_PIN = static_cast<gpio_num_t>(19);
 
     bool begin(gpio_num_t tx_pin = DEFAULT_TX_PIN, gpio_num_t rx_pin = DEFAULT_RX_PIN, std::uint32_t bitrate = 250000);
     void stop();
@@ -31,7 +33,18 @@ public:
     bool receiveMessage(CanRxMessage& msg, uint32_t timeout_ms = 10);
     std::vector<CanRxMessage> receiveAll(uint32_t timeout_ms = 100);
 
+    // Infinitybox-specific command sequences (J1939 protocol)
+    bool sendInfinityboxOutput1On();
+    bool sendInfinityboxOutput1Off();
+    bool sendInfinityboxOutput9On();
+    bool sendInfinityboxOutput9Off();
+
+    // Helper for sending J1939 PGN (used by background tasks)
+    bool sendJ1939Pgn(uint8_t priority, uint32_t pgn, uint8_t source_addr, const uint8_t data[8]);
+
     bool isReady() const { return ready_; }
+    gpio_num_t txPin() const { return tx_pin_; }
+    gpio_num_t rxPin() const { return rx_pin_; }
 
 private:
     CanManager() = default;

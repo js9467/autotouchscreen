@@ -18,6 +18,7 @@ COPY server.js ./
 # Bust cache when releases change
 COPY .cachebust ./
 COPY releases ./releases
+COPY manifest.json ./manifest.json
 
 # Fly expects the app to listen on 0.0.0.0 and PORT
 ENV NODE_ENV=production
